@@ -27,11 +27,11 @@ dist-ssr
 
 
 
-
-.claude/
-.env
 node_modules/
+.env
+.claude/
 dist/
 frontend/.vite/
 backend/generated/
 *.db
+.DS_Store
