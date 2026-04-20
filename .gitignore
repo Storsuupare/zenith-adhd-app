@@ -1,0 +1,10 @@
+**/node_modules/
+.env
+.claude/
+dist/
+**/dist/
+frontend/.vite/
+backend/generated/
+*.db
+.DS_Store
+*.local

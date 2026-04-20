@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(PGPASSWORD='Katlamac123?' psql -U postgres -h localhost -d zenith_io_db)"
-    ]
-  }
-}
