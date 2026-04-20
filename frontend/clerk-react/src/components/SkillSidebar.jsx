@@ -88,7 +88,7 @@ const SkillSidebar = ({
     <aside className="operative-status-column">
       <div className="skill-grid-container">
         <div className="header-line" />
-        <h2 className="selector-label">SKILLS</h2>
+        <h2 className="selector-label"></h2>
         <div className="header-line" />
 
         <div className="skill-grid">

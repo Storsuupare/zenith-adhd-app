@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic }) => {
+const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpen }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedItemId, setExpandedItemId] = useState(null);
 
@@ -11,6 +11,14 @@ const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic }) => {
   return (
     <div className="zenith-inventory-system">
       <nav className="inventory-nav-bar">
+        {onShopOpen && (
+          <button className="modern-nav-btn shop-nav-btn" onClick={() => { playHaptic?.("PRESTIGE_EQUIP"); onShopOpen(); }}>
+            <span className="btn-content">
+              <span className="shop-nav-icon">◈</span>
+              <span className="btn-label">Zenith Shop</span>
+            </span>
+          </button>
+        )}
         <div className="nav-divider"></div>
         <button
           className={`modern-nav-btn ${isOpen ? "active" : ""}`}
@@ -19,6 +27,7 @@ const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic }) => {
             setIsOpen(!isOpen);
           }}>
           <span className="btn-content">
+            <span className="shop-nav-icon">{isOpen ? "▣" : "▤"}</span>
             <span className="btn-label">{isOpen ? "Close Bag" : "Open Bag"}</span>
             <span className="item-count">({inventory.length})</span>
           </span>

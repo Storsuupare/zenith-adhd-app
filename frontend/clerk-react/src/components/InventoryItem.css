@@ -1,5 +1,5 @@
 /* ============================================================
-   INVENTORY SYSTEM — Phase-Aware Vault
+   INVENTORY SYSTEM 
    ============================================================ */
 
 .zenith-inventory-system {
@@ -7,13 +7,18 @@
   font-family: "JetBrains Mono", monospace;
 }
 
-/* ---- NAV BAR ---- */
+
 .inventory-nav-bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 15px;
   margin-bottom: 10px;
+}
+
+.shop-nav-icon {
+  color: var(--ui-accent);
+  margin-right: 2px;
 }
 
 .nav-divider {
@@ -68,7 +73,6 @@
   font-size: 0.65rem;
 }
 
-/* ---- VAULT PANEL ---- */
 .inventory-vault-overlay {
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(10px);
@@ -83,14 +87,12 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ---- GRID ---- */
 .vault-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
 }
 
-/* ---- INVENTORY CARD ---- */
 .inventory-card {
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -114,7 +116,6 @@
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 
-/* ---- ITEM HEADER ---- */
 .item-header {
   display: flex;
   flex-direction: column;
@@ -145,7 +146,6 @@
   opacity: 0.85;
 }
 
-/* INFO TOGGLE BUTTON */
 .info-toggle {
   font-family: "JetBrains Mono", monospace;
   font-size: 0.5rem;
@@ -168,7 +168,6 @@
   border-color: color-mix(in srgb, var(--rarity-color, #fff) 50%, transparent);
 }
 
-/* ---- DESCRIPTION LAYER (in-flow, not absolute) ---- */
 .item-description-layer {
   display: flex;
   flex-direction: column;
@@ -229,7 +228,6 @@
   text-shadow: 0 0 10px color-mix(in srgb, var(--rarity-color, #fff) 40%, transparent);
 }
 
-/* ---- ACTION BUTTONS — always visible ---- */
 .item-actions {
   margin-top: auto;
 }
@@ -279,7 +277,6 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--rarity-color, #fff) 20%, transparent);
 }
 
-/* ---- RARITY BORDERS (top strip) ---- */
 .rarity-junk      { border-top: 3px solid rgba(120, 120, 120, 0.6); }
 .rarity-common    { border-top: 3px solid rgba(238, 238, 238, 0.8); }
 .rarity-uncommon  { border-top: 3px solid #1eff00; }
@@ -294,7 +291,6 @@
   box-shadow: 0 0 18px rgba(230, 204, 128, 0.15);
 }
 
-/* ---- EMPTY STATE ---- */
 .empty-vault-notice {
   grid-column: 1 / -1;
   text-align: center;

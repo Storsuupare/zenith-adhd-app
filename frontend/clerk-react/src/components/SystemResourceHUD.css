@@ -1,0 +1,174 @@
+/* ============================================================
+   SYSTEM RESOURCE HUD
+   Matches the glassmorphism design system from StatHUD.css
+   ============================================================ */
+
+.sysres-hud {
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px 22px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Header ── */
+.sysres-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sysres-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Shared dim label — matches .rank-label / .streak-display sizing */
+.sysres-dim-label {
+  font-family: "Inter", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.38);
+  text-transform: uppercase;
+}
+
+.sysres-version-badge {
+  font-family: "Inter", sans-serif;
+  font-size: 0.53rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 2px 7px;
+  line-height: 1.6;
+}
+
+.sysres-credits-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.sysres-credits-value {
+  font-family: "Inter", sans-serif;
+  font-size: 1.0rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  line-height: 1;
+}
+
+/* Shared accent label — matches .xp-suffix */
+.sysres-accent-label {
+  font-family: "Inter", sans-serif;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+  opacity: 0.8;
+}
+
+/* ── Bar sections ── */
+.sysres-bar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sysres-bar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sysres-bar-readout {
+  font-family: "Inter", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* Status-driven color on bandwidth readout */
+.sysres-bar-readout.nominal  { color: var(--ui-accent); }
+.sysres-bar-readout.low      { color: #f59e0b; }
+.sysres-bar-readout.critical { color: #fb7185; }
+.sysres-bar-readout.dim      { color: rgba(255, 255, 255, 0.45); }
+
+.sysres-bar-max {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* Progress track — matches .progress-track */
+.sysres-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 50px;
+  overflow: hidden;
+}
+
+.sysres-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 50px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Bandwidth fill states */
+.sysres-fill.bw-fill.nominal {
+  background: linear-gradient(90deg, var(--ui-accent), rgba(255, 255, 255, 0.85));
+}
+.sysres-fill.bw-fill.low {
+  background: linear-gradient(90deg, #f59e0b, #fcd34d);
+}
+.sysres-fill.bw-fill.critical {
+  background: linear-gradient(90deg, #fb7185, #fca5a5);
+}
+
+/* Experience Data fill — purple to match prestige aesthetic */
+.sysres-fill.xp-fill {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.75), rgba(196, 149, 253, 0.9));
+}
+
+/* ── Module inventory row ── */
+.sysres-modules-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sysres-modules-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Inter", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mod-installed { color: var(--ui-accent); }
+.mod-sep       { color: rgba(255, 255, 255, 0.18); }
+.mod-owned     { color: rgba(255, 255, 255, 0.32); }

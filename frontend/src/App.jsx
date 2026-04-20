@@ -12,7 +12,11 @@ import "../clerk-react/src/components/KineticOverlay.css";
 import "../clerk-react/src/components/InventoryItem.css";
 import "../clerk-react/src/components/ContractCard.css";
 import "../clerk-react/src/components/VolumeSlider.css";
+import "../clerk-react/src/components/SystemResourceHUD.css";
+import "../clerk-react/src/components/ShopModal.css";
 import ContractCard from "../clerk-react/src/components/ContractCard";
+import SystemResourceHUD from "../clerk-react/src/components/SystemResourceHUD";
+import ShopModal from "../clerk-react/src/components/ShopModal";
 import VolumeSlider from "../clerk-react/src/components/VolumeSlider";
 import { prime, setPhase, setProtocol } from "./audio/audioEngine";
 import SkillSidebar from "../clerk-react/src/components/SkillSidebar";
@@ -168,6 +172,9 @@ const App = () => {
   const [levelUpData, setLevelUpData] = useState(null);
   const [isOpening, setIsOpening] = useState(false);
   const [loot, setLoot] = useState(null);
+
+  const [sysRefreshKey, setSysRefreshKey] = useState(0);
+  const [isShopOpen,   setIsShopOpen]   = useState(false);
 
   const fetchUser = async () => {
     if (!clerkUser?.id) return;
@@ -459,18 +466,31 @@ const App = () => {
   useEffect(() => {
     if (!activeMission?.isKinetic || timeLeft <= 0) return;
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const endAt = Date.now() + timeLeft * 1000;
+    let timerId;
 
-    return () => clearInterval(timer);
-  }, [activeMission?.isKinetic, timeLeft]);
+    const tick = () => {
+      const remaining = Math.ceil((endAt - Date.now()) / 1000);
+      setTimeLeft(Math.max(0, remaining));
+      if (remaining > 0) timerId = setTimeout(tick, 1000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearTimeout(timerId);
+      } else {
+        tick();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    timerId = setTimeout(tick, 1000);
+
+    return () => {
+      clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [activeMission?.isKinetic]);
 
   const addNotification = (notif) => {
     const id = Date.now();
@@ -546,6 +566,16 @@ const App = () => {
       });
 
       await fetchUser();
+
+      // Apply system-level rewards (+500 cr, +100 xp, -15 bw) then re-sync HUD
+      try {
+        await axios.post("http://localhost:8000/system/contract-reward", {
+          clerk_id: clerkUser.id,
+        });
+      } catch (rewardErr) {
+        console.warn("[SYSTEM] Contract reward failed:", rewardErr.message);
+      }
+      setSysRefreshKey((k) => k + 1);
 
       setIsOpening(false);
     } catch (err) {
@@ -854,8 +884,29 @@ const App = () => {
   const [solarPhase, setSolarPhase] = useState(getSolarPhase());
 
   useEffect(() => {
-    const timer = setInterval(() => setSolarPhase(getSolarPhase()), 60000);
-    return () => clearInterval(timer);
+    let timerId;
+
+    const tick = () => {
+      setSolarPhase(getSolarPhase());
+      timerId = setTimeout(tick, 60000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearTimeout(timerId);
+      } else {
+        setSolarPhase(getSolarPhase());
+        timerId = setTimeout(tick, 60000);
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    timerId = setTimeout(tick, 60000);
+
+    return () => {
+      clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   useEffect(() => { prime(); }, []);
@@ -941,12 +992,21 @@ const App = () => {
             <>
               <NotificationCenter notifications={notifications} />
 
+              <ShopModal
+                clerkId={clerkUser?.id}
+                isOpen={isShopOpen}
+                onClose={() => setIsShopOpen(false)}
+                onPurchaseComplete={() => setSysRefreshKey((k) => k + 1)}
+                playHaptic={playHaptic}
+              />
+
               <div className="mission-control-column">
                 <InventoryItem
                   inventory={inventory}
                   onScrap={handleScrap}
                   onEquip={handleInventoryEquip}
                   playHaptic={playHaptic}
+                  onShopOpen={() => setIsShopOpen(true)}
                 />
 
                 {(() => {
@@ -967,6 +1027,11 @@ const App = () => {
                     />
                   );
                 })()}
+
+                <SystemResourceHUD
+                  clerkId={clerkUser?.id}
+                  refreshKey={sysRefreshKey}
+                />
 
                 {/* THE ONLY PLACE AUDIO LIVES NOW */}
                 <MissionForm
