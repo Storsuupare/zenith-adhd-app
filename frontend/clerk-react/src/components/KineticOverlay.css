@@ -1,0 +1,213 @@
+:root {
+  --ui-glass: rgba(255, 255, 255, 0.03);
+  --ui-border: rgba(255, 255, 255, 0.1);
+  --ui-accent: #ffffff;
+  --ui-text-main: #ffffff;
+  --ui-text-dim: rgba(255, 255, 255, 0.5);
+}
+.kinetic-focus-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(
+    circle at center,
+    var(--solar-accent, #050508) 0%,
+    var(--solar-core, #030712) 100%
+  );
+  z-index: 99999;
+}
+
+.kinetic-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.timer-portal {
+  position: relative;
+  width: 500px;
+  height: 500px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 30px;
+}
+.timer-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.portal-fill {
+  fill: none;
+  stroke: var(--ui-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 20px var(--ui-accent));
+  transition: stroke-dashoffset 1s linear;
+}
+
+.massive-countdown {
+  font-size: 10rem;
+  font-weight: 100;
+  color: var(--ui-accent, #ffffff);
+  letter-spacing: -8px;
+  line-height: 1;
+  margin: 0;
+  text-shadow: 0 0 30px var(--ui-accent);
+}
+
+
+.focus-header {
+  margin-bottom: 3rem;
+  width: 100%;
+  border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+  padding-bottom: 1rem;
+}
+
+.mission-id {
+  font-weight: bold;
+  margin-right: 15px;
+  font-size: 1.2rem;
+  color: #92d2ed;
+}
+
+.kinetic-status {
+  font-size: 1.4rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #92d2ed;
+}
+
+.timer-portal {
+  position: relative;
+  width: 450px; 
+  height: 450px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.timer-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.portal-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.05); /* Very faint white */
+  stroke-width: 1;
+}
+
+
+.portal-fill {
+  fill: none;
+  stroke: #92d2ed; 
+  stroke-width: 1.5; 
+  stroke-linecap: round;
+
+  stroke-dasharray: 1194;
+  stroke-dashoffset: var(--timer-offset, 0);
+
+  transition: stroke-dashoffset 1s linear;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+}
+
+.portal-readout {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.massive-countdown {
+  font-size: 8rem;
+  font-weight: 100;
+  color: var(--ui-text-main);
+  letter-spacing: -8px;
+  margin: 0;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+}
+
+.portal-label {
+  font-size: 1rem;
+  letter-spacing: 6px;
+  margin-top: 15px;
+  color: #92d2ed;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.focus-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 450px;
+}
+
+.btn-action {
+  padding: 30px;
+  font-size: 1.4rem;
+  font-family: inherit;
+  font-weight: bold;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-action.primary {
+  background: rgba(0, 255, 65, 0.05);
+  border: 1px solid var(--zenith-green);
+  color: var(--zenith-green);
+}
+
+.btn-action.primary:not(.system-locked):hover {
+  background: var(--zenith-green);
+  color: #000;
+  box-shadow: 0 0 40px rgba(0, 255, 65, 0.3);
+}
+
+.btn-action.primary.system-locked {
+  border-color: #222;
+  color: #333;
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+
+.btn-action.abort {
+  background: transparent;
+  border: 1px solid #ff4444;
+  color: #ff4444;
+  padding: 15px 40px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.btn-action.abort:hover {
+  background: #ff4444;
+  color: #000;
+}

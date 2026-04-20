@@ -1,0 +1,307 @@
+/* ============================================================
+   INVENTORY SYSTEM — Phase-Aware Vault
+   ============================================================ */
+
+.zenith-inventory-system {
+  margin-bottom: 20px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ---- NAV BAR ---- */
+.inventory-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.nav-divider {
+  flex-grow: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.12)
+  );
+}
+
+.modern-nav-btn {
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+}
+
+.modern-nav-btn:hover,
+.modern-nav-btn.active {
+  background: var(--ui-accent, #ffffff);
+  color: #000;
+  border-color: var(--ui-accent, #ffffff);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ui-accent) 30%, transparent);
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.btn-label {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.item-count {
+  margin-left: 2px;
+  opacity: 0.55;
+  font-size: 0.65rem;
+}
+
+/* ---- VAULT PANEL ---- */
+.inventory-vault-overlay {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 20px;
+  animation: vaultOpen 0.25s ease-out;
+}
+
+@keyframes vaultOpen {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- GRID ---- */
+.vault-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* ---- INVENTORY CARD ---- */
+.inventory-card {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 14px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: fadeInCard 0.3s ease-out forwards;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+@keyframes fadeInCard {
+  from { opacity: 0; filter: blur(3px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+.inventory-card:hover {
+  border-color: color-mix(in srgb, var(--rarity-color, #fff) 30%, transparent);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- ITEM HEADER ---- */
+.item-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.item-header .name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.item-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.item-header .rarity-tag {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--rarity-color, rgba(255, 255, 255, 0.45));
+  opacity: 0.85;
+}
+
+/* INFO TOGGLE BUTTON */
+.info-toggle {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 25%, transparent);
+  background: color-mix(in srgb, var(--rarity-color, #fff) 6%, transparent);
+  color: var(--rarity-color, rgba(255, 255, 255, 0.6));
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.info-toggle:hover,
+.info-toggle.open {
+  background: color-mix(in srgb, var(--rarity-color, #fff) 16%, transparent);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--rarity-color, #fff) 50%, transparent);
+}
+
+/* ---- DESCRIPTION LAYER (in-flow, not absolute) ---- */
+.item-description-layer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 12%, transparent);
+  margin-bottom: 12px;
+  animation: descReveal 0.2s ease-out;
+}
+
+@keyframes descReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.description-header {
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.lore-text {
+  font-family: "Inter", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.effect-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--rarity-color, #fff) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 18%, transparent);
+}
+
+.effect-label {
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.effect-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--rarity-color, #fff);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--rarity-color, #fff) 40%, transparent);
+}
+
+/* ---- ACTION BUTTONS — always visible ---- */
+.item-actions {
+  margin-top: auto;
+}
+
+.scrap-btn,
+.equip-btn {
+  width: 100%;
+  padding: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.scrap-btn {
+  background: rgba(255, 68, 68, 0.08);
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+.scrap-btn:hover {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: #ff6b6b;
+  color: #fff;
+}
+
+.equip-btn {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.equip-btn:hover {
+  background: color-mix(in srgb, var(--rarity-color, #fff) 10%, transparent);
+  border-color: color-mix(in srgb, var(--rarity-color, #fff) 35%, transparent);
+  color: #fff;
+}
+
+.equip-btn.active {
+  background: color-mix(in srgb, var(--rarity-color, #fff) 14%, transparent);
+  color: var(--rarity-color, #fff);
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 45%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rarity-color, #fff) 20%, transparent);
+}
+
+/* ---- RARITY BORDERS (top strip) ---- */
+.rarity-junk      { border-top: 3px solid rgba(120, 120, 120, 0.6); }
+.rarity-common    { border-top: 3px solid rgba(238, 238, 238, 0.8); }
+.rarity-uncommon  { border-top: 3px solid #1eff00; }
+.rarity-rare      { border-top: 3px solid #0070dd; }
+.rarity-epic      { border-top: 3px solid #a335ee; }
+.rarity-legendary {
+  border-top: 3px solid #ff8000;
+  box-shadow: 0 0 14px rgba(255, 128, 0, 0.12);
+}
+.rarity-mythic {
+  border-top: 3px solid #e6cc80;
+  box-shadow: 0 0 18px rgba(230, 204, 128, 0.15);
+}
+
+/* ---- EMPTY STATE ---- */
+.empty-vault-notice {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: var(--ui-text-dim, rgba(255, 255, 255, 0.4));
+  font-style: italic;
+  letter-spacing: 1px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}

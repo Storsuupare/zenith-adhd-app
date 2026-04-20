@@ -1,0 +1,213 @@
+.contract-card {
+  display: flex;
+  background: var(--ui-glass);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--ui-border);
+  margin-bottom: 15px;
+  border-radius: 4px;
+  transition: border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.contract-card:hover {
+  border-color: var(--ui-accent);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(5px);
+}
+
+/* THE LEFT ACCENT STRIP */
+.contract-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--ui-accent); /* The dynamic accent line */
+  box-shadow: 0 0 15px var(--ui-accent);
+}
+
+.card-main-content {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.mission-title {
+  color: var(--ui-text-main);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0;
+}
+
+/* THE DATA GRID - THIS IS THE KEY TO THE "MODERN" LOOK */
+.mission-data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  padding-top: 15px;
+}
+
+.data-node {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.data-node .label {
+ color: var(--ui-text-dim);
+}
+
+.data-node .value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* SPECIFIC VALUE COLORS */
+.timer .value {
+  color: var(--zenith-cyan);
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+}
+.reward .value {
+  color: var(--zenith-green);
+}
+.risk .value {
+  color: var(--zenith-red);
+}
+
+.card-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  width: 90px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-action {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-action.primary {
+  color: var(--zenith-green);
+}
+
+.btn-action.primary:hover {
+  background: rgba(0, 255, 136, 0.1);
+  color: #fff;
+}
+
+.btn-action.abort {
+  color: rgba(255, 68, 68, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-action.abort:hover {
+  background: rgba(255, 68, 68, 0.1);
+  color: var(--zenith-red);
+}
+
+.contract-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.03),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.contract-card:hover::after {
+  left: 100%;
+}
+.card-main-content {
+  flex: 1;
+  padding: 15px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.mission-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.mission-data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+.data-node .label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+}
+.data-node .value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.reward .value {
+  color: #00ffa3;
+}
+.risk .value {
+  color: #ff4444;
+}
+
+.card-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  width: 100px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid rgba(255, 255, 255, 0.07);
+}
+
+.btn-action {
+  flex: 1;
+  border: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 900;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.btn-action.primary {
+  color: #00ffa3;
+  background: rgba(0, 255, 163, 0.05);
+}
+.btn-action.abort {
+  color: rgba(255, 68, 68, 0.6);
+  background: rgba(255, 68, 68, 0.02);
+}

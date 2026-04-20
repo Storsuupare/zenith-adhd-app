@@ -1,0 +1,615 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
+:root {
+  --zenith-bg: #030712;
+  --zenith-cyan: #22d3ee;
+  --zenith-green: #34d399;
+  --zenith-red: #fb7185;
+
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --border-dim: rgba(255, 255, 255, 0.05);
+
+  --text-main: #f8fafc;
+  --text-dim: #64748b;
+
+  --z-card-bg: rgba(10, 10, 12, 0.85);
+  --z-border: 1px solid rgba(34, 211, 238, 0.15);
+  --z-glow: 0 0 25px rgba(34, 211, 238, 0.08);
+  --z-accent: var(--zenith-cyan);
+
+  --z-transition: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+
+  --ui-glass: rgba(255, 255, 255, 0.03);
+  --ui-border: rgba(255, 255, 255, 0.1);
+  --ui-accent: #ffffff;
+  --ui-text-main: #ffffff;
+  --ui-text-dim: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================
+   2. GLOBAL RESET & STAGE
+   ============================================================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--solar-core);
+  color: var(--text-main);
+  font-family: "Inter", sans-serif;
+  font-size: 17px;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+body::after {
+  content: "";
+  position: fixed;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 242, 255, 0.03) 50%,
+    transparent
+  );
+  animation: radar-sweep 10s infinite linear;
+  pointer-events: none;
+  z-index: 10;
+}
+
+body:has(.kinetic-focus-overlay) ::after {
+  display: none;
+}
+
+.app-container {
+  --solar-core: #020203;
+  --solar-accent: #050508;
+  --solar-glow: rgba(0, 0, 0, 0);
+  transition: all 8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.phase-morning {
+  --solar-core: #1e2a44;
+  --solar-accent: #ff9a9e;
+  --solar-glow: rgba(255, 154, 158, 0.2);
+  --ui-accent: #ff9a9e;
+  --ui-glass: rgba(30, 42, 68, 0.4);
+}
+.phase-day {
+  --solar-core: #003264;
+  --solar-accent: #0072ff;
+  --solar-glow: rgba(0, 198, 255, 0.3);
+  --ui-accent: #00c6ff;
+  --ui-glass: rgba(0, 50, 100, 0.3);
+}
+.phase-noon {
+  --solar-core: #001f3f;
+  --solar-accent: #0074d9;
+  --solar-glow: rgba(255, 255, 255, 0.2);
+  --ui-accent: #ffffff;
+  --ui-glass: rgba(255, 255, 255, 0.05);
+}
+.phase-evening {
+  --solar-core: #2c3e50;
+  --solar-accent: #fd746c;
+  --solar-glow: rgba(253, 116, 108, 0.15);
+  --ui-accent: #fd746c;
+  --ui-glass: rgba(44, 62, 80, 0.4);
+}
+.phase-sunset {
+  --solar-core: #41295a;
+  --solar-accent: #2f0743;
+  --solar-glow: rgba(238, 9, 121, 0.2);
+  --ui-accent: #ee0979;
+  --ui-glass: rgba(65, 41, 90, 0.5);
+}
+.phase-night {
+  --solar-core: #010101;
+  --solar-accent: #0f172a;
+  --solar-glow: rgba(56, 189, 248, 0.05);
+  --ui-accent: #38bdf8;
+  --ui-glass: rgba(15, 23, 42, 0.6);
+}
+
+/* ============================================================
+   3. MASTER GRID ENGINE
+   ============================================================ */
+.dashboard-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 30px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  background: transparent;
+}
+
+.dashboard-layout.kinetic-active {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+
+  padding: 0;
+}
+
+.solar-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--solar-core) 0%,
+    var(--solar-accent) 100%
+  );
+  transition: background 8s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: sky-breathe 12s ease-in-out infinite;
+}
+
+
+@keyframes obsidian-drift {
+  0%,
+  100% {
+    background-color: var(--solar-core);
+    filter: brightness(100%) saturate(100%);
+  }
+  50% {
+    background-color: var(--solar-accent);
+    box-shadow: inset 0 0 200px var(--solar-glow);
+    filter: brightness(115%) saturate(120%);
+  }
+}
+
+.mission-control-column,
+.operative-status-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+/* CUSTOM SCROLLBAR */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-dim);
+  border-radius: 10px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+}
+
+/* ============================================================
+   5. MISSION PARAMETERS (INPUT SECTION)
+   ============================================================ */
+
+@keyframes radar-sweep {
+  0% {
+    top: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes ghost-pulse {
+  0% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0.1;
+  }
+}
+@keyframes slideInNotif {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes danger-alert {
+  from { opacity: 1; }
+  to   { opacity: 0.35; }
+}
+
+@keyframes prestige-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.02); }
+}
+
+@keyframes shimmer-swipe {
+  0% {
+    transform: translate(-30%, -30%);
+  }
+  100% {
+    transform: translate(30%, 30%);
+  }
+}
+
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes vaultOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes sky-breathe {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.92; }
+}
+
+@keyframes cloud-drift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(120px); }
+}
+
+.backdrop-clouds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cloud {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 50px;
+  will-change: transform;
+  animation: cloud-drift ease-in-out infinite alternate;
+}
+
+.cloud-1 {
+  width: 280px; height: 70px;
+  top: 8%; left: 5%;
+  opacity: 0.65;
+  animation-duration: 18s;
+}
+.cloud-2 {
+  width: 200px; height: 55px;
+  top: 18%; left: 40%;
+  opacity: 0.5;
+  animation-duration: 24s;
+  animation-delay: -6s;
+}
+.cloud-3 {
+  width: 320px; height: 80px;
+  top: 30%; left: 60%;
+  opacity: 0.4;
+  animation-duration: 30s;
+  animation-delay: -12s;
+}
+.cloud-4 {
+  width: 180px; height: 50px;
+  top: 12%; left: 70%;
+  opacity: 0.55;
+  animation-duration: 20s;
+  animation-delay: -4s;
+}
+
+/* ============================================================
+   SUN
+   ============================================================ */
+.sun {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  will-change: opacity;
+  transition: opacity 3s ease;
+}
+
+/* Morning: rising low on left horizon, warm orange-pink */
+.sun-morning {
+  width: 58px; height: 58px;
+  top: 84%; left: 28%;
+  background: radial-gradient(circle at 40% 38%, #ffcc80, #ff7043);
+  box-shadow:
+    0 0 50px 18px rgba(255, 120, 60, 0.55),
+    0 0 120px 50px rgba(255, 80, 20, 0.2);
+}
+
+/* Day: high in sky, bright white-yellow */
+.sun-day {
+  width: 88px; height: 88px;
+  top: 18%; left: 62%;
+  background: radial-gradient(circle at 38% 36%, #ffffff, #fff9c4);
+  box-shadow:
+    0 0 70px 25px rgba(255, 255, 200, 0.7),
+    0 0 160px 70px rgba(255, 255, 150, 0.25);
+}
+
+/* Noon: peak position, center-top, intense white */
+.sun-noon {
+  width: 98px; height: 98px;
+  top: 9%; left: 50%;
+  background: radial-gradient(circle at 38% 36%, #ffffff, #fffde7);
+  box-shadow:
+    0 0 90px 35px rgba(255, 255, 220, 0.75),
+    0 0 200px 90px rgba(255, 255, 180, 0.3);
+}
+
+/* Evening: descending right side, amber */
+.sun-evening {
+  width: 74px; height: 74px;
+  top: 60%; left: 72%;
+  background: radial-gradient(circle at 38% 38%, #ffd54f, #ff6f00);
+  box-shadow:
+    0 0 65px 22px rgba(255, 140, 0, 0.6),
+    0 0 140px 60px rgba(255, 80, 0, 0.2);
+}
+
+/* Sunset: near right horizon, deep orange-red */
+.sun-sunset {
+  width: 68px; height: 68px;
+  top: 88%; left: 80%;
+  background: radial-gradient(circle at 38% 38%, #ff7043, #b71c1c);
+  box-shadow:
+    0 0 80px 30px rgba(220, 50, 20, 0.55),
+    0 0 180px 80px rgba(180, 20, 0, 0.2);
+}
+
+/* ============================================================
+   MOON
+   ============================================================ */
+.backdrop-night {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.moon {
+  position: absolute;
+  top: 12%;
+  left: 72%;
+  width: 70px;
+  height: 70px;
+  will-change: opacity;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #fffde7, #c5caa0);
+  box-shadow:
+    inset -10px -4px 0 4px rgba(160, 165, 100, 0.45),
+    0 0 28px 10px rgba(220, 220, 150, 0.4),
+    0 0 70px 30px rgba(180, 180, 100, 0.15);
+}
+
+.moon-glow {
+  position: absolute;
+  inset: -28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(220, 220, 160, 0.2), transparent 70%);
+  animation: moon-pulse 4s ease-in-out infinite;
+}
+
+@keyframes moon-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+
+/* ============================================================
+   STARS
+   ============================================================ */
+.stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffffff;
+  will-change: transform, opacity;
+  animation: star-twinkle 2.5s ease-in-out infinite;
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.4); }
+}
+
+.glint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+}
+
+.auth-hero,
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #0a0a0a;
+  color: #00ff41;
+  font-family: "Courier New", Courier, monospace;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.auth-hero h1 {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.auth-hero p {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+/* --- THE INITIATE BUTTON --- */
+
+.btn-initiate {
+  background: transparent;
+  border: 1px solid #00ff41;
+  color: #00ff41;
+  padding: 15px 30px;
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+}
+
+.btn-initiate:hover {
+  background: #00ff41;
+  color: #0a0a0a;
+  box-shadow: 0 0 25px rgba(0, 255, 65, 0.5);
+}
+
+/* --- LOADING STATE ANIMATION --- */
+
+.loading-screen {
+  font-size: 1.2rem;
+  color: #00ff41;
+}
+
+.loading-screen::after {
+  content: "";
+  width: 20px;
+  height: 2px;
+  background: #00ff41;
+  display: inline-block;
+  margin-left: 10px;
+  animation: blink 0.8s infinite steps(2);
+}
+
+/* ============================================================
+   12. RESPONSIVE RECOVERY
+   ============================================================ */
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow-y: auto;
+  }
+  .mission-control-column,
+  .operative-status-column {
+    height: auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  .skill-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (min-width: 768px) {
+  .auth-gate-overlay {
+    background:
+      linear-gradient(rgba(255, 77, 77, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 77, 77, 0.03) 1px, transparent 1px),
+      radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+    background-size:
+      40px 40px,
+      40px 40px,
+      auto;
+  }
+
+  .auth-gate-overlay h1 {
+    letter-spacing: 8px;
+  }
+}

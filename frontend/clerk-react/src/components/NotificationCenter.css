@@ -1,0 +1,107 @@
+.notification-center {
+  position: fixed;
+  top: 25px;
+  right: 25px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.notification-item {
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ui-border, rgba(255, 255, 255, 0.1));
+  border-radius: 14px;
+  padding: 14px 18px;
+  min-width: 300px;
+  max-width: 380px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: slideInNotif 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes slideInNotif {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.notif-accent {
+  width: 3px;
+  height: 36px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: var(--ui-accent, #ffffff);
+}
+
+.notif-content {
+  flex: 1;
+}
+
+.notif-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ui-text-main, #ffffff);
+  line-height: 1.4;
+  letter-spacing: 0.3px;
+}
+
+.notification-item.success .notif-accent {
+  background: #34d399;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+}
+.notification-item.success {
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.notification-item.error .notif-accent {
+  background: #fb7185;
+  box-shadow: 0 0 10px rgba(251, 113, 133, 0.5);
+}
+.notification-item.error {
+  border-color: rgba(251, 113, 133, 0.2);
+}
+
+.notification-item.level_up .notif-accent {
+  background: var(--ui-accent, #ffffff);
+  box-shadow: 0 0 12px var(--solar-glow, rgba(255, 255, 255, 0.3));
+}
+.notification-item.level_up {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.notification-item.critical .notif-accent {
+  background: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+.notification-item.critical {
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.notification-item.prestige .notif-accent {
+  background: #a78bfa;
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.5);
+}
+.notification-item.prestige {
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.notification-item.loot .notif-accent {
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+}
+.notification-item.loot {
+  border-color: rgba(34, 211, 238, 0.2);
+}

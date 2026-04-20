@@ -1,0 +1,168 @@
+/* ============================================================
+   LOOT DISPLAY
+   ============================================================ */
+
+.loot-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px) saturate(140%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.artifact-card {
+  position: relative;
+  width: 400px;
+  padding: 40px 36px;
+  background: rgba(10, 10, 12, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), var(--z-glow);
+  overflow: hidden;
+  text-align: center;
+}
+
+.artifact-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.025),
+    transparent
+  );
+  transition: 0.6s ease;
+  pointer-events: none;
+}
+.artifact-card:hover::after {
+  left: 150%;
+}
+
+.artifact-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--ui-accent);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+}
+
+
+.artifact-name {
+  font-family: "Inter", sans-serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin: 16px 0;
+  background: linear-gradient(180deg, #fff 40%, rgba(255, 255, 255, 0.45) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.origin-code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.2rem;
+  color: var(--ui-text-dim);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.origin-code::before {
+  content: "ID//";
+  margin-right: 4px;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.rarity-chip {
+  font-family: "Inter", sans-serif;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--ui-text-dim);
+  text-transform: uppercase;
+}
+
+.power-readout {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+}
+
+.power-readout .label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: var(--ui-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.power-readout .value {
+  font-weight: 700;
+  color: var(--zenith-cyan);
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.25);
+}
+
+.transfer-btn {
+  margin-top: 36px;
+  width: 100%;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--zenith-green);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 900;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.transfer-btn:hover {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #fff;
+}
+
+.tactical-loader {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--ui-text-dim);
+}
+
+.rarity-mythic {
+  border-color: rgba(163, 53, 238, 0.25);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 50px rgba(163, 53, 238, 0.12);
+}
+.rarity-mythic::before {
+  background: rgb(163, 53, 238);
+  box-shadow: 0 0 15px rgba(163, 53, 238, 0.4);
+}
+
+.rarity-legendary {
+  border-color: rgba(255, 174, 0, 0.25);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 50px rgba(255, 174, 0, 0.12);
+}
+.rarity-legendary::before {
+  background: rgb(255, 174, 0);
+  box-shadow: 0 0 15px rgba(255, 174, 0, 0.4);
+}
