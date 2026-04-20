@@ -30,5 +30,8 @@ dist-ssr
 
 .claude/
 .env
-*.local
-.pnpm-debug.log*
+node_modules/
+dist/
+frontend/.vite/
+backend/generated/
+*.db
