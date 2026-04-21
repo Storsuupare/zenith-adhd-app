@@ -11,8 +11,8 @@
 .inventory-nav-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 15px;
+  justify-content: flex-start;
+  gap: 6px;
   margin-bottom: 10px;
 }
 
@@ -24,35 +24,32 @@
 .nav-divider {
   flex-grow: 1;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.12)
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
 }
 
-.modern-nav-btn {
+.nav-btn {
   background: rgba(0, 0, 0, 0.45);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  padding: 8px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 5px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-family: inherit;
   font-weight: 700;
-  font-size: 0.65rem;
-  letter-spacing: 1.5px;
+  font-size: 0.58rem;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   transition: all 0.2s ease;
   backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 
-.modern-nav-btn:hover,
-.modern-nav-btn.active {
+.nav-btn:hover,
+.nav-btn.active {
   background: var(--ui-accent, #ffffff);
   color: #000;
   border-color: var(--ui-accent, #ffffff);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--ui-accent) 30%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ui-accent) 30%, transparent);
 }
 
 .btn-content {
@@ -289,6 +286,49 @@
 .rarity-mythic {
   border-top: 3px solid #e6cc80;
   box-shadow: 0 0 18px rgba(230, 204, 128, 0.15);
+}
+
+.nav-btn.upgrade-nav-btn {
+  padding: 4px 10px;
+  font-size: 0.54rem;
+  letter-spacing: 1px;
+}
+
+.nav-btn.upgrade-nav-btn.required {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+  animation: upgrade-pulse 2.2s ease-in-out infinite;
+}
+
+.nav-btn.upgrade-nav-btn.required:hover {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.7);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.25);
+  color: #fde68a;
+}
+
+.nav-btn.upgrade-nav-btn.optimized {
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #34d399;
+}
+
+.nav-btn.upgrade-nav-btn.optimized:hover {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.2);
+  color: #6ee7b7;
+}
+
+@keyframes upgrade-pulse {
+  0%, 100% { opacity: 1;    box-shadow: none; }
+  50%       { opacity: 0.75; box-shadow: 0 0 12px rgba(251, 191, 36, 0.3); }
+}
+
+.nav-btn.logout-nav-btn:hover {
+  background: rgba(251, 113, 133, 0.15);
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.5);
+  box-shadow: 0 0 14px rgba(251, 113, 133, 0.2);
 }
 
 .empty-vault-notice {

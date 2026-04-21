@@ -3,6 +3,7 @@
    ============================================================ */
 
 .level-container {
+  position: relative;
   background: rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -54,12 +55,45 @@
   letter-spacing: 0;
 }
 
+.hud-right-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
 .hud-xp-group {
   text-align: right;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
+}
+
+.hud-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: "Inter", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+}
+
+.hud-logout-btn:hover {
+  background: rgba(251, 113, 133, 0.12);
+  border-color: rgba(251, 113, 133, 0.45);
+  color: #fb7185;
+  box-shadow: 0 0 12px rgba(251, 113, 133, 0.18);
 }
 
 .total-xp-display {
@@ -143,4 +177,16 @@
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.38);
   text-transform: uppercase;
+}
+
+/* ── Mobile ── */
+@media (max-width: 520px) {
+  /* Hide the "Log Out" text — keep only the ⏻ icon so the top row never wraps */
+  .hud-logout-btn .logout-text {
+    display: none;
+  }
+
+  .hud-logout-btn {
+    padding: 5px 8px;
+  }
 }

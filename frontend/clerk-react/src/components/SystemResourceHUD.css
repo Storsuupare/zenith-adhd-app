@@ -4,10 +4,7 @@
    ============================================================ */
 
 .sysres-hud {
-  background: rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  
   border-radius: 18px;
   padding: 18px 22px;
   margin-bottom: 16px;
@@ -22,6 +19,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: bold;
 }
 
 .sysres-title-group {
@@ -30,7 +28,6 @@
   gap: 8px;
 }
 
-/* Shared dim label — matches .rank-label / .streak-display sizing */
 .sysres-dim-label {
   font-family: "Inter", sans-serif;
   font-size: 0.58rem;
@@ -70,7 +67,6 @@
   line-height: 1;
 }
 
-/* Shared accent label — matches .xp-suffix */
 .sysres-accent-label {
   font-family: "Inter", sans-serif;
   font-size: 0.55rem;
@@ -81,7 +77,6 @@
   opacity: 0.8;
 }
 
-/* ── Bar sections ── */
 .sysres-bar-section {
   display: flex;
   flex-direction: column;
@@ -102,7 +97,6 @@
   line-height: 1;
 }
 
-/* Status-driven color on bandwidth readout */
 .sysres-bar-readout.nominal  { color: var(--ui-accent); }
 .sysres-bar-readout.low      { color: #f59e0b; }
 .sysres-bar-readout.critical { color: #fb7185; }
@@ -114,7 +108,6 @@
   color: rgba(255, 255, 255, 0.25);
 }
 
-/* Progress track — matches .progress-track */
 .sysres-track {
   position: relative;
   width: 100%;
@@ -133,7 +126,6 @@
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Bandwidth fill states */
 .sysres-fill.bw-fill.nominal {
   background: linear-gradient(90deg, var(--ui-accent), rgba(255, 255, 255, 0.85));
 }
@@ -144,12 +136,10 @@
   background: linear-gradient(90deg, #fb7185, #fca5a5);
 }
 
-/* Experience Data fill — purple to match prestige aesthetic */
 .sysres-fill.xp-fill {
   background: linear-gradient(90deg, rgba(139, 92, 246, 0.75), rgba(196, 149, 253, 0.9));
 }
 
-/* ── Module inventory row ── */
 .sysres-modules-row {
   display: flex;
   justify-content: space-between;

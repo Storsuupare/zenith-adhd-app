@@ -20,9 +20,6 @@ def audit_focus():
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
-        # THE RUTHLESS QUERY
-        # We compare the deadline to the DB's CURRENT_TIMESTAMP.
-        # We add a 2-second 'Grace Period' to prevent 'Instant Death' bugs.
         cur.execute("""
             SELECT id, user_id, stake_amount 
             FROM contracts 
@@ -36,10 +33,8 @@ def audit_focus():
             for row in lapsed:
                 s_id, u_id, stake = row
                 
-                # 1. Update Contract Status
                 cur.execute("UPDATE contracts SET status = 'FAILED' WHERE id = %s", (s_id,))
                 
-                # 2. Subtract XP & Wipe Streak
                 cur.execute("""
                     UPDATE users 
                     SET xp = GREATEST(0, xp - %s), streak = 0 
@@ -51,7 +46,6 @@ def audit_focus():
             conn.commit()
         
     except Exception as e:
-        # This will tell us EXACTLY why it is crashing/restarting
         print(f"CRITICAL SYSTEM FAILURE: {e}")
     finally:
         if conn:

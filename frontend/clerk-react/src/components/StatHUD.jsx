@@ -1,4 +1,5 @@
 import React from "react";
+import SystemResourceHUD from "./SystemResourceHUD";
 
 
 const StatHUD = ({
@@ -11,6 +12,9 @@ const StatHUD = ({
   nextLevelXP,
   currentLevelXP,
   getRank,
+  onLogout,
+  clerkId,
+  refreshKey,
 }) => {
   const ghostPercent = Math.min(((currentLevelXP + previewXP) / nextLevelXP) * 100, 100);
 
@@ -24,9 +28,17 @@ const StatHUD = ({
             <span className="lvl-tag"> LVL {currentLevel}</span>
           </span>
         </div>
-        <div className="hud-xp-group">
-          <span className="total-xp-display">{totalXP.toLocaleString()}</span>
-          <span className="xp-suffix">TOTAL XP</span>
+        <div className="hud-right-group">
+          <div className="hud-xp-group">
+            <span className="total-xp-display">{totalXP.toLocaleString()}</span>
+            <span className="xp-suffix">TOTAL XP</span>
+          </div>
+          {onLogout && (
+            <button className="hud-logout-btn" onClick={onLogout}>
+              <span>⏻</span>
+              <span className="logout-text">Log Out</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -46,6 +58,8 @@ const StatHUD = ({
         <div className="streak-display">STREAKS: {streak}</div>
         <div className="xp-remaining">{xpRemaining.toLocaleString()} XP TO NEXT LEVEL</div>
       </div>
+
+      <SystemResourceHUD clerkId={clerkId} refreshKey={refreshKey} />
     </div>
   );
 };

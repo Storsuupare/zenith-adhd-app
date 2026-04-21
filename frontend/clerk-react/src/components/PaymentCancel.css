@@ -1,0 +1,121 @@
+/* ============================================================
+   PAYMENT CANCEL SCREEN
+   ============================================================ */
+
+.payment-cancel-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  font-family: "Inter", sans-serif;
+}
+
+.payment-cancel-card {
+  width: 100%;
+  max-width: 400px;
+  margin: 20px;
+  padding: 48px 40px;
+  background: rgba(8, 8, 15, 0.92);
+  border: 1px solid rgba(251, 113, 133, 0.18);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7), 0 0 60px rgba(251, 113, 133, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  animation: cancel-reveal 0.35s ease-out;
+}
+
+@keyframes cancel-reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cancel-icon {
+  font-size: 2rem;
+  color: #fb7185;
+  opacity: 0.8;
+}
+
+.cancel-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cancel-body {
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.42);
+  max-width: 300px;
+  margin: 0;
+}
+
+.cancel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.cancel-retry-btn {
+  padding: 13px;
+  background: rgba(251, 113, 133, 0.1);
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cancel-retry-btn:hover {
+  background: rgba(251, 113, 133, 0.18);
+  border-color: rgba(251, 113, 133, 0.55);
+  box-shadow: 0 0 20px rgba(251, 113, 133, 0.15);
+}
+
+.cancel-dismiss-btn {
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: "Inter", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.cancel-dismiss-btn:hover {
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.cancel-footnote {
+  font-size: 0.58rem;
+  color: rgba(255, 255, 255, 0.15);
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-cancel-card { animation: none; }
+}

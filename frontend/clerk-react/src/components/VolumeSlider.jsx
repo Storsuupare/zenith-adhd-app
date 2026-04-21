@@ -1,13 +1,13 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { init, setVolume as updateEngineVolume, getVolume } from '../../../src/audio/audioEngine';
 import './VolumeSlider.css';
 
 export default function VolumeSlider() {
-  const [vol, setVol] = useState(getVolume() || 0.3);
+  const [vol, setVol]       = useState(getVolume() || 0.3);
   const [active, setActive] = useState(false);
-  const trackRef = useRef(null);
-  const dragging = useRef(false);
-  
+  const trackRef  = useRef(null);
+  const dragging  = useRef(false);
+
   const calcVol = useCallback((clientY) => {
     if (!trackRef.current) return 0;
     const rect = trackRef.current.getBoundingClientRect();
@@ -21,20 +21,51 @@ export default function VolumeSlider() {
   }, [calcVol]);
 
   const onMouseDown = (e) => {
-    init(); 
+    init();
     dragging.current = true;
     apply(e.clientY);
-    
-    const handleGlobalMove = (moveEvent) => apply(moveEvent.clientY);
-    const handleGlobalUp = () => {
+
+    const onMove = (e) => apply(e.clientY);
+    const onUp   = () => {
       dragging.current = false;
-      window.removeEventListener('mousemove', handleGlobalMove);
-      window.removeEventListener('mouseup', handleGlobalUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
     };
-    
-    window.addEventListener('mousemove', handleGlobalMove);
-    window.addEventListener('mouseup', handleGlobalUp);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
   };
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e) => {
+      e.preventDefault();
+      init();
+      dragging.current = true;
+      apply(e.touches[0].clientY);
+    };
+
+    const onTouchMove = (e) => {
+      if (!dragging.current) return;
+      e.preventDefault();
+      apply(e.touches[0].clientY);
+    };
+
+    const onTouchEnd = () => {
+      dragging.current = false;
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    el.addEventListener('touchend',   onTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove',  onTouchMove);
+      el.removeEventListener('touchend',   onTouchEnd);
+    };
+  }, [apply]);
 
   return (
     <div
@@ -45,7 +76,7 @@ export default function VolumeSlider() {
       onMouseDown={onMouseDown}
       title={`Volume ${Math.round(vol * 100)}%`}
     >
-      <div className="vol-fill" style={{ height: `${vol * 100}%` }} />
+      <div className="vol-fill"  style={{ height: `${vol * 100}%` }} />
       <div className="vol-thumb" style={{ bottom: `calc(${vol * 100}% - 5px)` }} />
     </div>
   );

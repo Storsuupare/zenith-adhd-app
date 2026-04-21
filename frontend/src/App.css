@@ -510,66 +510,153 @@ h4 {
   );
 }
 
-.auth-hero,
+/* ============================================================
+   AUTH SCREEN
+   ============================================================ */
+.auth-hero {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 52px 56px;
+  width: 100%;
+  max-width: 420px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.auth-brand-name {
+  font-family: "Inter", sans-serif;
+  font-size: 3.8rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 0 60px rgba(255, 255, 255, 0.12);
+}
+
+.auth-brand-tagline {
+  font-family: "Inter", sans-serif;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+}
+
+.auth-divider {
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ui-accent, rgba(255, 255, 255, 0.35)),
+    transparent
+  );
+  margin-bottom: 24px;
+}
+
+.auth-status {
+  font-family: "Inter", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.auth-body {
+  font-family: "Inter", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 32px;
+  max-width: 290px;
+}
+
+.btn-initiate {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  padding: 13px 38px;
+  font-family: "Inter", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(6px);
+  margin-bottom: 22px;
+}
+
+.btn-initiate:hover {
+  background: var(--ui-accent, rgba(255, 255, 255, 0.9));
+  color: #000000;
+  border-color: var(--ui-accent, #ffffff);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--ui-accent, #fff) 35%, transparent);
+}
+
+.auth-footnote {
+  font-family: "Inter", sans-serif;
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.18);
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   LOADING SCREEN
+   ============================================================ */
 .loading-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background-color: #0a0a0a;
-  color: #00ff41;
-  font-family: "Courier New", Courier, monospace;
+  background-color: #050508;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: "Inter", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-align: center;
   text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-.auth-hero h1 {
-  font-size: 4rem;
-  margin-bottom: 0.5rem;
-  color: #fff;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-}
-
-.auth-hero p {
-  font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 2rem;
-}
-
-/* --- THE INITIATE BUTTON --- */
-
-.btn-initiate {
-  background: transparent;
-  border: 1px solid #00ff41;
-  color: #00ff41;
-  padding: 15px 30px;
-  font-size: 1rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
-}
-
-.btn-initiate:hover {
-  background: #00ff41;
-  color: #0a0a0a;
-  box-shadow: 0 0 25px rgba(0, 255, 65, 0.5);
-}
-
-/* --- LOADING STATE ANIMATION --- */
-
-.loading-screen {
-  font-size: 1.2rem;
-  color: #00ff41;
 }
 
 .loading-screen::after {
   content: "";
-  width: 20px;
+  width: 18px;
   height: 2px;
-  background: #00ff41;
+  background: rgba(255, 255, 255, 0.4);
   display: inline-block;
   margin-left: 10px;
   animation: blink 0.8s infinite steps(2);
@@ -595,6 +682,108 @@ h4 {
     grid-template-columns: 1fr;
     gap: 10px;
   }
+}
+
+/* ============================================================
+   CLERK MODAL OVERRIDES
+   ============================================================ */
+.cl-rootBox {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.cl-cardBox {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  margin: auto !important;
+}
+.cl-socialButtonsBlockButton:hover {
+  background:    rgba(255, 255, 255, 0.08) !important;
+  border-color:  rgba(255, 255, 255, 0.22) !important;
+}
+
+.cl-formFieldInput:focus {
+  border-color: rgba(34, 211, 238, 0.45) !important;
+  outline:      none !important;
+  box-shadow:   0 0 0 3px rgba(34, 211, 238, 0.08) !important;
+}
+
+.cl-formButtonPrimary:hover {
+  background:  rgba(34, 211, 238, 0.2) !important;
+  border-color: rgba(34, 211, 238, 0.55) !important;
+  box-shadow:  0 0 20px rgba(34, 211, 238, 0.18) !important;
+}
+
+.cl-footerActionLink:hover {
+  color: #67e8f9 !important;
+}
+
+.cl-modalCloseButton:hover {
+  color:      rgba(255, 255, 255, 0.75) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ============================================================
+   BAG TOGGLE — fixed top-center
+   ============================================================ */
+.bag-toggle-fixed {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  padding: 8px 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.bag-toggle-fixed:hover,
+.bag-toggle-fixed.active {
+  background: var(--ui-accent, #fff);
+  color: #000;
+  border-color: var(--ui-accent, #fff);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--ui-accent, #fff) 30%, transparent);
+}
+
+.bag-toggle-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.bag-toggle-count {
+  opacity: 0.55;
+  font-size: 0.6rem;
 }
 
 @media (min-width: 768px) {

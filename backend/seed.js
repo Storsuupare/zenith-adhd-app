@@ -1,21 +1,19 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
-// Direct connection to your local Postgres
 const pool = new Pool({
-  connectionString: "postgresql://postgres:Katlamac123%3F@localhost:5432/zenith_io_db"
+  connectionString: process.env.DATABASE_URL,
 });
 
 async function main() {
   const client = await pool.connect();
-  // Your real Clerk ID found in the dashboard
-  const REAL_CLERK_ID = "user_3CO4XmU8iY8X963zRVuF2W"; 
+  const REAL_CLERK_ID = process.env.ADMIN_CLERK_ID;
+  if (!REAL_CLERK_ID) throw new Error("Missing ADMIN_CLERK_ID in backend/.env");
 
   try {
     console.log("--- STARTING SYSTEM RESET FOR ZENITH_ADMIN ---");
     await client.query("BEGIN");
 
-    // 1. Link your real Clerk ID to the Database
     const userRes = await client.query(`
       INSERT INTO users (external_id, xp, level, streak)
       VALUES ($1, $2, $3, $4)
@@ -27,7 +25,6 @@ async function main() {
     const internalId = userRes.rows[0].id;
     console.log(`IDENTITY SYNCED: ${REAL_CLERK_ID}. Internal Database ID: ${internalId}`);
 
-    // 2. Clear old test data
     await client.query("DELETE FROM contracts WHERE user_id = $1", [internalId]);
     console.log("OLD CONTRACTS PURGED.");
 

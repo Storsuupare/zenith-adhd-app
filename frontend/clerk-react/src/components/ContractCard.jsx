@@ -16,19 +16,16 @@ const ContractCard = ({
   const [timeLeft, setTimeLeft] = useState(duration * 60);
   const [isRunning, setIsRunning] = useState(false);
 
-  // SVG Circle Math
   const radius = 35;
   const circumference = 2 * Math.PI * radius;
   const progress = timeLeft / (duration * 60);
   const dashOffset = circumference * (1 - progress);
 
-  // 1. Sync timer when contract changes
   useEffect(() => {
     setTimeLeft(duration * 60);
     setIsRunning(false);
   }, [contract.id, duration]);
 
-  // 2. The Universal Ticker — setTimeout so it doesn't recreate a new interval every second
   useEffect(() => {
     if (timeLeft <= 0 || (isKineticMode && !isRunning)) return;
 
@@ -100,7 +97,7 @@ const ContractCard = ({
           {contract.task_name || contract.taskName}
         </h4>
         <div className="mission-data-grid">
-          {/* NORMAL TIME DISPLAY: Visible when NOT in Kinetic Mode */}
+         
           {!isKineticMode && (
             <div
               className={`data-node ${timeLeft < 60 ? "critical-pulse" : ""}`}>

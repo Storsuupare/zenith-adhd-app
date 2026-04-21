@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, useUser, useClerk } from "@clerk/clerk-react";
 import axios from "axios";
 import "./App.css";
 import "../clerk-react/src/components/StatHUD.css";
@@ -12,10 +12,8 @@ import "../clerk-react/src/components/KineticOverlay.css";
 import "../clerk-react/src/components/InventoryItem.css";
 import "../clerk-react/src/components/ContractCard.css";
 import "../clerk-react/src/components/VolumeSlider.css";
-import "../clerk-react/src/components/SystemResourceHUD.css";
 import "../clerk-react/src/components/ShopModal.css";
 import ContractCard from "../clerk-react/src/components/ContractCard";
-import SystemResourceHUD from "../clerk-react/src/components/SystemResourceHUD";
 import ShopModal from "../clerk-react/src/components/ShopModal";
 import VolumeSlider from "../clerk-react/src/components/VolumeSlider";
 import { prime, setPhase, setProtocol } from "./audio/audioEngine";
@@ -26,6 +24,11 @@ import KineticOverlay from "../clerk-react/src/components/KineticOverlay";
 import LootDisplay from "../clerk-react/src/components/LootDisplay";
 import NotificationCenter from "../clerk-react/src/components/NotificationCenter";
 import InventoryItem from "../clerk-react/src/components/InventoryItem";
+import UpgradePage from "../clerk-react/src/components/UpgradePage";
+import PaymentSuccess from "../clerk-react/src/components/PaymentSuccess";
+import PaymentCancel from "../clerk-react/src/components/PaymentCancel";
+import "../clerk-react/src/components/PaymentSuccess.css";
+import "../clerk-react/src/components/PaymentCancel.css";
 
 const SUBJECT_TO_SKILL_MAP = {
   Python:                  "Logic Flow",
@@ -147,6 +150,7 @@ const App = () => {
   const [inventory, setInventory] = useState([]);
 
   const { user: clerkUser, isLoaded } = useUser();
+  const { signOut } = useClerk();
 
   const [taskName, setTaskName] = useState("");
   const [duration, setDuration] = useState(30);
@@ -175,6 +179,11 @@ const App = () => {
 
   const [sysRefreshKey, setSysRefreshKey] = useState(0);
   const [isShopOpen,   setIsShopOpen]   = useState(false);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [currentView, setCurrentView] = useState("dashboard");
+  const [activeTheme, setActiveTheme] = useState("default");
+  const [activeAmbientTrack, setActiveAmbientTrack] = useState("focus");
+  const [paymentView, setPaymentView] = useState(null); // 'success' | 'cancelled' | null
 
   const fetchUser = async () => {
     if (!clerkUser?.id) return;
@@ -567,14 +576,14 @@ const App = () => {
 
       await fetchUser();
 
-      // Apply system-level rewards (+500 cr, +100 xp, -15 bw) then re-sync HUD
       try {
         await axios.post("http://localhost:8000/system/contract-reward", {
           clerk_id: clerkUser.id,
         });
-      } catch (rewardErr) {
-        console.warn("[SYSTEM] Contract reward failed:", rewardErr.message);
+      } catch (sysErr) {
+        console.warn("[SYSTEM REWARD] Failed:", sysErr.message);
       }
+
       setSysRefreshKey((k) => k + 1);
 
       setIsOpening(false);
@@ -651,7 +660,7 @@ const App = () => {
 
         const secondsRemaining = Math.floor((deadlineMs - nowMs) / 1000);
 
-        console.log("ZENITH_SYNC:", {
+        console.log("ZENITH SYNC:", {
           task: mission.taskName,
           diff: secondsRemaining,
         });
@@ -794,7 +803,7 @@ const App = () => {
         ? itemOrId
         : itemOrId?.instanceId || itemOrId?.id;
 
-    const targetUserId = user?.id || 1;
+    const targetUserId = clerkUser?.id;
 
     if (!targetId) {
       console.error("FAILURE: No ID detected. Looking for 'instanceId'.");
@@ -815,15 +824,20 @@ const App = () => {
       );
 
       if (response.ok) {
-        setInventory((prevItems) => {
-          return prevItems.map((item) => ({
+        const data = await response.json();
+        setInventory((prev) =>
+          prev.map((item) => ({
             ...item,
-            is_equipped: String(item.instanceId) === String(targetId),
-          }));
-        });
-        console.log(`SUCCESS! Protocol ${targetId} is now active.`);
+            is_equipped: data.equipped_ids.includes(String(item.instanceId)),
+          }))
+        );
       } else {
-        console.warn("SERVER REJECTED EQUIP COMMAND!");
+        const err = await response.json().catch(() => ({}));
+        if (response.status === 403) {
+          addNotification({ type: "ERROR", message: err.message || "Perk slots full — unequip something first!" });
+        } else {
+          addNotification({ type: "ERROR", message: "Couldn't equip — try again." });
+        }
       }
     } catch (err) {
       console.error("FATAL NETWORK ERROR:", err);
@@ -912,9 +926,21 @@ const App = () => {
   useEffect(() => { prime(); }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("payment");
+    if (status === "success" || status === "cancelled") {
+      setPaymentView(status);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
     document.body.className = `phase-${solarPhase}`;
     setPhase(solarPhase);
   }, [solarPhase]);
+
+  const THEME_ACCENT = { cobalt: "#3b82f6", amber: "#f59e0b", crimson: "#ef4444" };
+  const themeAccentOverride = THEME_ACCENT[activeTheme] ?? null;
 
   useEffect(() => { setProtocol(isKineticMode); }, [isKineticMode]);
 
@@ -936,7 +962,10 @@ const App = () => {
     return <div className="loading-screen">Loading Zenith Engine...</div>;
 
   return (
-    <div className={`dashboard-layout phase-${solarPhase}`}>
+    <div
+      className={`dashboard-layout phase-${solarPhase}`}
+      style={themeAccentOverride ? { "--ui-accent": themeAccentOverride } : undefined}
+    >
       <div className="solar-backdrop" aria-hidden="true">
         {showSun && <div className={`sun sun-${solarPhase}`} />}
         {showClouds && (
@@ -963,11 +992,21 @@ const App = () => {
 
       <SignedOut>
         <div className="auth-hero">
-          <h1>ZENITH</h1>
-          <p>NEURAL LINK DISCONNECTED</p>
-          <SignInButton mode="modal">
-            <button className="btn-initiate">ESTABLISH CONNECTION</button>
-          </SignInButton>
+          <div className="auth-card">
+            <div className="auth-brand">
+              <span className="auth-brand-name">ZENITH</span>
+              <span className="auth-brand-tagline">Neural Productivity System</span>
+            </div>
+            <div className="auth-divider" />
+            <p className="auth-status">Neural Link Disconnected</p>
+            <p className="auth-body">
+              Sign in to access your operator profile, active missions, and system resources.
+            </p>
+            <SignInButton mode="modal">
+              <button className="btn-initiate">Establish Connection</button>
+            </SignInButton>
+            <p className="auth-footnote">Secure · Encrypted · Persistent</p>
+          </div>
         </div>
       </SignedOut>
 
@@ -976,7 +1015,18 @@ const App = () => {
           <div className="loading-screen">SYNCING BIOMETRICS...</div>
         ) : (
           <>
-            {/* KINETIC OVERLAY */}
+            {paymentView === "success" && (
+              <PaymentSuccess
+                onContinue={() => { setPaymentView(null); fetchUser(); }}
+              />
+            )}
+            {paymentView === "cancelled" && (
+              <PaymentCancel
+                onRetry={() => { setPaymentView(null); setCurrentView("upgrade"); }}
+                onDismiss={() => setPaymentView(null)}
+              />
+            )}
+
             {activeMission?.isKinetic &&
               createPortal(
                 <KineticOverlay
@@ -988,8 +1038,17 @@ const App = () => {
                 document.body,
               )}
 
-            {/* DASHBOARD */}
-            <>
+            {currentView === "upgrade" && (
+              <UpgradePage
+                accountTier={user.role === "ADMIN" ? 2 : (user.account_tier ?? 0)}
+                clerkId={clerkUser?.id}
+                onBack={() => setCurrentView("dashboard")}
+                addNotification={addNotification}
+                onUpgradeSuccess={() => { fetchUser(); setCurrentView("dashboard"); }}
+              />
+            )}
+
+            {currentView === "dashboard" && <>
               <NotificationCenter notifications={notifications} />
 
               <ShopModal
@@ -1007,6 +1066,10 @@ const App = () => {
                   onEquip={handleInventoryEquip}
                   playHaptic={playHaptic}
                   onShopOpen={() => setIsShopOpen(true)}
+                  isOpen={isInventoryOpen}
+                  onToggle={() => setIsInventoryOpen((v) => !v)}
+                  accountTier={user.role === "ADMIN" ? 2 : (user.account_tier ?? 0)}
+                  onUpgrade={() => setCurrentView("upgrade")}
                 />
 
                 {(() => {
@@ -1024,16 +1087,13 @@ const App = () => {
                       streak={user.streak || 0}
                       xpRemaining={nextLvlXP - withinLvlXP}
                       getRank={getRank}
+                      onLogout={() => signOut()}
+                      clerkId={clerkUser?.id}
+                      refreshKey={sysRefreshKey}
                     />
                   );
                 })()}
 
-                <SystemResourceHUD
-                  clerkId={clerkUser?.id}
-                  refreshKey={sysRefreshKey}
-                />
-
-                {/* THE ONLY PLACE AUDIO LIVES NOW */}
                 <MissionForm
                   isKineticMode={isKineticMode}
                   setIsKineticMode={setIsKineticMode}
@@ -1054,6 +1114,12 @@ const App = () => {
                   playHaptic={playHaptic}
                   onContractCreated={handleContractCreated}
                   clerkUser={clerkUser}
+                  accountTier={user.role === "ADMIN" ? 2 : (user.account_tier ?? 0)}
+                  activeAmbientTrack={activeAmbientTrack}
+                  onTrackChange={setActiveAmbientTrack}
+                  activeTheme={activeTheme}
+                  onThemeChange={setActiveTheme}
+                  addNotification={addNotification}
                 />
 
                 <div className="logs-section">
@@ -1076,7 +1142,6 @@ const App = () => {
                 </div>
               </div>
 
-              {/* SKILL SIDEBAR STANDALONE */}
               <SkillSidebar
                 skills={user.mastery || []}
                 previewSkill={previewSkill}
@@ -1086,9 +1151,8 @@ const App = () => {
                 isProtocolActive={isKineticMode}
                 playHaptic={playHaptic}
               />
-            </>
+            </>}
 
-            {/* LOOT OVERLAY */}
             {(isOpening || loot) && (
               <LootDisplay
                 loot={loot}

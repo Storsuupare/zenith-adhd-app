@@ -8,3 +8,5 @@ backend/generated/
 *.db
 .DS_Store
 *.local
+stripe.exe
+*.zip

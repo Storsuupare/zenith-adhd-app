@@ -24,7 +24,8 @@ async def health():
 
 BANDWIDTH_REGEN_PER_HOUR = 10
 
-RARITY_MULTIPLIERS = {1: 1.0, 2: 1.5, 3: 2.0, 4: 3.0}
+RARITY_MULTIPLIERS   = {1: 1.0, 2: 1.5, 3: 2.0, 4: 3.0}
+TIER_XP_MULTIPLIERS  = {0: 1.0, 1: 1.5, 2: 2.0}
 
 def get_db_connection():
     return psycopg2.connect(
@@ -46,7 +47,6 @@ async def complete_task(task: TaskCompletion):
     if task.status != 'SUCCESS':
         return {"message": "No progress recorded for failed sessions!"}
 
-    # 1. THE LEGENDARY TIER MULTIPLIER
     m = task.duration_minutes
     if m >= 120:   multiplier = 150 # 18,000 XP
     elif m >= 90:  multiplier = 120 # 10,800 XP
@@ -73,7 +73,6 @@ async def complete_task(task: TaskCompletion):
         new_level = current_level
         new_next_level_xp = next_level_xp
 
-        # The Level-Up Loop handles the massive XP dump from 120min sessions
         while new_xp >= new_next_level_xp:
             new_xp -= new_next_level_xp
             new_level += 1
@@ -236,18 +235,19 @@ async def get_system_profile(clerk_id: str):
                       COALESCE(system_credits, 0),
                       COALESCE(current_bandwidth, 100),
                       COALESCE(max_bandwidth, 100),
-                      last_reboot
+                      last_reboot,
+                      COALESCE(role, 'FREE'),
+                      COALESCE(account_tier, 0)
                FROM users WHERE external_id = %s""",
             (clerk_id,),
         )
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
-        user_id, sys_ver, exp_data, credits, cur_bw, max_bw, last_reboot = row
+        user_id, sys_ver, exp_data, credits, cur_bw, max_bw, last_reboot, role, account_tier = row
 
         now = datetime.now(timezone.utc)
         if last_reboot:
-            # Normalize to UTC-aware if stored as naive
             if last_reboot.tzinfo is None:
                 last_reboot = last_reboot.replace(tzinfo=timezone.utc)
             elapsed_hours = (now - last_reboot).total_seconds() / 3600.0
@@ -275,6 +275,8 @@ async def get_system_profile(clerk_id: str):
             "current_bandwidth": new_bw,
             "max_bandwidth": max_bw,
             "last_reboot": now.isoformat(),
+            "role": role,
+            "account_tier": account_tier,
         }
 
     except HTTPException:
@@ -430,7 +432,6 @@ async def shop_purchase(req: ShopPurchase):
                 "UPDATE users SET system_credits = system_credits - %s WHERE id = %s",
                 (item["cost"], user_id),
             )
-            # Reduce bandwidth_cost on every ACTIVE contract by 2 (floor 0)
             cur.execute(
                 """UPDATE contracts
                    SET bandwidth_cost = GREATEST(0, COALESCE(bandwidth_cost, 10) - 2)
@@ -540,6 +541,124 @@ async def apply_contract_reward(req: ContractReward):
                 "system_version":    new_ver,
                 "current_bandwidth": new_bw,
                 "max_bandwidth":     max_bw,
+            },
+        }
+
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ============================================================
+# UPGRADE TEST ENDPOINT (sets tier instantly for testing)
+# ============================================================
+
+class UpgradeTest(BaseModel):
+    clerk_id: str
+    target_tier: int = 1  # 1 or 2
+
+TIER_ROLES = {1: "PRO", 2: "ELITE"}
+
+@app.post("/api/user/upgrade-test")
+async def upgrade_test(req: UpgradeTest):
+    if req.target_tier not in (1, 2):
+        raise HTTPException(status_code=400, detail="target_tier must be 1 or 2")
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    try:
+        cur.execute(
+            """UPDATE users
+               SET account_tier = %s, role = %s
+               WHERE external_id = %s
+               RETURNING id, account_tier, role""",
+            (req.target_tier, TIER_ROLES[req.target_tier], req.clerk_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
+        conn.commit()
+        return {"success": True, "account_tier": row[1], "role": row[2]}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ============================================================
+# TIER-AWARE TASK COMPLETION
+# ============================================================
+
+class TierTaskComplete(BaseModel):
+    clerk_id: str
+    base_xp: int = 100
+
+
+@app.post("/system/tasks/complete")
+async def complete_task_with_tier(req: TierTaskComplete):
+    """
+    Award XP scaled by the user's account_tier:
+      Tier 0 → 1.0x  |  Tier 1 → 1.5x  |  Tier 2 → 2.0x
+    Updates experience_data and increments system_version on threshold cross.
+    """
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    try:
+        cur.execute(
+            """SELECT id,
+                      COALESCE(account_tier, 0),
+                      COALESCE(experience_data, 0),
+                      COALESCE(system_version, 1)
+               FROM users WHERE external_id = %s""",
+            (req.clerk_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
+        user_id, account_tier, exp_data, sys_ver = row
+
+        mult      = TIER_XP_MULTIPLIERS.get(account_tier, 1.0)
+        final_xp  = int(req.base_xp * mult)
+
+        new_exp      = exp_data + final_xp
+        new_ver      = sys_ver
+        versioned_up = False
+        threshold    = 1000 * new_ver
+        while new_exp >= threshold:
+            new_exp      -= threshold
+            new_ver      += 1
+            threshold     = 1000 * new_ver
+            versioned_up  = True
+
+        cur.execute(
+            """UPDATE users
+               SET experience_data = %s,
+                   system_version  = %s
+               WHERE id = %s""",
+            (new_exp, new_ver, user_id),
+        )
+        conn.commit()
+
+        return {
+            "success":      True,
+            "base_xp":      req.base_xp,
+            "multiplier":   mult,
+            "xp_awarded":   final_xp,
+            "account_tier": account_tier,
+            "version_up":   versioned_up,
+            "system_state": {
+                "experience_data": new_exp,
+                "system_version":  new_ver,
             },
         }
 

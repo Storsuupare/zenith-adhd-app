@@ -1,5 +1,6 @@
 import React from "react";
-import VolumeSlider from './VolumeSlider';
+import AmbientPlayer from './AmbientPlayer';
+import ThemeSelector from './ThemeSelector';
 
 
 const MissionForm = ({
@@ -22,9 +23,27 @@ const MissionForm = ({
   playHaptic,
   onContractCreated,
   clerkUser,
+  accountTier,
+  activeAmbientTrack,
+  onTrackChange,
+  activeTheme,
+  onThemeChange,
+  addNotification,
 }) => {
   return (
     <div className="input-section">
+      <AmbientPlayer
+        accountTier={accountTier}
+        activeTrack={activeAmbientTrack}
+        onTrackChange={onTrackChange}
+        addNotification={addNotification}
+      />
+      <ThemeSelector
+        accountTier={accountTier}
+        activeTheme={activeTheme}
+        onThemeChange={onThemeChange}
+        addNotification={addNotification}
+      />
       <div className="mission-parameters-header">
         <div className="toggle-container">
           <label className="zenith-switch">
@@ -42,19 +61,14 @@ const MissionForm = ({
             {isKineticMode
               ? "KINETIC MODE: DISTANCE FOCUS"
               : "DASHBOARD MODE: DESK FOCUS"}
-              
           </span>
-          <div className="mission-audio-link">
-          <span className="volume-icon" title="Neural Audio Volume">🔊</span>
-          </div>
-          <VolumeSlider />
         </div>
 
         
         
       </div>
 
-      <span className="selector-label">SELECT TARGET OBJECTIVE</span>
+      <span className="selector-label">CREATE NEW TASK</span>
 
       <select
         className="input-field"

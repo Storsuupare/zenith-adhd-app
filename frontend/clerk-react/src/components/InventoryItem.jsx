@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 
-const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpen }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpen, isOpen, onToggle, accountTier = 0, onUpgrade }) => {
   const [expandedItemId, setExpandedItemId] = useState(null);
 
   const toggleDetails = (id) => {
@@ -12,19 +11,31 @@ const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpe
     <div className="zenith-inventory-system">
       <nav className="inventory-nav-bar">
         {onShopOpen && (
-          <button className="modern-nav-btn shop-nav-btn" onClick={() => { playHaptic?.("PRESTIGE_EQUIP"); onShopOpen(); }}>
+          <button className="nav-btn shop-nav-btn" onClick={() => { playHaptic?.("PRESTIGE_EQUIP"); onShopOpen(); }}>
             <span className="btn-content">
               <span className="shop-nav-icon">◈</span>
-              <span className="btn-label">Zenith Shop</span>
+              <span className="btn-label">Shop</span>
+            </span>
+          </button>
+        )}
+        <div className="nav-divider"></div>
+        {onUpgrade && (
+          <button
+            className={`nav-btn upgrade-nav-btn ${accountTier > 0 ? "optimized" : "required"}`}
+            onClick={onUpgrade}
+          >
+            <span className="btn-content">
+              <span className="shop-nav-icon">{accountTier > 0 ? "◆" : "▲"}</span>
+              <span className="btn-label">UPGRADE</span>
             </span>
           </button>
         )}
         <div className="nav-divider"></div>
         <button
-          className={`modern-nav-btn ${isOpen ? "active" : ""}`}
+          className={`nav-btn ${isOpen ? "active" : ""}`}
           onClick={() => {
             if (!isOpen) playHaptic?.("VAULT_OPEN");
-            setIsOpen(!isOpen);
+            onToggle?.();
           }}>
           <span className="btn-content">
             <span className="shop-nav-icon">{isOpen ? "▣" : "▤"}</span>
