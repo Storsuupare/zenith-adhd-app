@@ -1,33 +1,62 @@
-ZENITH: The Neural Operating System
+# Zenith
 
+A productivity app that turns focus sessions into a live progression system. Log what you're working on, pick a skill, set a duration, and earn XP and credits when you finish. Stay consistent and the rewards compound.
 
+---
 
-Zenith isn't another "to-do" app that gathers dust. It’s a high-performance Neural OS built to close the gap between wanting to do something and actually moving.
+## What it is
 
-Traditional tools wait for you to feel motivated. Zenith doesn't. It treats your executive function like a finite battery—monitoring your energy, gamifying your progress, and using psychological triggers to keep you locked in.
+Zenith is built for people who struggle to start and stay on task. Instead of a plain to-do list, every session you complete feeds into a game layer — XP, skill levels, credits, loot drops, and a streak multiplier that stacks the longer you stay consistent.
 
-The Core Engine
-We built Zenith to solve the "Executive Dysfunction Gap" through Instant Sensory Telemetry.
+---
 
-Physical Anchoring: We use hardware-haptics and a custom audio controller to create a physical "ping" when you’re on a mission. It’s designed to stop the "task-switching" loop before it even starts.
+## Core features
 
-The Solar Engine: The UI isn't static. It lives and breathes with your local time. As the sun sets, the OS shifts phases, using isolated rendering layers so the transition is smooth as butter, even on older screens.
+- **Session economy** — complete focus sessions to earn XP and credits. Longer sessions pay more. Quit early and the reward gets cut.
+- **12 skills** — choose a skill before each session (Logic Flow, Resolve, Vitality, Creativity and more). Each skill levels up independently with its own XP bar and prestige system.
+- **Neural Clock** — rewards shift with the time of day. Late nights (12AM–7AM) pay half. Peak hours (8–11AM) give the best XP. A hyperfocus window opens at 10PM.
+- **Daily challenges** — a rotating challenge each day (complete sessions, log minutes, train different skills). Claim 50 CR on completion.
+- **Loot drops** — finishing a session has a chance to drop a cosmetic item. Rarity scales with your subscription tier.
+- **Shop** — spend credits on themes that change the entire sky backdrop. PRO and ELITE unlock additional themes.
+- **Solar backdrop** — the background gradient shifts through dawn, day, evening, sunset, and night in real time based on your local clock.
+- **Prestige system** — hit level 99 in a skill to prestige it. Resets to level 1 but grants a permanent +10% XP bonus to that skill.
 
-Technical Architecture
-Real-World Performance
-We aren't just building for the latest iPhone on 5G. Zenith is optimized for the "Mid-Tier Reality."
+---
 
-Built for 4G & Mid-Tier CPUs: We’ve gutted the main thread to keep interactions under 100ms. If you’re on a $300 phone with a spotty 4G connection, Zenith should still feel like a flagship experience.
+## Stack
 
-The Tablet Fix: No more "zoom-to-see-the-button" nonsense. We use a locked 100dvh viewport. This means the HUD and the "Upgrade" buttons stay pinned to the glass exactly where they belong, whether you're on a Galaxy Tab or a fold-out phone.
+| Layer    | Tech                                      |
+|----------|-------------------------------------------|
+| Mobile   | React Native + Expo                       |
+| Website  | React + Vite                              |
+| Backend  | Node.js + Express + PostgreSQL            |
+| Auth     | Clerk                                     |
+| Payments | Stripe                                    |
+| Email    | Resend                                    |
+| Hosting  | Railway (backend) + Vercel (website)      |
 
-The Scrap Economy
-Zenith runs on a PostgreSQL backend with a "Zero-Waste" philosophy. If you fail a task or leave data "junk" lying around, the system decompiles it into raw materials (XP). You use that XP to climb a skill tree inspired by OSRS mechanics (Old School Runescape). Nothing is ever truly wasted.
+---
 
-Relational Skill Mapping
-We map every move you make to four core pathways: Vitality, Logic Flow, Environment, and Resolve. It gives you a bird's eye view of your life, showing you exactly which "sector" of your brain is slacking off in real-time.
+## Subscription tiers
 
-The Vision
-Zenith is for the New Era Developer, the person who treats their brain like a system to be optimized, not a problem to be fixed. We’ve balanced high-end glassmorphic visuals with aggressive CPU management to make sure your phone doesn't turn into a heater while you're getting things done.
+| Tier  | Price     | Multiplier | Loot rate |
+|-------|-----------|------------|-----------|
+| Free  | —         | 1×         | 25%       |
+| PRO   | €4.99/mo  | 1.5×       | 50%       |
+| ELITE | €9.99/mo  | 2×         | 75%       |
 
-Initialize the Mission. Scrape the Noise. Evolve the System.
+Paying buys comfort and capacity — never a hard advantage over free users.
+
+---
+
+## Project structure
+
+```
+zenith-mobile/     React Native app (Expo)
+website-react/     Marketing + account site
+backend/           Node.js API + PostgreSQL
+```
+
+---
+
+© 2026 Zenith. All rights reserved.
