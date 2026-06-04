@@ -9,7 +9,7 @@ const THEMES = [
   { id: "crimson", label: "Crimson", color: "#ef4444", minTier: 2 },
 ];
 
-const ThemeSelector = ({ accountTier = 0, activeTheme = "default", onThemeChange, addNotification }) => {
+const ThemeSelector = React.memo(({ accountTier = 0, activeTheme = "default", onThemeChange, addNotification }) => {
   const handleSelect = (theme) => {
     if (theme.minTier > accountTier) {
       const needed = theme.minTier === 1 ? "Pro" : "Elite";
@@ -25,7 +25,7 @@ const ThemeSelector = ({ accountTier = 0, activeTheme = "default", onThemeChange
 
   return (
     <div className="theme-selector">
-      <span className="theme-label">THEME</span>
+      
       <div className="theme-swatch-row">
         {THEMES.map((t) => {
           const locked = t.minTier > accountTier;
@@ -39,13 +39,21 @@ const ThemeSelector = ({ accountTier = 0, activeTheme = "default", onThemeChange
             >
               <span className="swatch-dot" />
               <span className="swatch-label">{t.label}</span>
-              {locked && <span className="swatch-lock-tag">{t.minTier === 1 ? "PRO" : "ELITE"}</span>}
+              {t.minTier > 0 && (
+                <span
+                  className={`swatch-lock-tag swatch-lock-tag--${t.minTier === 1 ? "pro" : "elite"}`}
+                  style={locked ? undefined : { visibility: "hidden" }}
+                  aria-hidden={!locked}
+                >
+                  {t.minTier === 1 ? "PRO" : "ELITE"}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
     </div>
   );
-};
+});
 
 export default ThemeSelector;

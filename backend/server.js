@@ -1,12 +1,131 @@
 require("dotenv").config();
 
+// ── Startup env validation ────────────────────────────────────────────────────
+// Catch missing required variables before any request is served.
+// In production this exits the process immediately with a clear error.
+const REQUIRED_ENV = [
+  "DATABASE_URL",
+  "CLERK_SECRET_KEY",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+  "FRONTEND_URL",
+  "ALLOWED_ORIGINS",
+  "VAPID_EMAIL",
+  "VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "ADMIN_SECRET",
+  "RESEND_API_KEY",
+];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+  if (process.env.NODE_ENV === "production") {
+    console.error("[STARTUP] Missing required env vars:", missing.join(", "));
+    process.exit(1);
+  } else {
+    console.warn("[STARTUP] Missing env vars (non-fatal in dev):", missing.join(", "));
+  }
+}
+
 const express = require("express");
 const { Pool } = require("pg");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const webpush = require("web-push");
+const cron = require("node-cron");
+const { verifyToken } = require("@clerk/backend");
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY,
+);
+const { Resend } = require("resend");
+const helmet = require("helmet");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ── Auth middleware ───────────────────────────────────────────────────────────
+// Verifies the Clerk JWT from the Authorization header and attaches the
+// authenticated user's Clerk ID to req.auth.userId.
+// Every protected route uses req.auth.userId instead of trusting the client.
+const requireAuth = async (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "UNAUTHORIZED" });
+  }
+  try {
+    const payload = await verifyToken(header.slice(7), {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    });
+    req.auth = { userId: payload.sub };
+    next();
+  } catch {
+    return res.status(401).json({ error: "INVALID_TOKEN" });
+  }
+};
+
+// Checks for the X-Admin-Token header — must match ADMIN_SECRET in .env.
+// Runs before the DB check so bad actors are rejected without a DB hit.
+const requireAdminToken = (req, res, next) => {
+  const token = req.headers['x-admin-token']
+  if (!token || token !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: 'FORBIDDEN' })
+  }
+  next()
+}
+
+// Checks that the authenticated caller has is_admin = true in the DB.
+// is_admin is a separate boolean — it does not affect the role/tier fields.
+const requireAdmin = async (req, res, next) => {
+  try {
+    const adminCheckResult = await pool.query(
+      "SELECT is_admin FROM users WHERE external_id = $1",
+      [req.auth.userId],
+    );
+    if (!adminCheckResult.rows[0]?.is_admin)
+      return res.status(403).json({ error: "FORBIDDEN" });
+    next();
+  } catch {
+    return res.status(500).json({ error: "DATABASE_ERROR" });
+  }
+};
+
+// ── Rate limiters ─────────────────────────────────────────────────────────────
+// Three tiers: global (all routes), mutations (task/loot/prestige), shop
+const _rl = (windowMin, max) => rateLimit({
+  windowMs: windowMin * 60 * 1000,
+  max,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "TOO_MANY_REQUESTS" },
+});
+const globalLimiter   = _rl(15, 300);  // 300 req per 15 min — general abuse guard
+const mutationLimiter = _rl(60, 60);   // 60 mutations per hour — task/loot/prestige
+const shopLimiter     = _rl(15, 10);   // 10 purchases per 15 min — shop anti-spam
+const bonusLimiter    = _rl(60, 5);    // 5 attempts per hour — daily bonus anti-spam
+const adminLimiter    = _rl(15, 20);   // 20 req per 15 min — admin panel
 
 const app = express();
-app.use(cors());
+
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
+  .split(",").map(o => o.trim()).filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Token"],
+  credentials: true,
+}));
+
+// Security headers — HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, etc.
+// CSP disabled here; configure separately once all asset origins are locked down.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+app.use(globalLimiter);
 
 app.post(
   "/payments/webhook",
@@ -16,7 +135,7 @@ app.post(
     let event;
     try {
       event = stripe.webhooks.constructEvent(
-        req.body,                          
+        req.body,
         sig,
         process.env.STRIPE_WEBHOOK_SECRET,
       );
@@ -27,39 +146,49 @@ app.post(
 
     const applyTierUpgrade = async (userId, targetTier) => {
       if (!userId || !targetTier) return;
-      const tier = Number(targetTier);
-      const role = tier >= 2 ? "ELITE" : "PRO";
-      const result = await pool.query(
+      const upgradeTier = Number(targetTier);
+      const role = upgradeTier >= 2 ? "ELITE" : "PRO";
+      const upgradeResult = await pool.query(
         "UPDATE users SET account_tier = $1, role = $2 WHERE external_id = $3 RETURNING id, username",
-        [tier, role, userId],
+        [upgradeTier, role, userId],
       );
-      if (result.rowCount === 0) console.warn("[WEBHOOK] No user matched external_id:", userId);
-      else console.log(`[STRIPE] Upgraded ${result.rows[0].username} → Tier ${tier} (${role})`);
+      if (upgradeResult.rowCount === 0)
+        console.warn("[WEBHOOK] No user matched external_id:", userId);
+      else {
+        console.log(`[STRIPE] Upgraded ${upgradeResult.rows[0].username} → Tier ${upgradeTier} (${role})`);
+        // Push tier change instantly to the connected client — no polling delay
+        pushUserPatch(userId).catch(() => {});
+      }
     };
 
     try {
       if (event.type === "checkout.session.completed") {
-        const session = event.data.object;
-        const { userId, targetTier } = session.metadata ?? {};
-        console.log("[WEBHOOK] checkout.session.completed — userId:", userId, "tier:", targetTier);
+        const checkoutSession = event.data.object;
+        const { userId, targetTier } = checkoutSession.metadata ?? {};
+        console.log(
+          "[WEBHOOK] checkout.session.completed — userId:",
+          userId,
+          "tier:",
+          targetTier,
+        );
         await applyTierUpgrade(userId, targetTier);
-
       } else if (event.type === "invoice.payment_succeeded") {
         const invoice = event.data.object;
         if (!invoice.subscription) return res.json({ received: true });
-        const sub  = await stripe.subscriptions.retrieve(invoice.subscription);
-        const { userId, targetTier } = sub.metadata ?? {};
+        const invoiceSub = await stripe.subscriptions.retrieve(invoice.subscription);
+        const { userId, targetTier } = invoiceSub.metadata ?? {};
         await applyTierUpgrade(userId, targetTier);
-
       } else if (event.type === "customer.subscription.deleted") {
-        const sub = event.data.object;
-        const { userId } = sub.metadata ?? {};
+        const deletedSub = event.data.object;
+        const { userId } = deletedSub.metadata ?? {};
         if (userId) {
           await pool.query(
             "UPDATE users SET account_tier = 0, role = 'FREE' WHERE external_id = $1",
             [userId],
           );
-          console.log(`[STRIPE] Reverted ${userId} → Free tier (subscription cancelled)`);
+          console.log(
+            `[STRIPE] Reverted ${userId} → Free tier (subscription cancelled)`,
+          );
         }
       }
     } catch (dbErr) {
@@ -73,70 +202,485 @@ app.post(
 
 app.use(express.json());
 
-app.use((req, res, next) => {
-  console.log("--- INCOMING REQUEST ---");
-  console.log("Method:", req.method);
-  console.log("Path:", req.path);
-  console.log("Body:", req.body);
-  next();
-});
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
 
 const pool = new Pool({
-  user:     process.env.DB_USER,
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  host:     process.env.DB_HOST,
-  port:     process.env.DB_PORT,
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
   database: process.env.DB_NAME,
 });
 
-const TIER_PERK_SLOTS = { 0: 1, 1: 2, 2: 4 };
-const TIER_MAX_TASKS  = { 0: 5, 1: 15, 2: Infinity };
 
-function getTierRarity(roll, accountTier, role) {
-  const isAdmin = role === "ADMIN";
-  if (roll > 99.5) return "Mythic";
-  const legThreshold = isAdmin ? 95 : accountTier >= 2 ? 95 : accountTier >= 1 ? 98 : Infinity;
-  if (roll > legThreshold) return "Legendary";
-  if (roll > 90) return "Epic";
-  if (roll > 75) return "Rare";
-  if (roll > 40) return "Uncommon";
+// ── DB migrations (run once on startup) ───────────────────────────────────
+pool.query(`
+  ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS streak_last_updated TIMESTAMPTZ DEFAULT NOW()
+`).catch(() => {});
+
+// Backfill NULLs left by the ADD COLUMN migration — set to yesterday so the
+// next task completion counts toward the streak immediately.
+pool.query(`
+  UPDATE users SET streak_last_updated = NOW() - INTERVAL '1 day'
+  WHERE streak_last_updated IS NULL
+`).catch(() => {});
+
+// Drop BW columns — bandwidth removed from product
+pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS current_bandwidth`).catch(() => {});
+pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS max_bandwidth`).catch(() => {});
+pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS bw_pulse_date`).catch(() => {});
+pool.query(`ALTER TABLE tasks DROP COLUMN IF EXISTS staked_bw`).catch(() => {});
+pool.query(`ALTER TABLE tasks DROP COLUMN IF EXISTS cognitive_load`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_cosmetics JSONB DEFAULT '[]'`).catch(() => {});
+
+pool.query(`
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false
+`).catch(() => {});
+
+pool.query(`UPDATE users SET system_credits = 0 WHERE system_credits IS NULL`).catch(() => {});
+
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_bonus_claimed_at TIMESTAMPTZ`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS has_seen_onboarding BOOLEAN DEFAULT false`).catch(() => {});
+pool.query(`ALTER TABLE user_skills ADD COLUMN IF NOT EXISTS prestige_boost_until TIMESTAMPTZ`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_task_completed BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_challenge_claimed_date DATE`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
+// Upgrade DATE → TIMESTAMPTZ for existing deployments (no-op if already correct type)
+pool.query(`
+  DO $$ BEGIN
+    IF (SELECT data_type FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'daily_bonus_claimed_at') = 'date' THEN
+      ALTER TABLE users ALTER COLUMN daily_bonus_claimed_at TYPE TIMESTAMPTZ
+        USING daily_bonus_claimed_at::TIMESTAMPTZ;
+    END IF;
+  END $$
+`).catch(() => {});
+
+
+pool.query(`UPDATE inventory SET rarity = 'Junk' WHERE name = 'Quick Start' AND rarity = 'Common'`).catch(() => {});
+
+pool.query(`
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
+    endpoint   TEXT NOT NULL UNIQUE,
+    subscription JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(() => {});
+
+const sseClients = new Map();
+
+// Anonymous presence: externalId → { sessionId, skillName, duration, startedAt, tier }
+const presenceMap = new Map();
+
+// One-time SSE auth tokens: uuid → { userId, expiresAt }
+// Clerk JWTs must not live in query-params (logged by proxies/nginx).
+// Frontend requests a short-lived UUID here, uses it once to open the stream.
+const sseTokens = new Map();
+
+// Stake amounts per duration — mirrors client getMissionStakes but is authoritative.
+// Red Zone (0–4am server time) halves the stake so the server, not the client, decides.
+const STAKE_BY_DURATION = { 5: 250, 15: 1200, 30: 4000, 60: 10000, 90: 15800, 120: 30000 };
+
+function calculateStake(durationMinutes) {
+  const base = STAKE_BY_DURATION[durationMinutes] ?? Math.floor(Number(durationMinutes) * 10);
+  const hour = new Date().getHours();
+  return (hour >= 0 && hour < 5) ? Math.floor(base / 2) : base;
+}
+
+function broadcastPresence() {
+  const sessions = [...presenceMap.values()];
+  const payload = `data: ${JSON.stringify({ type: "presence", data: sessions })}\n\n`;
+  for (const stream of sseClients.values()) {
+    try { stream.write(payload); } catch { /* stream closed */ }
+  }
+}
+
+async function pushUserPatch(externalId) {
+  const stream = sseClients.get(externalId);
+  if (!stream) return;
+  try {
+    const userDataResult = await pool.query(
+      `SELECT id,
+              COALESCE(system_credits, 0)      AS system_credits,
+              xp, level, total_xp, streak,
+              COALESCE(account_tier, 0)        AS account_tier,
+              COALESCE(role, 'FREE')           AS role,
+              daily_bonus_claimed_at,
+              daily_challenge_claimed_date,
+              COALESCE(has_seen_onboarding, false) AS has_seen_onboarding
+       FROM users WHERE external_id = $1`,
+      [externalId],
+    );
+    if (!userDataResult.rows[0]) return;
+
+    const masteryResult = await pool.query(
+      `SELECT us.id, us.skill_id, s.name AS skill_name, us.xp AS current_xp,
+              us.level AS current_level, us.next_level_xp, us.prestige_level,
+              us.prestige_boost_until
+       FROM user_skills us
+       JOIN skills s ON us.skill_id = s.id
+       WHERE us.user_id = $1
+       ORDER BY s.name`,
+      [userDataResult.rows[0].id],
+    );
+
+    const inventoryResult = await pool.query(
+      `SELECT id, id AS "instanceId", name, category, rarity, description,
+              is_equipped, color_hex, effect_value
+       FROM inventory WHERE user_id = $1
+       ORDER BY id`,
+      [userDataResult.rows[0].id],
+    );
+
+    const data = { ...userDataResult.rows[0], mastery: masteryResult.rows, inventory: inventoryResult.rows };
+    stream.write(`data: ${JSON.stringify({ type: "user_patch", data })}\n\n`);
+  } catch { /* stream already closed or DB hiccup — silent */ }
+}
+
+const TIER_PERK_SLOTS     = { 0: 1,    1: 2,   2: 4        };
+const TIER_MAX_TASKS      = { 0: 5,    1: 15,  2: Infinity };
+// Chance of getting a loot drop at all — separate from rarity.
+// FREE: 1-in-4 sessions. PRO: 2-in-4 (2× base). ELITE: 3-in-4 (3× base).
+const TIER_DROP_CHANCE    = { 0: 0.25, 1: 0.50, 2: 0.75   };
+// How many items the vault can hold before scrapping extras.
+const TIER_VAULT_CAP      = { 0: 10,   1: 20,  2: 40       };
+
+// Credit reward tables — base is guaranteed (2 CR/min), bonus is a chance roll.
+// Tier multiplier (1×/1.5×/2×) is applied on top after these values are calculated.
+const BASE_CR         = { 5: 10,  15: 30,  30: 60,   60: 120, 90: 180, 120: 240 };
+const BONUS_CR        = { 5: 20,  15: 50,  30: 100,  60: 200, 90: 300, 120: 500 };
+const BONUS_CR_CHANCE = { 5: 0.05, 15: 0.10, 30: 0.20, 60: 0.30, 90: 0.40, 120: 0.50 };
+
+// Per-tier rarity thresholds — all tiers can roll any rarity.
+// Higher tiers just have better odds (lower cutoffs), not exclusive access.
+// Probabilities per tier (approximate):
+//   FREE:  Mythic 0.2% | Legendary 0.8% | Epic 7% | Rare 14% | Uncommon 33% | Junk 45%
+//   PRO:   Mythic 0.5% | Legendary 2.5% | Epic 7% | Rare 16% | Uncommon 34% | Junk 40%
+//   ELITE: Mythic 0.5% | Legendary 4.5% | Epic 8% | Rare 17% | Uncommon 35% | Junk 35%
+const RARITY_THRESHOLDS = {
+  0: { Mythic: 99.8, Legendary: 99.0, Epic: 92, Rare: 78, Uncommon: 45 },
+  1: { Mythic: 99.5, Legendary: 97.0, Epic: 90, Rare: 74, Uncommon: 40 },
+  2: { Mythic: 99.5, Legendary: 95.0, Epic: 87, Rare: 70, Uncommon: 35 },
+};
+
+function getTierRarity(roll, accountTier) {
+  const rarityThresholdTable = RARITY_THRESHOLDS[accountTier] ?? RARITY_THRESHOLDS[0];
+  if (roll > rarityThresholdTable.Mythic)    return "Mythic";
+  if (roll > rarityThresholdTable.Legendary) return "Legendary";
+  if (roll > rarityThresholdTable.Epic)      return "Epic";
+  if (roll > rarityThresholdTable.Rare)      return "Rare";
+  if (roll > rarityThresholdTable.Uncommon)  return "Uncommon";
   return "Junk";
 }
 
+// Maps every item name to its server-side effect.
+// XP_GAIN and MARATHON_BONUS are both multipliers — MARATHON_BONUS only fires
+// on sessions that are 60+ minutes long (rewarding deep work).
+// BW_COST multipliers below 1 reduce the BW deducted at task start.
 const PERK_EFFECTS = {
+  // Mythic
   "Flow State Crystal": { effect_type: "XP_GAIN",       effect_value: 2.0  },
-  "Chronos Lock":       { effect_type: "XP_GAIN",       effect_value: 1.3  },
+  "Neural Overdrive":   { effect_type: "MARATHON_BONUS", effect_value: 1.5  },
+  // Legendary
   "Clarity Prism":      { effect_type: "XP_GAIN",       effect_value: 1.5  },
-  "All-In Token":       { effect_type: "XP_GAIN",       effect_value: 3.0  },
-  "Second Wind":        { effect_type: "BW_EFFICIENCY",  effect_value: 5   },
-  "Priority Lens":      { effect_type: "CREDIT_BOOST",   effect_value: 1.15},
-  "Spark Stone":        { effect_type: "CREDIT_BOOST",   effect_value: 1.1 },
-  "Streak Guard":       { effect_type: "CREDIT_BOOST",   effect_value: 1.05},
-  "Calm Stone":         { effect_type: "BW_EFFICIENCY",  effect_value: 3   },
-  "Warm Start":         { effect_type: "BW_EFFICIENCY",  effect_value: 3   },
-  "Quiet Mode":         { effect_type: "BW_EFFICIENCY",  effect_value: 1   },
-  "Commitment Stone":   { effect_type: "BW_EFFICIENCY",  effect_value: 2   },
-  "Progress Lens":      { effect_type: "CREDIT_BOOST",   effect_value: 1.05},
-  "Old Gear":           { effect_type: "BW_EFFICIENCY",  effect_value: 1   },
-  "Quick Start":        { effect_type: "BW_EFFICIENCY",  effect_value: 2   },
-  "Old Habit":          { effect_type: "XP_GAIN",        effect_value: 1.01},
-  "Burst Bottle":       { effect_type: "XP_GAIN",        effect_value: 1.2 },
-  "Tiny Spark":         { effect_type: "XP_GAIN",        effect_value: 1.1 },
+  "Grand Architect":    { effect_type: "MARATHON_BONUS", effect_value: 1.3  },
+  "Credit Magnet":      { effect_type: "CREDIT_BOOST",  effect_value: 1.5  },
+  // Epic
+  "Second Wind":        { effect_type: "BW_COST",        effect_value: 0.5  },
+  "Scholar's Mark":     { effect_type: "XP_GAIN",       effect_value: 1.3  },
+  "Lucky Break":        { effect_type: "CREDIT_BOOST",  effect_value: 1.35 },
+  "Phantom Step":       { effect_type: "BW_COST",        effect_value: 0.6  },
+  // Rare
+  "Spark Stone":        { effect_type: "CREDIT_BOOST",  effect_value: 1.25 },
+  "Streak Guard":       { effect_type: "STREAK_SHIELD", effect_value: 1    },
+  "Mnemonic Lens":      { effect_type: "XP_GAIN",       effect_value: 1.2  },
+  "Momentum Chip":      { effect_type: "MARATHON_BONUS", effect_value: 1.2  },
+  "Efficiency Core":    { effect_type: "BW_COST",        effect_value: 0.75 },
+  // Uncommon
+  "Calm Stone":         { effect_type: "BW_COST",        effect_value: 0.8  },
+  "Focus Elixir":       { effect_type: "XP_GAIN",       effect_value: 1.15 },
+  "Data Shard":         { effect_type: "CREDIT_BOOST",  effect_value: 1.15 },
+  "Study Talisman":     { effect_type: "XP_GAIN",       effect_value: 1.15 },
+  "Signal Boost":       { effect_type: "MARATHON_BONUS", effect_value: 1.1  },
+  // Junk
+  "Quick Start":        { effect_type: "XP_GAIN",       effect_value: 1.1  },
+  "Scrap Battery":      { effect_type: "CREDIT_BOOST",  effect_value: 1.05 },
+  "Worn Band":          { effect_type: "BW_COST",        effect_value: 0.95 },
 };
 
-const { lootTable } = require("./LootData.js");
-console.log("Loot Table Loaded! Total Items:", lootTable.length);
+// Server-side cosmetic prices for purchase validation.
+// null = tier-only (subscription required, not purchaseable with credits).
+// All purchasable cosmetics with their credit price.
+// Classic is free (not listed — purchase attempt returns COSMETIC_NOT_FOUND).
+// PRO/ELITE themes require the matching subscription tier before the credit purchase is allowed.
+const COSMETICS_PRICES = {
+  cobalt: 1500, amber: 1500, crimson: 2000, violet: 2500, jade: 3000,
+  neon: 2000, arctic: 2000, solar: 2500,
+  nebula: 3000, obsidian: 3000, ghost: 3500,
+  rain: 600, library: 600, lofi: 900, cyberpunk: 1200,
+  deepspace: null, spacestation: null, deepsea: null,
+};
+
+// Minimum account_tier required to purchase the cosmetic with credits.
+const COSMETICS_MIN_TIER = {
+  neon: 1, arctic: 1, solar: 1,
+  nebula: 2, obsidian: 2, ghost: 2,
+};
+
+// Consumable prices — deducted on purchase, effect applied immediately.
+const CONSUMABLE_PRICES = {
+  streak_rescue:   500,
+  extra_loot_pull: 250,
+};
+
+// RETIRED — perk shop replaced with cosmetics shop.
+// Kept as empty array so any stale references fail gracefully.
+const PERK_SHOP_ITEMS = [
+  // ── Junk ────────────────────────────────────────────────────────────────
+  {
+    id: "quick_start", name: "Quick Start", cost: 200, rarity: "Junk",
+    description: "A small but real edge. Every completed session earns 10% more XP than it would bare-handed.",
+    color_hex: "#9CA3AF", effect_value: "+10% XP",
+  },
+  {
+    id: "scrap_battery", name: "Scrap Battery", cost: 200, rarity: "Junk",
+    description: "Worn down but still ticking. Adds 5% to credit payouts. Equip it until something better drops.",
+    color_hex: "#6B7280", effect_value: "+5% Credits",
+  },
+  {
+    id: "worn_band", name: "Worn Band", cost: 200, rarity: "Junk",
+    description: "Fraying at the edges. Cuts Bandwidth task cost by 5%. Better than nothing when starting out.",
+    color_hex: "#4B5563", effect_value: "-5% BW Cost",
+  },
+  // ── Uncommon ────────────────────────────────────────────────────────────
+  {
+    id: "study_talisman", name: "Study Talisman", cost: 500, rarity: "Uncommon",
+    description: "An old favourite. Adds a quiet 15% to every XP payout while it stays in your loadout.",
+    color_hex: "#60A5FA", effect_value: "+15% XP",
+  },
+  {
+    id: "data_shard", name: "Data Shard", cost: 500, rarity: "Uncommon",
+    description: "Salvages extra value from every session. Credit payouts are bumped up by 15%.",
+    color_hex: "#22D3EE", effect_value: "+15% Credits",
+  },
+  {
+    id: "signal_boost", name: "Signal Boost", cost: 600, rarity: "Uncommon",
+    description: "Amplifies the output of long sessions. Tasks 60 minutes and above get a 10% XP bonus.",
+    color_hex: "#38BDF8", effect_value: "+10% XP (60min+)",
+  },
+  {
+    id: "focus_elixir", name: "Focus Elixir", cost: 650, rarity: "Uncommon",
+    description: "Amplifies XP earned on every completed task by 15% while equipped.",
+    color_hex: "#34D399", effect_value: "+15% XP",
+  },
+  {
+    id: "calm_stone", name: "Calm Stone", cost: 800, rarity: "Uncommon",
+    description: "Reduces Bandwidth drain on every task start by 20%. Keeps you in the game longer on tough days.",
+    color_hex: "#1EFF00", effect_value: "-20% BW Cost",
+  },
+  // ── Rare ────────────────────────────────────────────────────────────────
+  {
+    id: "mnemonic_lens", name: "Mnemonic Lens", cost: 1000, rarity: "Rare",
+    description: "Sharpens how much you retain from every session. XP gains are boosted by 20% across all skills.",
+    color_hex: "#4169E1", effect_value: "+20% XP",
+  },
+  {
+    id: "efficiency_core", name: "Efficiency Core", cost: 1100, rarity: "Rare",
+    description: "Cuts the overhead. Task startup costs 25% less Bandwidth so you stay in flow longer.",
+    color_hex: "#6A0DAD", effect_value: "-25% BW Cost",
+  },
+  {
+    id: "momentum_chip", name: "Momentum Chip", cost: 1200, rarity: "Rare",
+    description: "Rewards commitment. Any session you push past 60 minutes earns an additional 20% XP.",
+    color_hex: "#1C86EE", effect_value: "+20% XP (60min+)",
+  },
+  {
+    id: "spark_stone", name: "Spark Stone", cost: 1300, rarity: "Rare",
+    description: "Quietly multiplies your credit haul on every completed session. Small advantage, consistent return.",
+    color_hex: "#0070DD", effect_value: "+25% Credits",
+  },
+  {
+    id: "streak_guard", name: "Streak Guard", cost: 800, rarity: "Rare",
+    description: "One miss won't break you. Keeps your streak alive through your next missed day, then self-destructs.",
+    color_hex: "#00C2FF", effect_value: "Streak Shield",
+  },
+  // ── Epic ────────────────────────────────────────────────────────────────
+  {
+    id: "phantom_step", name: "Phantom Step", cost: 2200, rarity: "Epic",
+    description: "Lighter footprint. Task startup costs 40% less Bandwidth, letting you run more sessions before needing to rest.",
+    color_hex: "#9B30FF", effect_value: "-40% BW Cost",
+  },
+  {
+    id: "scholars_mark", name: "Scholar's Mark", cost: 2800, rarity: "Epic",
+    description: "The mark of someone who shows up every day. Every completed session awards 30% more XP.",
+    color_hex: "#7B68EE", effect_value: "+30% XP",
+  },
+  {
+    id: "lucky_break", name: "Lucky Break", cost: 2800, rarity: "Epic",
+    description: "Fortune favours the consistent. Adds 35% to every credit payout when equipped.",
+    color_hex: "#BA8F00", effect_value: "+35% Credits",
+  },
+  {
+    id: "second_wind", name: "Second Wind", cost: 3500, rarity: "Epic",
+    description: "Push harder for less. Every task you start consumes half the Bandwidth it normally would.",
+    color_hex: "#A335EE", effect_value: "-50% BW Cost",
+  },
+];
+
+async function calculateNeuralCost(baseLoad, userId, client) {
+  const neuralHour = new Date().getHours();
+
+  let timeModifier = 1.0;
+  let timeLabel = null;
+
+  if (neuralHour >= 8 && neuralHour < 11) {
+    timeModifier = 0.9;
+    timeLabel = "Peak Sync";
+  } else if (neuralHour >= 14 && neuralHour < 16) {
+    timeModifier = 1.3;
+    timeLabel = "Drag";
+  } else if (neuralHour >= 22 || neuralHour < 2) {
+    timeModifier = 0.8;
+    timeLabel = "Hyperfocus";
+  }
+
+  const fatigueRes = await client.query(
+    `SELECT COALESCE(SUM(duration_minutes), 0) AS total_minutes
+     FROM tasks
+     WHERE user_id::text = $1
+       AND status = 'SUCCESS'
+       AND completed_at >= NOW() - INTERVAL '4 hours'`,
+    [String(userId)],
+  );
+  const totalMinutes = parseFloat(fatigueRes.rows[0].total_minutes);
+  const fatiguePenalty = totalMinutes > 120 ? 1.1 : 1.0;
+
+  const neuralFinalCost = Math.ceil(baseLoad * timeModifier * fatiguePenalty);
+
+  return { finalCost: neuralFinalCost, timeModifier, fatiguePenalty, timeLabel };
+}
+
+function getEffectiveAccountTier(accountTier) {
+  return accountTier ?? 0;
+}
+
+const { CREDIT_BY_RARITY, rollRarity } = require("./LootData.js");
+
+// Terms that impersonate Zenith staff or the brand.
+// Checked case-insensitively as substrings after stripping separators.
+// Unicode homoglyph normalization handles lookalike characters (ᴢenith, z̷ēnith etc.)
+const RESERVED_USERNAME_PATTERNS = [
+  
+  "zenith",
+ 
+  "admin", "administrator",
+  "mod", "moderator", "moderation",
+  "staff", "official", "founder", "owner",
+  "developer", "sysadmin",
+  "verified", "security", "helpdesk", "support",
+  "bot", "automod",
+  "system",
+];
+
+function isReservedUsername(username) {
+  // Normalize Unicode to strip homoglyphs (ᴢ → z, é → e etc.)
+  const normalized = username
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")   // strip combining diacritics
+    .toLowerCase()
+    .replace(/[\s_\-\.0@$1!]/g, "");   // strip separators + common leet substitutes
+  return RESERVED_USERNAME_PATTERNS.some(p =>
+    normalized.includes(p.replace(/[\s_\-\.]/g, ""))
+  );
+}
 
 
-app.post("/user", async (req, res) => {
-  const { clerkId, username, email } = req.body;
+// ── Daily credit bonus ─────────────────────────────────────────────────────────
+// Rolling 24h window (not calendar-day) — prevents midnight spam.
+// FOR UPDATE row lock prevents duplicate claims from concurrent requests.
+const DAILY_BONUS_CREDITS = { 0: 30, 1: 120, 2: 250 };
+const BONUS_WINDOW_MS     = 24 * 60 * 60 * 1000;
+
+app.post("/api/daily-bonus/claim", requireAuth, bonusLimiter, async (req, res) => {
+  const clerkId = req.auth.userId;
+  const client  = await pool.connect();
   try {
-    const userRes = await pool.query(
+    await client.query("BEGIN");
+
+    const row = await client.query(
+      `SELECT id,
+              COALESCE(system_credits, 0)  AS credits,
+              COALESCE(account_tier, 0)    AS account_tier,
+              daily_bonus_claimed_at
+       FROM users WHERE external_id = $1 FOR UPDATE`,
+      [clerkId],
+    );
+    if (!row.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+
+    const { id, credits, account_tier, daily_bonus_claimed_at } = row.rows[0];
+
+    if (daily_bonus_claimed_at) {
+      const elapsedMs   = Date.now() - new Date(daily_bonus_claimed_at).getTime();
+      const secondsLeft = Math.ceil((BONUS_WINDOW_MS - elapsedMs) / 1000);
+      if (elapsedMs < BONUS_WINDOW_MS) {
+        await client.query("ROLLBACK");
+        return res.json({
+          already_used:      true,
+          seconds_remaining: Math.max(secondsLeft, 0),
+          system_credits:    parseInt(credits),
+        });
+      }
+    }
+
+    const earned     = DAILY_BONUS_CREDITS[account_tier] ?? 30;
+    const newCredits = parseInt(credits) + earned;
+    await client.query(
+      "UPDATE users SET system_credits = $1, daily_bonus_claimed_at = NOW() WHERE id = $2",
+      [newCredits, id],
+    );
+
+    await client.query("COMMIT");
+    pushUserPatch(clerkId).catch(() => {});
+    res.json({ already_used: false, credits_earned: earned, system_credits: newCredits });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+
+app.post("/user", requireAuth, async (req, res) => {
+  const { username, email } = req.body;
+  const clerkId = req.auth.userId;
+
+  if (!username || isReservedUsername(username)) {
+    return res.status(403).json({
+      error: "USERNAME_RESERVED",
+      message: "That username is not available.",
+    });
+  }
+
+  try {
+    const userCreationRes = await pool.query(
       "INSERT INTO users (external_id, username, email_address, level, xp, streak, total_xp, current_level) VALUES ($1, $2, $3, 1, 0, 0, 0, 1) RETURNING *",
       [clerkId, username, email],
     );
 
-    const newUser = userRes.rows[0];
+    const newUser = userCreationRes.rows[0];
 
     await pool.query(
       `INSERT INTO user_skills (user_id, skill_id, xp, level, next_level_xp, prestige_level)
@@ -144,7 +688,7 @@ app.post("/user", async (req, res) => {
       [newUser.id],
     );
 
-    const masteryRes = await pool.query(
+    const postUserMasteryRes = await pool.query(
       `SELECT us.id, us.skill_id, s.name AS skill_name, us.xp AS current_xp,
               us.level AS current_level, us.next_level_xp, us.prestige_level
        FROM user_skills us
@@ -153,7 +697,7 @@ app.post("/user", async (req, res) => {
        ORDER BY s.name`,
       [newUser.id],
     );
-    newUser.mastery = masteryRes.rows;
+    newUser.mastery = postUserMasteryRes.rows;
 
     res.status(201).json(newUser);
   } catch (err) {
@@ -162,342 +706,698 @@ app.post("/user", async (req, res) => {
   }
 });
 
-app.get("/user/:externalId", async (req, res) => {
-  const { externalId } = req.params;
+app.get("/user/:externalId", requireAuth, async (req, res) => {
+  const externalId = req.auth.userId;
   try {
-    const userRes = await pool.query(
-      `SELECT *, COALESCE(role, 'FREE') AS role, COALESCE(account_tier, 0) AS account_tier
+    const userDetailsRes = await pool.query(
+      `SELECT *,
+              COALESCE(system_credits, 0) AS system_credits,
+              COALESCE(role, 'FREE')      AS role,
+              COALESCE(account_tier, 0)  AS account_tier,
+              (SELECT COUNT(*) FROM tasks
+               WHERE user_id::text = users.id::text
+                 AND status = 'SUCCESS'
+                 AND completed_at::date = CURRENT_DATE) AS sessions_today,
+              (SELECT COALESCE(SUM(duration_minutes), 0) FROM tasks
+               WHERE user_id::text = users.id::text
+                 AND status = 'SUCCESS'
+                 AND completed_at::date = CURRENT_DATE) AS minutes_today,
+              (SELECT COUNT(DISTINCT skill_id) FROM tasks
+               WHERE user_id::text = users.id::text
+                 AND status = 'SUCCESS'
+                 AND completed_at::date = CURRENT_DATE) AS skills_today
        FROM users WHERE external_id = $1`,
       [externalId],
     );
-    if (userRes.rows.length === 0)
+    if (userDetailsRes.rows.length === 0)
       return res.status(404).json({ error: "USER_NOT_FOUND" });
 
-    const user = userRes.rows[0];
+    const activeUser = userDetailsRes.rows[0];
 
-    const masteryRes = await pool.query(
+    if (activeUser.is_banned)
+      return res.status(403).json({ error: "USER_BANNED", reason: activeUser.ban_reason || "Your account has been banned." });
+
+    const activeMasteryRes = await pool.query(
       `SELECT us.id, us.skill_id, s.name AS skill_name, us.xp AS current_xp,
-              us.level AS current_level, us.next_level_xp, us.prestige_level
+              us.level AS current_level, us.next_level_xp, us.prestige_level,
+              us.prestige_boost_until
        FROM user_skills us
        JOIN skills s ON us.skill_id = s.id
        WHERE us.user_id = $1
        ORDER BY s.name`,
-      [user.id],
+      [activeUser.id],
     );
-    user.mastery = masteryRes.rows;
+    activeUser.mastery = activeMasteryRes.rows;
 
-    res.json(user);
+    res.json(activeUser);
   } catch (err) {
     res.status(500).json({ error: "DATABASE_ERROR" });
   }
 });
 
-app.post("/api/contracts", async (req, res) => {
-  const { externalId, taskName, durationMinutes, stakeAmount, skillName } = req.body;
-  try {
-    const userRes = await pool.query(
-      "SELECT id FROM users WHERE external_id = $1",
-      [externalId],
-    );
-    if (userRes.rows.length === 0)
-      return res.status(404).json({ error: "USER_NOT_FOUND" });
-    const userId = userRes.rows[0].id;
-
-    const tierRow = await pool.query(
-      "SELECT COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role FROM users WHERE id = $1",
-      [userId],
-    );
-    const { account_tier: cTier, role: cRole } = tierRow.rows[0];
-    const maxTasks = cRole === "ADMIN" ? Infinity : (TIER_MAX_TASKS[cTier] ?? 5);
-    if (maxTasks !== Infinity) {
-      const activeCount = await pool.query(
-        "SELECT COUNT(*) FROM contracts WHERE user_id = $1 AND status = 'ACTIVE'",
-        [userId],
-      );
-      if (parseInt(activeCount.rows[0].count) >= maxTasks) {
-        return res.status(403).json({
-          error: "TASK_LIMIT_REACHED",
-          message: `You've reached your ${maxTasks}-task limit. Upgrade your plan to run more missions at once!`,
-        });
-      }
-    }
-
-    let skillId = null;
-    if (skillName) {
-      const skillRes = await pool.query(
-        "SELECT id FROM skills WHERE LOWER(name) = LOWER($1)",
-        [skillName],
-      );
-      skillId = skillRes.rows[0]?.id || null;
-      console.log(`[ZENITH] Skill lookup: "${skillName}" → skill_id=${skillId}`);
-    }
-
-    const nowMs = Date.now();
-    const durationMs = parseFloat(durationMinutes) * 60 * 1000;
-    const deadlineDate = new Date(nowMs + durationMs);
-
-    console.log("SERVER LOG: Creating mission with deadline:", deadlineDate.toISOString());
-
-    const newContract = await pool.query(
-      `INSERT INTO contracts (user_id, task_name, duration_minutes, stake_amount, status, deadline, skill_id)
-        VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6)
-        RETURNING *`,
-      [
-        userId,
-        taskName,
-        durationMinutes,
-        stakeAmount,
-        deadlineDate.toISOString(),
-        skillId,
-      ],
-    );
-
-    res.status(201).json(newContract.rows[0]);
-  } catch (err) {
-    console.error("CONTRACT_ERROR:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/contracts", async (req, res) => {
-  const { externalId } = req.query;
-  try {
-    const user = await pool.query(
-      "SELECT id FROM users WHERE external_id = $1",
-      [externalId],
-    );
-    if (user.rows.length === 0) return res.json([]);
-
-    const result = await pool.query(
-      "SELECT * FROM contracts WHERE user_id = $1 AND UPPER(status) = 'ACTIVE'",
-      [user.rows[0].id],
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/contracts/active/:externalId", async (req, res) => {
-  try {
-    const { externalId } = req.params;
-
-    const result = await pool.query(
-      "SELECT * FROM contracts WHERE user_id = $1 AND status = 'ACTIVE' LIMIT 1",
-      [externalId],
-    );
-
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ message: "NO ACTIVE MISSION!" });
-    }
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).send("SERVER ERROR!!!");
-  }
-});
-
-app.post("/api/contracts/:id/complete", async (req, res) => {
-  const { id } = req.params;
-  const { externalId } = req.body;
-
-  const client = await pool.connect();
-
+// ── GDPR account deletion ─────────────────────────────────────────────────────
+// Permanently deletes all user data across every table. Irreversible.
+app.delete("/user/account", requireAuth, mutationLimiter, async (req, res) => {
+  const clerkId = req.auth.userId;
+  const client  = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const contractRes = await client.query(
-      `SELECT c.id, c.task_name AS "taskName", c.duration_minutes AS "durationMinutes",
-              c.stake_amount AS "stakeAmount", c.user_id AS "userId", c.status,
-              c.skill_id AS "skillId"
-       FROM contracts c
-       JOIN users u ON c.user_id::text = u.id::text
-       WHERE c.id::text = $1 AND u.external_id::text = $2`,
-      [String(id), String(externalId)]
-    );
-
-    const contract = contractRes.rows[0];
-    if (!contract) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "MISSION_NOT_FOUND" });
-    }
-
-    const sysRes = await client.query(
-      `SELECT COALESCE(current_bandwidth, 100) AS bw,
-              COALESCE(max_bandwidth, 100)     AS max_bw,
-              COALESCE(system_credits, 0)      AS credits
-       FROM users WHERE id::text = $1`,
-      [String(contract.userId)]
-    );
-    const { bw, max_bw, credits: currentCredits } = sysRes.rows[0];
-
-    if (bw < 20) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Insufficient Bandwidth" });
-    }
-
-    const perkRes = await client.query(
-      `SELECT name FROM inventory WHERE user_id = $1 AND is_equipped = true LIMIT 1`,
-      [contract.userId]
-    );
-    const equippedName = perkRes.rows[0]?.name || null;
-    const perk = equippedName ? PERK_EFFECTS[equippedName] : null;
-
-    const BASE_CREDITS  = 150;
-    const BASE_XP_BONUS = 50;
-    const BASE_BW_COST  = 20;
-
-    let finalCredits = BASE_CREDITS;
-    let finalXpBonus = BASE_XP_BONUS;
-    let finalBwCost  = BASE_BW_COST;
-
-    if (perk) {
-      if (perk.effect_type === "CREDIT_BOOST")  finalCredits = Math.round(BASE_CREDITS  * perk.effect_value);
-      if (perk.effect_type === "XP_GAIN")       finalXpBonus = Math.round(BASE_XP_BONUS * perk.effect_value);
-      if (perk.effect_type === "BW_EFFICIENCY") finalBwCost  = Math.max(0, BASE_BW_COST - perk.effect_value);
-    }
-
-    const stakeXp      = Math.floor(parseInt(contract.stakeAmount || 0) * 1.5);
-    const totalXpGained = stakeXp + finalXpBonus;
-
-    if (contract.skillId) {
-      const skillRow = await client.query(
-        "SELECT id, xp, level, next_level_xp FROM user_skills WHERE user_id = $1 AND skill_id = $2",
-        [contract.userId, contract.skillId]
-      );
-      if (skillRow.rows.length > 0) {
-        const row = skillRow.rows[0];
-        let mXp   = parseInt(row.xp) + totalXpGained;
-        let mLvl  = parseInt(row.level);
-        let mNext = parseInt(row.next_level_xp);
-        while (mXp >= mNext) {
-          mXp  -= mNext;
-          mLvl += 1;
-          mNext = Math.floor(Math.pow(mLvl, 2) * 100 + 400);
-        }
-        await client.query(
-          "UPDATE user_skills SET xp = $1, level = $2, next_level_xp = $3 WHERE id = $4",
-          [mXp, mLvl, mNext, row.id]
-        );
-      }
-    }
-
     const userRes = await client.query(
-      "SELECT xp, level, total_xp FROM users WHERE id::text = $1",
-      [String(contract.userId)]
+      "SELECT id FROM users WHERE external_id = $1",
+      [clerkId],
     );
-    let { xp: gXp, level: gLvl, total_xp: gTotalXp } = userRes.rows[0];
-    gTotalXp = (gTotalXp || 0) + totalXpGained;
-    gXp     += totalXpGained;
-    let gNext    = Math.floor(Math.pow(gLvl, 2) * 500 + 1000);
-    let leveledUp = false;
-    while (gXp >= gNext) {
-      gXp   -= gNext;
-      gLvl  += 1;
-      gNext  = Math.floor(Math.pow(gLvl, 2) * 500 + 1000);
-      leveledUp = true;
+    if (userRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
     }
+    const userId = userRes.rows[0].id;
 
-    const newCredits = currentCredits + finalCredits;
-    const newBw      = Math.max(0, bw - finalBwCost);
-
-    const updatedUserRes = await client.query(
-      `UPDATE users
-       SET xp = $1, level = $2, current_level = $2, total_xp = $4,
-           streak = streak + 1, system_credits = $5, current_bandwidth = $6
-       WHERE id::text = $3 RETURNING *`,
-      [gXp, gLvl, String(contract.userId), gTotalXp, newCredits, newBw]
-    );
-
-    const tierData = await client.query(
-      "SELECT COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role FROM users WHERE id = $1",
-      [String(contract.userId)],
-    );
-    const { account_tier: dropTier, role: dropRole } = tierData.rows[0];
-
-    const roll   = Math.random() * 100;
-    const rarity = getTierRarity(roll, dropTier, dropRole);
-
-    const possibleItems = lootTable.filter((i) => i.rarity === rarity);
-    const droppedItem   = possibleItems[Math.floor(Math.random() * possibleItems.length)];
-
-    let drop = null;
-    if (droppedItem) {
-      const invRes = await client.query(
-        `INSERT INTO inventory (user_id, name, category, rarity, description, is_equipped)
-         VALUES ($1, $2, $3, $4, $5, false) RETURNING id`,
-        [contract.userId, droppedItem.name, droppedItem.type || "PERK",
-         droppedItem.rarity, droppedItem.description || ""]
-      );
-      drop = { ...droppedItem, instanceId: invRes.rows[0].id };
-    }
-
-    await client.query(
-      "UPDATE contracts SET status = 'SUCCESS' WHERE id::text = $1",
-      [String(id)]
-    );
+    await client.query("DELETE FROM inventory          WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM user_skills        WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM tasks              WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM daily_stats        WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM push_subscriptions WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM users              WHERE id      = $1", [userId]);
 
     await client.query("COMMIT");
-
-    res.json({
-      success:        true,
-      reward:         totalXpGained,
-      credits_earned: finalCredits,
-      xp_earned:      finalXpBonus,
-      perk_active:    equippedName,
-      user:           updatedUserRes.rows[0],
-      drop,
-      leveledUp,
-      newLevel:       gLvl,
-      system_state: {
-        system_credits:    newCredits,
-        current_bandwidth: newBw,
-        max_bandwidth:     max_bw,
-      },
-    });
-
+    res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("CONTRACT_COMPLETION_ERROR:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("ACCOUNT_DELETE_FATAL:", err.message);
+    res.status(500).json({ error: "DELETE_FAILED" });
   } finally {
     client.release();
   }
 });
 
-app.post("/api/contracts/:id/fail", async (req, res) => {
+const VALID_DURATIONS = new Set([5, 15, 30, 60, 90, 120]);
+const VALID_SKILLS    = new Set([
+  "LOGIC FLOW","VITALITY","NUTRITION","ENVIRONMENT","EXECUTION",
+  "LEARNING","LOGISTICS","CREATIVITY","DISCIPLINE","PRESENCE","RECOVERY","RESOLVE",
+]);
+
+app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
+  const { taskName, durationMinutes, stakeAmount, skillName, sub_tasks } = req.body;
+  const externalId = req.auth.userId;
+
+  if (!taskName || typeof taskName !== "string" || taskName.trim().length === 0 || taskName.length > 200)
+    return res.status(400).json({ error: "Task name must be 1–200 characters" });
+
+  if (sub_tasks !== undefined && sub_tasks !== null) {
+    if (!Array.isArray(sub_tasks) || sub_tasks.length > 20) {
+      return res.status(400).json({ error: "sub_tasks must be an array of at most 20 items" });
+    }
+    for (const subTask of sub_tasks) {
+      if (typeof subTask !== "string" || subTask.length > 200) {
+        return res.status(400).json({ error: "Each sub-task must be a string under 200 characters" });
+      }
+    }
+  }
+
+  const parsedDuration = parseInt(durationMinutes);
+  if (!VALID_DURATIONS.has(parsedDuration)) {
+    return res.status(400).json({ error: "Duration must be 5, 15, 30, 60, 90, or 120 minutes" });
+  }
+
+  const taskClient = await pool.connect();
+  try {
+    await taskClient.query("BEGIN");
+
+    const taskUserRes = await taskClient.query(
+      "SELECT id FROM users WHERE external_id = $1",
+      [externalId],
+    );
+    if (taskUserRes.rows.length === 0) {
+      await taskClient.query("ROLLBACK");
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+    const internalUserId = taskUserRes.rows[0].id;
+
+   
+    let pythonGateChecked = false;
+    try {
+      const pythonPort = process.env.PYTHON_PORT || 8000;
+      const gateRes = await fetch(
+        `http://localhost:${pythonPort}/security/check?external_id=${encodeURIComponent(externalId)}`
+      );
+      if (gateRes.ok) {
+        pythonGateChecked = true;
+        const gate = await gateRes.json();
+        if (gate.allowed === false) {
+          await taskClient.query("ROLLBACK");
+          if (gate.reason === "ACTIVE_SESSION_EXISTS") {
+            return res.status(409).json({ error: "ACTIVE_SESSION_EXISTS" });
+          }
+        }
+      } else {
+        console.warn(`[SECURITY GATE] Python returned ${gateRes.status} — using local check`);
+      }
+    } catch (secErr) {
+      console.warn("[SECURITY GATE] Python unreachable:", secErr.message, "— using local check");
+    }
+
+    const taskTierRow = await taskClient.query(
+      "SELECT COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role FROM users WHERE id = $1",
+      [internalUserId],
+    );
+    const { account_tier: cTier, role: cRole } = taskTierRow.rows[0];
+
+    // 120 min sessions are PRO+ only
+    if (Number(durationMinutes) === 120 && cTier < 1) {
+      await taskClient.query("ROLLBACK");
+      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "120 min sessions require PRO." });
+    }
+
+    const taskMaxLimit = cRole === "ADMIN" ? Infinity : (TIER_MAX_TASKS[cTier] ?? 5);
+    if (taskMaxLimit !== Infinity) {
+      const taskActiveCount = await taskClient.query(
+        "SELECT COUNT(*) FROM tasks WHERE user_id = $1 AND status = 'ACTIVE'",
+        [internalUserId],
+      );
+      if (parseInt(taskActiveCount.rows[0].count) >= taskMaxLimit) {
+        await taskClient.query("ROLLBACK");
+        return res.status(403).json({
+          error: "TASK LIMIT REACHED",
+          message: `You've reached your ${taskMaxLimit}-task limit. Upgrade your plan to run more missions at once!`,
+        });
+      }
+    }
+
+    let targetSkillId = null;
+    let resolvedSkillName = null;
+    
+    // Skill lookup with fallback to "Resolve" if not found
+    if (skillName) {
+      const targetSkillRes = await taskClient.query(
+        "SELECT id, name FROM skills WHERE LOWER(name) = LOWER($1)",
+        [skillName],
+      );
+      if (targetSkillRes.rows[0]?.id) {
+        targetSkillId = targetSkillRes.rows[0].id;
+        resolvedSkillName = targetSkillRes.rows[0].name;
+      } else {
+        // Fallback to "Resolve" skill if not found - prevents UNKNOWN bug
+        const fallbackRes = await taskClient.query(
+          "SELECT id, name FROM skills WHERE LOWER(name) = LOWER($1)",
+          ["Resolve"],
+        );
+        if (fallbackRes.rows[0]) {
+          targetSkillId = fallbackRes.rows[0].id;
+          resolvedSkillName = fallbackRes.rows[0].name;
+        }
+      }
+    } else {
+      // Default to "Resolve" skill when no skillName provided
+      const defaultRes = await taskClient.query(
+        "SELECT id, name FROM skills WHERE LOWER(name) = LOWER($1)",
+        ["Resolve"],
+      );
+      if (defaultRes.rows[0]) {
+        targetSkillId = defaultRes.rows[0].id;
+        resolvedSkillName = defaultRes.rows[0].name;
+      }
+    }
+
+    // Stake is calculated server-side from duration + server time (Red Zone check).
+    // The client value is ignored — this prevents clock-spoofing to bypass Red Zone.
+    const serverStake = calculateStake(parsedDuration);
+
+    const newTask = await taskClient.query(
+      `INSERT INTO tasks (user_id, title, duration_minutes, stake_amount, status, deadline, skill_id, sub_tasks)
+        VALUES ($1, $2, $3, $4, 'ACTIVE', NOW() + ($5 || ' minutes')::interval, $6, $7)
+        RETURNING *, NOW() AS server_now`,
+      [
+        internalUserId,
+        taskName,
+        durationMinutes,
+        serverStake,
+        String(parseFloat(durationMinutes)),
+        targetSkillId,
+        sub_tasks?.length ? JSON.stringify(sub_tasks) : null,
+      ],
+    );
+
+    await taskClient.query("COMMIT");
+    pushUserPatch(externalId).catch(() => {});
+
+    presenceMap.set(externalId, {
+      sessionId: Math.random().toString(36).slice(2, 10),
+      skillName: resolvedSkillName || "Focus",
+      duration:  parsedDuration,
+      startedAt: new Date().toISOString(),
+      tier:      cTier ?? 0,
+    });
+    broadcastPresence();
+
+    res.status(201).json({
+      ...newTask.rows[0],
+      skill_name: resolvedSkillName,
+    });
+  } catch (err) {
+    await taskClient.query("ROLLBACK");
+    console.error("TASK_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    taskClient.release();
+  }
+});
+
+app.post("/api/tasks/batch", requireAuth, mutationLimiter, async (req, res) => {
+  const { tasks } = req.body;
+  const externalId = req.auth.userId;
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return res.status(400).json({ error: "No tasks provided" });
+  }
+  if (tasks.length > 4) {
+    return res.status(400).json({ error: "Batch limited to 4 tasks" });
+  }
+  const batchClient = await pool.connect();
+  try {
+    await batchClient.query("BEGIN");
+
+    const batchUserRes = await batchClient.query(
+      "SELECT id FROM users WHERE external_id = $1",
+      [externalId],
+    );
+    if (batchUserRes.rows.length === 0) {
+      await batchClient.query("ROLLBACK");
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+    const { id: userId } = batchUserRes.rows[0];
+
+    const batchTierRow = await batchClient.query(
+      "SELECT COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role FROM users WHERE id = $1",
+      [userId],
+    );
+    const { account_tier: cTier, role: cRole } = batchTierRow.rows[0];
+
+    // Split (batch) is PRO+ only
+    if (cTier < 1) {
+      await batchClient.query("ROLLBACK");
+      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Shatter requires PRO." });
+    }
+
+    const batchMaxLimit = cRole === "ADMIN" ? Infinity : (TIER_MAX_TASKS[cTier] ?? 5);
+    if (batchMaxLimit !== Infinity) {
+      const batchActiveCount = await batchClient.query(
+        "SELECT COUNT(*) FROM tasks WHERE user_id = $1 AND status = 'ACTIVE'",
+        [userId],
+      );
+      const activeNum = parseInt(batchActiveCount.rows[0].count);
+      if (activeNum + tasks.length > batchMaxLimit) {
+        await batchClient.query("ROLLBACK");
+        return res.status(403).json({
+          error: "TASK LIMIT REACHED",
+          message: `Not enough task slots. ${batchMaxLimit - activeNum} slot(s) remaining — upgrade to run more missions.`,
+        });
+      }
+    }
+
+    const inserted = [];
+    for (const t of tasks) {
+      if (!t.taskName || typeof t.taskName !== "string" || t.taskName.trim().length === 0 || t.taskName.length > 200) {
+        await batchClient.query("ROLLBACK");
+        return res.status(400).json({ error: "Each task name must be 1–200 characters" });
+      }
+      const parsedBatchDuration = parseInt(t.durationMinutes);
+      if (!VALID_DURATIONS.has(parsedBatchDuration)) {
+        await batchClient.query("ROLLBACK");
+        return res.status(400).json({ error: "Duration must be 5, 15, 30, 60, 90, or 120 minutes" });
+      }
+
+      let batchSkillId = null;
+      if (t.skillName) {
+        const batchSkillRes = await batchClient.query(
+          "SELECT id FROM skills WHERE LOWER(name) = LOWER($1)",
+          [t.skillName],
+        );
+        batchSkillId = batchSkillRes.rows[0]?.id || null;
+      }
+      const deadline = new Date(Date.now() + parsedBatchDuration * 60 * 1000);
+      const batchStake = calculateStake(parsedBatchDuration);
+      const row = await batchClient.query(
+        `INSERT INTO tasks (user_id, title, duration_minutes, stake_amount, status, deadline, skill_id)
+          VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6)
+          RETURNING *`,
+        [userId, t.taskName.trim(), parsedBatchDuration, batchStake, deadline.toISOString(), batchSkillId],
+      );
+      inserted.push(row.rows[0]);
+    }
+
+    await batchClient.query("COMMIT");
+    res.status(201).json(inserted);
+  } catch (err) {
+    await batchClient.query("ROLLBACK");
+    console.error("BATCH_TASK_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    batchClient.release();
+  }
+});
+
+app.get("/api/tasks", requireAuth, async (req, res) => {
+  const externalId = req.auth.userId;
+  try {
+    const tasksUserRes = await pool.query(
+      "SELECT id FROM users WHERE external_id = $1",
+      [externalId],
+    );
+    if (tasksUserRes.rows.length === 0) return res.json([]);
+
+    const tasksListRes = await pool.query(
+      `SELECT t.*, s.name AS skill_name, NOW() AS server_now
+       FROM tasks t
+       LEFT JOIN skills s ON t.skill_id = s.id
+       WHERE t.user_id = $1 AND t.status = 'ACTIVE'`,
+      [tasksUserRes.rows[0].id],
+    );
+    res.json(tasksListRes.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/tasks/active/:externalId", requireAuth, async (req, res) => {
+  try {
+    const externalId = req.auth.userId;
+
+    const activeUserRes = await pool.query(
+      "SELECT id FROM users WHERE external_id = $1",
+      [externalId],
+    );
+    if (activeUserRes.rows.length === 0)
+      return res.status(404).json({ message: "NO ACTIVE MISSION!" });
+
+    const activeTasksRes = await pool.query(
+      "SELECT *, NOW() AS server_now FROM tasks WHERE user_id = $1 AND status = 'ACTIVE' LIMIT 1",
+      [activeUserRes.rows[0].id],
+    );
+
+    if (activeTasksRes.rows.length > 0) {
+      res.json(activeTasksRes.rows[0]);
+    } else {
+      res.status(404).json({ message: "NO ACTIVE MISSION!" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("SERVER ERROR!!!");
+  }
+});
+
+app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, res) => {
   const { id } = req.params;
+  const externalId = req.auth.userId;
+
+  const completeClient = await pool.connect();
+  try {
+    await completeClient.query("BEGIN");
+
+    const taskRes = await completeClient.query(
+      `SELECT t.id,
+              t.title            AS "taskName",
+              t.duration_minutes AS "durationMinutes",
+              t.stake_amount     AS "stakeAmount",
+              t.user_id          AS "userId",
+              t.status,
+              t.skill_id         AS "skillId",
+              t.deadline,
+              (NOW() >= t.deadline)       AS "deadlinePassed",
+              EXTRACT(EPOCH FROM (t.deadline - NOW()))::int AS "secondsRemaining"
+       FROM tasks t
+       JOIN users u ON t.user_id::text = u.id::text
+       WHERE t.id::text = $1 AND u.external_id::text = $2`,
+      [String(id), String(externalId)],
+    );
+
+    const task = taskRes.rows[0];
+    if (!task) {
+      await completeClient.query("ROLLBACK");
+      return res.status(404).json({ error: "TASK_NOT_FOUND" });
+    }
+    if (task.status === "SUCCESS") {
+      await completeClient.query("ROLLBACK");
+      return res.status(400).json({ error: "TASK_ALREADY_COMPLETED" });
+    }
+    if (!task.deadlinePassed) {
+      await completeClient.query("ROLLBACK");
+      return res.status(425).json({
+        error: "TASK_NOT_YET_COMPLETE",
+        seconds_remaining: Math.max(0, task.secondsRemaining),
+      });
+    }
+
+    const userRow = await completeClient.query(
+      `SELECT xp, level, total_xp,
+              COALESCE(system_credits, 0) AS credits,
+              COALESCE(account_tier, 0)   AS account_tier,
+              COALESCE(role, 'FREE')      AS role,
+              COALESCE(streak, 0)         AS streak,
+              COALESCE(first_task_completed, false) AS first_task_completed
+       FROM users WHERE id::text = $1`,
+      [String(task.userId)],
+    );
+    const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed } = userRow.rows[0];
+
+    const perkRow = await completeClient.query(
+      `SELECT name FROM inventory WHERE user_id = $1 AND is_equipped = true`,
+      [task.userId],
+    );
+    const activePerks   = perkRow.rows.map(r => PERK_EFFECTS[r.name]).filter(Boolean);
+    const equippedName  = perkRow.rows.map(r => r.name).join(", ") || null;
+
+    // XP perks work for every tier — more perk slots (PRO/ELITE) means more XP perks can stack
+    const xpBonus      = activePerks
+      .filter(p => p.effect_type === "XP_GAIN")
+      .reduce((sum, p) => sum + (p.effect_value - 1), 0);
+    const xpMultiplier = 1 + xpBonus;
+
+    // Credit boosts stack additively — same pattern as XP_GAIN perks.
+    // Spark Stone (+25%) + Credit Magnet (+50%) = 1.75× total, not 1.25× + ignored.
+    const creditBonus = activePerks
+      .filter(p => p.effect_type === "CREDIT_BOOST")
+      .reduce((sum, p) => sum + (p.effect_value - 1), 0);
+    const creditMult  = 1 + creditBonus;
+
+    const durationMins = Math.min(parseInt(task.durationMinutes) || 0, 180);
+    // XP needed to advance from `lvl` to `lvl + 1`
+    const osrsXpRequired = (lvl) => Math.max(1, Math.floor(100 * Math.pow(lvl, 1.8)));
+
+    // ── Credit rewards — guaranteed base + streak-scaled bonus roll ───────
+    // Tier multiplier: FREE 1×, PRO 1.5×, ELITE 2× — compounds with streak and perk bonuses.
+    const TIER_CREDIT_MULT = { 0: 1.0, 1: 1.5, 2: 2.0 };
+    const tierCreditMult   = TIER_CREDIT_MULT[account_tier] ?? 1.0;
+    const streakCount  = parseInt(streak || 0);
+    const streakMult   = 1 + Math.min(streakCount, 20) * 0.05; // caps at 2.0× at streak 20
+    const baseCr       = BASE_CR[durationMins]         ?? Math.floor(durationMins * 2.0);
+    const bonusCr      = BONUS_CR[durationMins]        ?? Math.floor(durationMins * 3);
+    const bonusChance  = BONUS_CR_CHANCE[durationMins] ?? 0.15;
+    let finalCredits   = Math.round((baseCr + (Math.random() < bonusChance ? bonusCr : 0)) * streakMult * creditMult * tierCreditMult);
+
+    // ── OSRS-style XP ────────────────────────────────────────────────────
+    // MARATHON_BONUS perks only fire on sessions of 60+ minutes.
+    // They stack additively with XP_GAIN perks — equipping both gives you both benefits.
+    const marathonBonus = durationMins >= 60
+      ? activePerks
+          .filter(p => p.effect_type === "MARATHON_BONUS")
+          .reduce((sum, p) => sum + (p.effect_value - 1), 0)
+      : 0;
+    const marathonMult  = 1 + marathonBonus;
+
+    const stakeXp     = Math.floor(parseInt(task.stakeAmount || 0) * 1.5 * xpMultiplier * marathonMult * streakMult);
+    let totalXpGained = stakeXp;
+
+    let completedSkillName = null;
+    if (task.skillId) {
+      const skillRow = await completeClient.query(
+        `SELECT us.id, us.xp, us.level, us.next_level_xp, us.prestige_level,
+                us.prestige_boost_until, s.name AS skill_name
+         FROM user_skills us
+         JOIN skills s ON us.skill_id = s.id
+         WHERE us.user_id = $1 AND us.skill_id = $2`,
+        [task.userId, task.skillId],
+      );
+      if (skillRow.rows.length > 0) {
+        const skillData = skillRow.rows[0];
+        completedSkillName = skillData.skill_name;
+        const skillLevel       = parseInt(skillData.level);
+        const levelMult  = 1 + (skillLevel * 0.05);
+        const baseSkillXp  = Math.floor(durationMins * 50 * levelMult);
+        const prestigeMult = 1 + (parseInt(skillData.prestige_level || 0) * 0.10);
+        // 24h post-prestige boost: doubles skill XP for the first day of the new grind
+        const boostActive  = skillData.prestige_boost_until && new Date(skillData.prestige_boost_until) > new Date();
+        const boostMult    = boostActive ? 2.0 : 1.0;
+        const finalSkillXp = Math.round(baseSkillXp * xpMultiplier * marathonMult * streakMult * prestigeMult * boostMult);
+        totalXpGained += finalSkillXp;
+        let skillXp    = parseInt(skillData.xp) + finalSkillXp;
+        let newSkillLevel = skillLevel;
+        let nextSkillLevelXpRequired   = osrsXpRequired(newSkillLevel);
+        while (skillXp >= nextSkillLevelXpRequired && newSkillLevel < 99) { skillXp -= nextSkillLevelXpRequired; newSkillLevel++; nextSkillLevelXpRequired = osrsXpRequired(newSkillLevel); }
+        await completeClient.query(
+          `UPDATE user_skills SET xp = $1, level = $2, next_level_xp = $3 WHERE id = $4`,
+          [skillXp, newSkillLevel, nextSkillLevelXpRequired, skillData.id],
+        );
+      }
+    }
+
+    let globalXp      = parseInt(xp) + totalXpGained;
+    let globalLevel     = parseInt(level);
+    let globalTotalXp = (parseInt(total_xp) || 0) + totalXpGained;
+    let nextGlobalLevelXpRequired    = osrsXpRequired(globalLevel);
+    let leveledUp = false;
+    while (globalXp >= nextGlobalLevelXpRequired) { globalXp -= nextGlobalLevelXpRequired; globalLevel++; nextGlobalLevelXpRequired = osrsXpRequired(globalLevel); leveledUp = true; }
+
+    const newCredits = parseInt(credits) + finalCredits;
+
+    // BW is NOT refunded on completion — the stake was real.
+    // last_reboot = NOW() starts the regen clock fresh from the moment the task ends.
+    const updatedUser = await completeClient.query(
+      `UPDATE users
+       SET xp = $1, level = $2, current_level = $2, total_xp = $3,
+           streak = CASE
+             WHEN streak_last_updated IS NULL
+               OR DATE(streak_last_updated AT TIME ZONE 'UTC') < DATE(NOW() AT TIME ZONE 'UTC')
+             THEN streak + 1
+             ELSE streak
+           END,
+           system_credits = $4,
+           strikes = 0,
+           streak_last_updated = NOW(),
+           last_reboot = NOW()
+       WHERE id::text = $5 RETURNING *`,
+      [globalXp, globalLevel, globalTotalXp, newCredits, String(task.userId)],
+    );
+
+    // Loot drop: guaranteed Epic on first ever session, normal RNG after that.
+    const dropChance = TIER_DROP_CHANCE[account_tier] ?? 0.25;
+    let drop = null;
+    if (!first_task_completed || Math.random() < dropChance) {
+      const rarity      = !first_task_completed ? "Epic" : rollRarity(Math.random() * 100);
+      const dropCredits = CREDIT_BY_RARITY[rarity] ?? 50;
+      await completeClient.query(
+        `UPDATE users SET system_credits = system_credits + $1, first_task_completed = true WHERE id = $2`,
+        [dropCredits, task.userId],
+      );
+      drop = { rarity, credits_earned: dropCredits };
+    } else {
+      // Still mark first task done even if no drop rolled after the first
+      if (!first_task_completed) {
+        await completeClient.query(
+          `UPDATE users SET first_task_completed = true WHERE id = $1`,
+          [task.userId],
+        );
+      }
+    }
+
+    await completeClient.query(
+      `UPDATE tasks SET status = 'SUCCESS', completed_at = NOW() WHERE id::text = $1`,
+      [String(id)],
+    );
+
+    await completeClient.query(
+      `INSERT INTO daily_stats (user_id, date, focus_minutes)
+       VALUES ($1::integer, CURRENT_DATE, $2)
+       ON CONFLICT (user_id, date)
+       DO UPDATE SET focus_minutes = daily_stats.focus_minutes + EXCLUDED.focus_minutes`,
+      [task.userId, parseInt(task.durationMinutes) || 0],
+    );
+
+    await completeClient.query("COMMIT");
+
+    // Push real-time patch to any connected SSE client before sending response
+    pushUserPatch(externalId).catch(() => {});
+    presenceMap.delete(externalId);
+    broadcastPresence();
+
+    res.json({
+      success:        true,
+      reward:         totalXpGained,
+      credits_earned: finalCredits,
+      xp_earned:      totalXpGained,
+      xp_multiplier:  xpMultiplier,
+      perk_active:    equippedName,
+      skill_name:     completedSkillName,
+      user:           updatedUser.rows[0],
+      drop,
+      leveledUp,
+      newLevel:      globalLevel,
+      system_state: {
+        system_credits: newCredits,
+      },
+    });
+  } catch (err) {
+    await completeClient.query("ROLLBACK");
+    console.error("TASK_COMPLETION_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    completeClient.release();
+  }
+});
+
+app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) => {
+  const { id } = req.params;
+  const externalId = req.auth.userId;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const contractRes = await client.query(
-      "SELECT stake_amount, user_id, status FROM contracts WHERE id = $1",
-      [id],
+      `SELECT t.stake_amount, t.user_id, t.status, t.created_at,
+              (NOW() >= t.deadline) AS deadline_passed
+       FROM tasks t
+       JOIN users u ON t.user_id::text = u.id::text
+       WHERE t.id::text = $1 AND u.external_id::text = $2`,
+      [String(id), String(externalId)],
     );
 
-    if (contractRes.rows.length === 0)
+    if (contractRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).send("Mission not found");
-    const { stake_amount, user_id, status } = contractRes.rows[0];
+    }
+    const { stake_amount, user_id, status, created_at, deadline_passed } = contractRes.rows[0];
 
     if (status !== "ACTIVE") {
       await client.query("ROLLBACK");
       return res.status(400).send("Mission already processed");
     }
 
-    await client.query("UPDATE contracts SET status = 'FAILED' WHERE id = $1", [
-      id,
-    ]);
+    const elapsedSeconds = (Date.now() - new Date(created_at).getTime()) / 1000;
+    const inGrace = elapsedSeconds <= 60 || deadline_passed;
+
+    await client.query("UPDATE tasks SET status = 'FAILED' WHERE id = $1", [id]);
+
+    if (inGrace) {
+      await client.query("COMMIT");
+      pushUserPatch(externalId).catch(() => {});
+      presenceMap.delete(externalId);
+      broadcastPresence();
+      return res.json({ streak_shield_used: false, grace_period: true });
+    }
+
+    // Streak Guard: if equipped, consume it and spare the streak
+    const shieldRow = await client.query(
+      `SELECT id FROM inventory WHERE user_id = $1 AND is_equipped = true AND name = 'Streak Guard' LIMIT 1`,
+      [user_id],
+    );
+    const hasShield = shieldRow.rows.length > 0;
+    if (hasShield) {
+      await client.query(`DELETE FROM inventory WHERE id = $1`, [shieldRow.rows[0].id]);
+    }
 
     const userUpdate = await client.query(
-      "UPDATE users SET xp = GREATEST(0, xp - $1), streak = 0 WHERE id = $2 RETURNING *",
-      [stake_amount, user_id],
+      `UPDATE users
+       SET streak  = CASE WHEN $2 THEN streak ELSE 0 END,
+           strikes = COALESCE(strikes, 0) + 1
+       WHERE id = $1
+       RETURNING *`,
+      [user_id, hasShield],
     );
 
     await client.query("COMMIT");
-    res.json(userUpdate.rows[0]);
+    pushUserPatch(externalId).catch(() => {});
+    presenceMap.delete(externalId);
+    broadcastPresence();
+    res.json({ ...userUpdate.rows[0], streak_shield_used: hasShield });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("ABORT_SEQUENCE_FAILED:", err);
@@ -507,172 +1407,136 @@ app.post("/api/contracts/:id/fail", async (req, res) => {
   }
 });
 
-app.post("/skills/prestige", async (req, res) => {
-  const { externalId, skillName } = req.body;
+app.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) => {
+  const { skillName } = req.body;
+  const externalId = req.auth.userId;
 
+  if (!skillName || !VALID_SKILLS.has(skillName.toUpperCase()))
+    return res.status(400).json({ error: "Invalid skill name" });
+
+  const client = await pool.connect();
   try {
-    const userRes = await pool.query(
-      "SELECT id FROM users WHERE external_id = $1",
+    await client.query("BEGIN");
+
+    const prestigeUserRes = await client.query(
+      "SELECT id FROM users WHERE external_id = $1 FOR UPDATE",
       [externalId],
     );
-    if (userRes.rows.length === 0)
+    if (prestigeUserRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "USER_NOT_FOUND" });
-    const userId = userRes.rows[0].id;
+    }
+    const userId = prestigeUserRes.rows[0].id;
 
-    const result = await pool.query(
+    const skillRes = await client.query(
       `UPDATE user_skills us
        SET level = 1, xp = 0,
-           prestige_level = COALESCE(us.prestige_level, 0) + 1,
-           next_level_xp = 500
+           prestige_level      = COALESCE(us.prestige_level, 0) + 1,
+           next_level_xp       = 500,
+           prestige_boost_until = NOW() + INTERVAL '24 hours'
        FROM skills s
        WHERE us.skill_id = s.id
          AND us.user_id = $1
-         AND s.name = $2
+         AND LOWER(s.name) = LOWER($2)
          AND us.level >= 99
        RETURNING us.*, s.name AS skill_name`,
       [userId, skillName],
     );
 
-    if (result.rows.length === 0) {
+    if (skillRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ error: "REQUIREMENTS_NOT_MET" });
     }
 
-    res.json({ message: "PRESTIGE_COMPLETE", skill: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/v1/loot/roll", async (req, res) => {
-  const { externalId } = req.body;
-
-  try {
-    const userRes = await pool.query(
-      "SELECT id FROM users WHERE external_id = $1",
-      [externalId],
-    );
-    if (userRes.rows.length === 0)
-      return res.status(404).json({ error: "USER_NOT_FOUND" });
-    const userId = userRes.rows[0].id;
-
-    const roll = Math.random() * 100;
-    let rarity = "Junk";
-    if (roll > 99.5) rarity = "Mythic";
-    else if (roll > 98) rarity = "Legendary";
-    else if (roll > 90) rarity = "Epic";
-    else if (roll > 75) rarity = "Rare";
-    else if (roll > 40) rarity = "Uncommon";
-
-    const possibleItems = lootTable.filter((i) => i.rarity === rarity);
-    const item =
-      possibleItems[Math.floor(Math.random() * possibleItems.length)];
-
-    res.json({ item });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/inventory/scrap", async (req, res) => {
-  const { userId, instanceId } = req.body;
-  const client = await pool.connect();
-
-  try {
-    const itemCheck = await client.query(
-      "SELECT id, rarity, name FROM inventory WHERE id = $1 AND user_id = $2",
-      [instanceId, userId],
-    );
-
-    if (itemCheck.rows.length === 0) {
-      return res.status(404).json({ error: "NO ITEM FOUND" });
-    }
-
-    const item = itemCheck.rows[0];
-
-    if (item.rarity.toLowerCase() !== "junk") {
-      return res.status(400).json({ error: "ONLY JUNK CAN BE RECYCLED!" });
-    }
-
-    await client.query("BEGIN");
-
-    await client.query("DELETE FROM inventory where id = $1", [instanceId]);
-
-    const scrapReward = 90;
-
-    const userRes = await client.query(
-      "SELECT xp, level, total_xp FROM users WHERE id = $1",
-      [userId],
-    );
-    let { xp: gXp, level: gLvl, total_xp: gTotalXp } = userRes.rows[0];
-
-    gTotalXp = (gTotalXp || 0) + scrapReward;
-    gXp += scrapReward;
-    let gNext = Math.floor(Math.pow(gLvl, 2) * 500 + 1000);
-
-    while (gXp >= gNext) {
-      gXp -= gNext;
-      gLvl += 1;
-      gNext = Math.floor(Math.pow(gLvl, 2) * 500 + 1000);
-    }
-
-    const userUpdate = await client.query(
-      "UPDATE users SET xp = $1, level = $2, current_level = $2, total_xp = $4 WHERE id = $3 RETURNING *",
-      [gXp, gLvl, userId, gTotalXp],
+    // Credits scale with prestige level — each prestige pays more than the last
+    const newPrestigeLevel = skillRes.rows[0].prestige_level;
+    const prestigeReward   = CREDIT_BY_RARITY["Mythic"] * newPrestigeLevel;
+    const creditRes = await client.query(
+      `UPDATE users
+       SET system_credits = COALESCE(system_credits, 0) + $1
+       WHERE id = $2
+       RETURNING system_credits`,
+      [prestigeReward, userId],
     );
 
     await client.query("COMMIT");
 
+    await pushUserPatch(externalId).catch(() => {});
+
     res.json({
-      success: true,
-      message: `${item.name} SCRAPPED!`,
-      reward: scrapReward,
-      user: userUpdate.rows[0],
+      success:        true,
+      message:        "PRESTIGE_COMPLETE",
+      skill:          skillRes.rows[0],
+      system_credits: creditRes.rows[0]?.system_credits,
+      drop:           { rarity: "Mythic", credits_earned: prestigeReward },
     });
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("SCRAP ERROR:", err.message);
-    res.status(500).json({ error: "SYSTEM FAILURE" });
+    await client.query("ROLLBACK").catch(() => {});
+    res.status(500).json({ error: err.message });
   } finally {
     client.release();
   }
 });
 
-app.post("/api/inventory/equip", async (req, res) => {
-  const { userId, instanceId } = req.body;
+// /api/v1/loot/roll removed — loot is awarded inline during task completion only.
+// A standalone roll endpoint with no task gate allowed unlimited free credit farming.
 
-  const client = await pool.connect();
+
+app.post("/api/inventory/equip", requireAuth, async (req, res) => {
+  const { instanceId } = req.body;
+  const externalId = req.auth.userId;
+
+  const equipDbClient = await pool.connect();
   try {
-    const userRes = await client.query(
+    const equipUserRes = await equipDbClient.query(
       `SELECT id, COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role
        FROM users WHERE external_id = $1`,
-      [userId],
+      [externalId],
     );
-    if (userRes.rows.length === 0) throw new Error("USER_NOT_FOUND");
-    const { id: internalId, account_tier: eTier, role: eRole } = userRes.rows[0];
+    if (equipUserRes.rows.length === 0) throw new Error("USER_NOT_FOUND");
+    const {
+      id: internalId,
+      account_tier: eTier,
+      role: eRole,
+    } = equipUserRes.rows[0];
 
     const slotLimit = eRole === "ADMIN" ? 999 : (TIER_PERK_SLOTS[eTier] ?? 1);
 
-    const itemInfo = await client.query(
-      "SELECT category, is_equipped FROM inventory WHERE id = $1 AND user_id = $2",
+    const itemInfo = await equipDbClient.query(
+      "SELECT name, category, is_equipped FROM inventory WHERE id = $1 AND user_id = $2",
       [instanceId, internalId],
     );
-    if (itemInfo.rows.length === 0) throw new Error("ITEM_NOT_FOUND_IN_INVENTORY");
-    const { category, is_equipped: alreadyEquipped } = itemInfo.rows[0];
+    if (itemInfo.rows.length === 0)
+      throw new Error("ITEM_NOT_FOUND_IN_INVENTORY");
+    const { name: itemName, category, is_equipped: alreadyEquipped } = itemInfo.rows[0];
 
-    await client.query("BEGIN");
+    await equipDbClient.query("BEGIN");
 
     if (alreadyEquipped) {
-      await client.query(
+      await equipDbClient.query(
         "UPDATE inventory SET is_equipped = false WHERE id = $1 AND user_id = $2",
         [instanceId, internalId],
       );
     } else {
-      const equippedCount = await client.query(
+      // Prevent equipping two copies of the same perk
+      const dupRes = await equipDbClient.query(
+        "SELECT 1 FROM inventory WHERE user_id = $1 AND name = $2 AND is_equipped = true AND id != $3 LIMIT 1",
+        [internalId, itemName, instanceId],
+      );
+      if (dupRes.rows.length > 0) {
+        await equipDbClient.query("ROLLBACK");
+        return res.status(400).json({
+          code: "DUPLICATE_PERK_EQUIPPED",
+          message: `You can't equip two ${itemName}s at once.`,
+        });
+      }
+
+      const equippedCount = await equipDbClient.query(
         "SELECT COUNT(*) FROM inventory WHERE user_id = $1 AND is_equipped = true",
         [internalId],
       );
       if (parseInt(equippedCount.rows[0].count) >= slotLimit) {
-        await client.query("ROLLBACK");
+        await equipDbClient.query("ROLLBACK");
         return res.status(403).json({
           code: "SLOT_LIMIT_REACHED",
           message: `You can only equip ${slotLimit} perk${slotLimit === 1 ? "" : "s"} on your current plan. Upgrade to unlock more slots!`,
@@ -680,161 +1544,727 @@ app.post("/api/inventory/equip", async (req, res) => {
         });
       }
       if (slotLimit === 1) {
-        await client.query(
+        await equipDbClient.query(
           "UPDATE inventory SET is_equipped = false WHERE user_id = $1",
           [internalId],
         );
       }
-      await client.query(
+      await equipDbClient.query(
         "UPDATE inventory SET is_equipped = true WHERE id = $1 AND user_id = $2",
         [instanceId, internalId],
       );
     }
 
-    await client.query("COMMIT");
+    await equipDbClient.query("COMMIT");
 
-    const equippedRes = await client.query(
+    const equippedResult = await equipDbClient.query(
       "SELECT id FROM inventory WHERE user_id = $1 AND is_equipped = true",
       [internalId],
     );
-    const equipped_ids = equippedRes.rows.map((r) => String(r.id));
+    const equipped_ids = equippedResult.rows.map((equippedItem) => String(equippedItem.id));
 
     res.json({ success: true, equipped_ids });
   } catch (err) {
-    if (client) await client.query("ROLLBACK");
+    if (equipDbClient) await equipDbClient.query("ROLLBACK");
     console.error("EQUIP ERROR:", err.message);
     res.status(500).json({ error: err.message });
   } finally {
-    client.release();
+    equipDbClient.release();
   }
 });
 
 app.get("/modules", async (req, res) => {
   try {
-    const result = await pool.query(
+    const modulesResult = await pool.query(
       "SELECT id, subject, topic, duration, tier FROM learning_modules ORDER BY duration ASC",
     );
-    res.json(result.rows);
+    res.json(modulesResult.rows);
   } catch (err) {
     console.error("DATABASE_ERROR:", err.message);
     res.status(500).json({ error: "COULD_NOT_FETCH_INTEL" });
   }
 });
 
-app.get("/api/inventory/:externalId", async (req, res) => {
-  const { externalId } = req.params;
+app.get("/api/inventory/:externalId", requireAuth, async (req, res) => {
+  const externalId = req.auth.userId;
   try {
-    const userRes = await pool.query(
+    const vaultUserRes = await pool.query(
       "SELECT id FROM users WHERE external_id = $1",
       [externalId],
     );
 
-    if (userRes.rows.length === 0) {
-      console.log(
-        `NEW OPERATOR DETECTED: ${externalId}. Returning empty vault.`,
-      );
+    if (vaultUserRes.rows.length === 0) {
       return res.json([]);
     }
 
-    const result = await pool.query(
-      "SELECT id AS \"instanceId\", name, rarity, category, description, is_equipped FROM inventory WHERE user_id = $1",
-      [userRes.rows[0].id],
+    const vaultInventoryResult = await pool.query(
+      'SELECT id AS "instanceId", name, rarity, category, description, is_equipped, color_hex, effect_value FROM inventory WHERE user_id = $1',
+      [vaultUserRes.rows[0].id],
     );
 
-    res.json(result.rows);
+    res.json(vaultInventoryResult.rows);
   } catch (err) {
     console.error("INVENTORY_FETCH_ERROR:", err.message);
     res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
   }
 });
 
-app.post("/api/inventory/claim", async (req, res) => {
-  const { userId, item, equipNow } = req.body;
-  console.log("1. Starting claim for User:", userId);
+app.post("/api/inventory/claim", requireAuth, async (req, res) => {
+  const { item, equipNow } = req.body;
+  const externalId = req.auth.userId;
 
   try {
-    const userRes = await pool.query(
+    const claimUserQueryResult = await pool.query(
       "SELECT id FROM users WHERE external_id = $1",
-      [userId.toString()],
+      [externalId],
     );
 
-    if (userRes.rows.length === 0) {
-      console.error("2. FAILURE: No user found with external_id:", userId);
+    if (claimUserQueryResult.rows.length === 0)
       return res.status(404).json({ error: "USER_NOT_FOUND_IN_DB" });
-    }
 
-    const internalId = userRes.rows[0].id;
-    console.log("3. Internal ID found:", internalId);
-
-    const newEntry = await pool.query(
-      `INSERT INTO inventory (user_id, name, category, rarity, description, is_equipped) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING *`,
-      [
-        internalId,
-        item.name,
-        item.category || "PERK",
-        item.rarity,
-        item.description,
-        equipNow,
-      ],
-    );
+    const internalId = claimUserQueryResult.rows[0].id;
 
     if (equipNow) {
+      // Unequip anything currently equipped, then equip the claimed item
       await pool.query(
-        "UPDATE inventory SET is_equipped = false WHERE user_id = $1 AND category = $2 AND id != $3",
-        [internalId, item.category || "PERK", newEntry.rows[0].id],
+        "UPDATE inventory SET is_equipped = false WHERE user_id = $1 AND is_equipped = true",
+        [internalId],
+      );
+      await pool.query(
+        "UPDATE inventory SET is_equipped = true WHERE id = $1 AND user_id = $2",
+        [item.instanceId, internalId],
       );
     }
 
-    console.log("4. SUCCESS: Item added to inventory.");
-    res.json({ success: true, item: newEntry.rows[0] });
+    const updatedItem = await pool.query(
+      `SELECT id AS "instanceId", name, rarity, category, description, is_equipped, color_hex, effect_value
+       FROM inventory WHERE id = $1 AND user_id = $2`,
+      [item.instanceId, internalId],
+    );
+
+    res.json({ success: true, item: updatedItem.rows[0] });
   } catch (err) {
-    console.error("CRITICAL_ERROR:", err.message);
+    console.error("CLAIM_ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // ── Stripe: create checkout session ────────────────────────────────────────
-app.post("/payments/create-session", async (req, res) => {
-  const { targetTier, userId } = req.body;
+app.post("/payments/create-session", requireAuth, async (req, res) => {
+  const { targetTier } = req.body;
+  const userId = req.auth.userId;
 
   if (!userId || ![1, 2].includes(Number(targetTier))) {
-    return res.status(400).json({ error: "Invalid request — userId and targetTier (1 or 2) required." });
+    return res
+      .status(400)
+      .json({
+        error: "Invalid request — userId and targetTier (1 or 2) required.",
+      });
   }
 
-  const tier = Number(targetTier);
+  const reqTier = Number(targetTier);
   const PLANS = {
-    1: { name: "Zenith Pro", description: "1.5× XP · 2 perk slots · Rain & Cyberpunk ambience · Better item drops", amount: 999  },
-    2: { name: "Zenith Elite", description: "2× XP · 4 perk slots · All themes & audio · Legendary drops · No task cap", amount: 2499 },
+    1: {
+      name: "Zenith Pro",
+      description:
+        "1.5× XP · 2 perk slots · Rain & Cyberpunk ambience · Better item drops",
+      amount: 999,
+    },
+    2: {
+      name: "Zenith Elite",
+      description:
+        "2× XP · 4 perk slots · All themes & audio · Legendary drops · No task cap",
+      amount: 2499,
+    },
   };
-  const plan = PLANS[tier];
+  const plan = PLANS[reqTier];
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const stripeSess = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          product_data: { name: plan.name, description: plan.description },
-          unit_amount: plan.amount,
-          recurring: { interval: "month" },
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: plan.name, description: plan.description },
+            unit_amount: plan.amount,
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
         },
-        quantity: 1,
-      }],
+      ],
       subscription_data: {
-        metadata: { userId, targetTier: String(tier) },
+        metadata: { userId, targetTier: String(reqTier) },
       },
-      metadata: { userId, targetTier: String(tier) },
-      success_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${process.env.FRONTEND_URL || "http://localhost:5173"}/?payment=cancelled`,
+      metadata: { userId, targetTier: String(reqTier) },
+      success_url: `${process.env.FRONTEND_URL}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/?payment=cancelled`,
     });
 
-    res.json({ url: session.url });
+    res.json({ url: stripeSess.url });
   } catch (err) {
     console.error("[STRIPE] Session creation failed:", err.message);
-    res.status(500).json({ error: err.message || "Failed to create checkout session." });
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to create checkout session." });
   }
 });
 
-app.listen(5000, () => console.log("ZENITH ENGINE ONLINE ON PORT 5000"));
+
+
+
+// ── Elevation Chart — 7-day focus stats ────────────────────────────────────
+app.get("/api/stats/elevation", requireAuth, async (req, res) => {
+  const clerk_id = req.auth.userId;
+
+  try {
+    const elevRes = await pool.query(
+      `SELECT
+         gs.day::date                              AS date,
+         TO_CHAR(gs.day, 'Dy')                    AS day,
+         COALESCE(SUM(t.duration_minutes)::int, 0) AS minutes
+       FROM generate_series(
+         CURRENT_DATE - INTERVAL '6 days',
+         CURRENT_DATE,
+         INTERVAL '1 day'
+       ) AS gs(day)
+       LEFT JOIN tasks t ON (
+         t.completed_at::date = gs.day::date
+         AND t.user_id::text  = (SELECT id::text FROM users WHERE external_id = $1)
+         AND t.status         = 'SUCCESS'
+       )
+       GROUP BY gs.day
+       ORDER BY gs.day ASC`,
+      [clerk_id],
+    );
+    res.json(elevRes.rows);
+  } catch (err) {
+    console.error("ELEVATION_FETCH_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Summit History — recent completed sessions ──────────────────────────────
+app.get("/api/stats/summit-history", requireAuth, async (req, res) => {
+  const clerk_id = req.auth.userId;
+  const { limit = 12 } = req.query;
+
+  // Hard cap: never send more than 50 rows — prevents low-tier phones from
+  // receiving a massive payload if the query param is tampered with.
+  const safeLimit = Math.min(parseInt(limit) || 12, 50);
+
+  try {
+    const summitRes = await pool.query(
+      `SELECT
+         t.id,
+         t.duration_minutes::int                        AS minutes,
+         TO_CHAR(t.completed_at, 'Mon DD')              AS label,
+         COALESCE(t.title, 'Mission')                   AS title,
+         t.completed_at
+       FROM tasks t
+       JOIN users u ON u.id::text = t.user_id::text
+       WHERE u.external_id = $1
+         AND t.status       = 'SUCCESS'
+         AND t.completed_at IS NOT NULL
+         AND t.duration_minutes BETWEEN 1 AND 180
+       ORDER BY t.completed_at DESC
+       LIMIT $2`,
+      [clerk_id, safeLimit],
+    );
+    res.json(summitRes.rows.reverse());
+  } catch (err) {
+    console.error("SUMMIT_HISTORY_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Perk Shop ─────────────────────────────────────────────────────────────────
+
+// Returns the user's credit balance, tier, and owned cosmetic IDs.
+// The catalog itself is defined in frontend constants — no need to serve it.
+app.get("/api/shop/catalog", requireAuth, async (req, res) => {
+  const externalId = req.auth.userId;
+  try {
+    const userRes = await pool.query(
+      `SELECT system_credits, account_tier, role, COALESCE(purchased_cosmetics, '[]') AS purchased_cosmetics
+       FROM users WHERE external_id = $1`,
+      [externalId],
+    );
+    if (!userRes.rows.length) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    const { system_credits, account_tier, role, purchased_cosmetics } = userRes.rows[0];
+    const tier = getEffectiveAccountTier(account_tier);
+    res.json({ credits: system_credits, tier, owned: purchased_cosmetics ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/shop/cosmetic-purchase", requireAuth, shopLimiter, async (req, res) => {
+  const { cosmeticId } = req.body;
+  const externalId     = req.auth.userId;
+
+  if (!cosmeticId || typeof cosmeticId !== "string")
+    return res.status(400).json({ error: "INVALID_COSMETIC_ID" });
+
+  const price = COSMETICS_PRICES[cosmeticId];
+  if (price === undefined) return res.status(404).json({ error: "COSMETIC_NOT_FOUND" });
+  if (price === null)      return res.status(403).json({ error: "TIER_REQUIRED" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const userRes = await client.query(
+      `SELECT id, system_credits, COALESCE(purchased_cosmetics, '[]') AS purchased_cosmetics,
+              COALESCE(account_tier, 0) AS account_tier
+       FROM users WHERE external_id = $1 FOR UPDATE`,
+      [externalId],
+    );
+    if (!userRes.rows.length) throw new Error("USER_NOT_FOUND");
+    const { id: userId, system_credits, purchased_cosmetics, account_tier } = userRes.rows[0];
+
+    const requiredTier = COSMETICS_MIN_TIER[cosmeticId] ?? 0;
+    if (requiredTier > 0 && (account_tier ?? 0) < requiredTier) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "TIER_REQUIRED" });
+    }
+
+    const owned = Array.isArray(purchased_cosmetics) ? purchased_cosmetics : [];
+    if (owned.includes(cosmeticId)) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "ALREADY_OWNED" });
+    }
+    if (system_credits < price) {
+      await client.query("ROLLBACK");
+      return res.status(402).json({ error: "INSUFFICIENT_CREDITS", required: price, have: system_credits });
+    }
+
+    const newOwned = [...owned, cosmeticId];
+    await client.query(
+      `UPDATE users SET system_credits = system_credits - $1, purchased_cosmetics = $2 WHERE id = $3`,
+      [price, JSON.stringify(newOwned), userId],
+    );
+    await client.query("COMMIT");
+
+    pushUserPatch(externalId).catch(() => {});
+
+    res.json({
+      success:       true,
+      purchased:     cosmeticId,
+      credits_spent: price,
+      system_credits: system_credits - price,
+      owned:         newOwned,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Consumable purchase ───────────────────────────────────────────────────────
+// Deducts credits and applies the effect immediately.
+// streak_rescue: sets streak to 1 if currently 0 (restores a broken streak).
+// extra_loot_pull: rolls loot and credits the user instantly.
+app.post("/api/shop/consumable-purchase", requireAuth, shopLimiter, async (req, res) => {
+  const { consumableId } = req.body;
+  const externalId       = req.auth.userId;
+
+  if (!consumableId || typeof consumableId !== "string")
+    return res.status(400).json({ error: "INVALID_CONSUMABLE_ID" });
+
+  const price = CONSUMABLE_PRICES[consumableId];
+  if (price === undefined) return res.status(404).json({ error: "CONSUMABLE_NOT_FOUND" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userRes = await client.query(
+      `SELECT id, system_credits, streak, COALESCE(account_tier, 0) AS account_tier
+       FROM users WHERE external_id = $1 FOR UPDATE`,
+      [externalId],
+    );
+    if (!userRes.rows.length) throw new Error("USER_NOT_FOUND");
+    const { id: userId, system_credits, streak } = userRes.rows[0];
+
+    if (system_credits < price) {
+      await client.query("ROLLBACK");
+      return res.status(402).json({ error: "INSUFFICIENT_CREDITS", required: price, have: system_credits });
+    }
+
+    let result = {};
+
+    if (consumableId === "streak_rescue") {
+      const currentStreak = parseInt(streak || 0);
+      if (currentStreak > 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "STREAK_NOT_BROKEN", message: "Your streak is still active — no rescue needed." });
+      }
+      await client.query(
+        `UPDATE users
+         SET system_credits = system_credits - $1,
+             streak = 1,
+             streak_last_updated = NOW()
+         WHERE id = $2`,
+        [price, userId],
+      );
+      result = { streak_restored: 1 };
+    } else if (consumableId === "extra_loot_pull") {
+      const { rollRarity } = require("./LootData.js");
+      const rarity      = rollRarity(Math.random() * 100);
+      const dropCredits = CREDIT_BY_RARITY[rarity] ?? 50;
+      await client.query(
+        `UPDATE users
+         SET system_credits = system_credits - $1 + $2
+         WHERE id = $3`,
+        [price, dropCredits, userId],
+      );
+      result = { rarity, credits_earned: dropCredits };
+    }
+
+    await client.query("COMMIT");
+    pushUserPatch(externalId).catch(() => {});
+
+    const fresh = await pool.query(
+      "SELECT system_credits FROM users WHERE external_id = $1",
+      [externalId],
+    );
+    res.json({ success: true, consumable: consumableId, credits_spent: price, ...result, system_credits: fresh.rows[0]?.system_credits });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Admin: manually grant tier by username ────────────────────────────────────
+// Used for gifting PRO/ELITE to promoters, testers, etc.
+// Body: { username: string, tier: "FREE" | "PRO" | "ELITE" }
+app.post("/admin/grant-tier", requireAuth, requireAdminToken, requireAdmin, adminLimiter, async (req, res) => {
+  const { username, tier } = req.body;
+
+  const TIER_MAP = { FREE: 0, PRO: 1, ELITE: 2 };
+  const ROLE_MAP = { FREE: "FREE", PRO: "PRO", ELITE: "ELITE" };
+
+  if (!username || typeof username !== "string")
+    return res.status(400).json({ error: "MISSING_USERNAME" });
+  if (!(tier in TIER_MAP))
+    return res.status(400).json({ error: "INVALID_TIER", valid: ["FREE", "PRO", "ELITE"] });
+
+  const newTier = TIER_MAP[tier];
+  const newRole = ROLE_MAP[tier];
+
+  try {
+    const result = await pool.query(
+      `UPDATE users
+       SET account_tier = $1,
+           role         = $2
+       WHERE LOWER(username) = LOWER($3)
+       RETURNING external_id, username, role, account_tier`,
+      [newTier, newRole, username.trim()],
+    );
+
+    if (result.rowCount === 0)
+      return res.status(404).json({ error: "USER_NOT_FOUND", username });
+
+    const updated = result.rows[0];
+    pushUserPatch(updated.external_id).catch(() => {});
+
+    res.json({
+      success:  true,
+      username: updated.username,
+      role:     updated.role,
+      tier:     updated.account_tier,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "DATABASE_ERROR" });
+  }
+});
+
+app.post("/admin/ban-user", requireAuth, requireAdminToken, requireAdmin, adminLimiter, async (req, res) => {
+  const { username, ban, reason } = req.body;
+  if (!username || typeof username !== "string")
+    return res.status(400).json({ error: "MISSING_USERNAME" });
+
+  try {
+    const result = await pool.query(
+      `UPDATE users
+       SET is_banned  = $1,
+           ban_reason = $2
+       WHERE LOWER(username) = LOWER($3) AND is_admin = false
+       RETURNING external_id, username, is_banned`,
+      [!!ban, ban ? (reason?.trim() || "Banned by admin.") : null, username.trim()],
+    );
+    if (result.rowCount === 0)
+      return res.status(404).json({ error: "USER_NOT_FOUND_OR_PROTECTED" });
+
+    const updated = result.rows[0];
+    // Push the ban state so the user's session reflects it immediately
+    pushUserPatch(updated.external_id).catch(() => {});
+    res.json({ success: true, username: updated.username, is_banned: updated.is_banned });
+  } catch (err) {
+    res.status(500).json({ error: "DATABASE_ERROR" });
+  }
+});
+
+// ── Admin: list all users ────────────────────────────────────────────────────
+app.get("/admin/users", requireAuth, requireAdminToken, requireAdmin, adminLimiter, async (req, res) => {
+  const { search } = req.query;
+  try {
+    let result;
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`;
+      result = await pool.query(
+        `SELECT external_id, username, email_address,
+                COALESCE(role, 'FREE') AS role,
+                COALESCE(account_tier, 0) AS account_tier,
+                COALESCE(level, 1) AS level,
+                COALESCE(total_xp, 0) AS total_xp,
+                COALESCE(is_admin, false) AS is_admin
+         FROM users
+         WHERE username ILIKE $1 OR email_address ILIKE $1
+         ORDER BY id DESC
+         LIMIT 200`,
+        [term],
+      );
+    } else {
+      result = await pool.query(
+        `SELECT external_id, username, email_address,
+                COALESCE(role, 'FREE') AS role,
+                COALESCE(account_tier, 0) AS account_tier,
+                COALESCE(level, 1) AS level,
+                COALESCE(total_xp, 0) AS total_xp,
+                COALESCE(is_admin, false) AS is_admin
+         FROM users
+         ORDER BY id DESC
+         LIMIT 200`,
+      );
+    }
+    res.json(result.rows);
+  } catch (err) {
+    console.error("[ADMIN USERS]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── SSE: real-time user state stream ─────────────────────────────────────────
+// The frontend opens one EventSource per session. Mutations call pushUserPatch()
+// which immediately writes a user_patch frame — no 30-second wait.
+
+// ── Daily challenge reward ─────────────────────────────────────────────────────
+// Awards 50 CR once per calendar day (UTC). Challenge completion is tracked
+// client-side (localStorage), so we can't verify it — but the once-per-day
+// gate makes this economically insignificant even if someone calls it directly.
+app.post("/api/daily-challenge/claim", requireAuth, bonusLimiter, async (req, res) => {
+  const clerkId = req.auth.userId;
+  try {
+    const result = await pool.query(
+      `UPDATE users
+          SET system_credits             = system_credits + 50,
+              daily_challenge_claimed_date = CURRENT_DATE
+        WHERE external_id = $1
+          AND (daily_challenge_claimed_date IS NULL
+               OR daily_challenge_claimed_date < CURRENT_DATE)
+        RETURNING system_credits, daily_challenge_claimed_date`,
+      [clerkId],
+    );
+    if (result.rowCount === 0) {
+      return res.status(409).json({ error: "ALREADY_CLAIMED", message: "Challenge already claimed today." });
+    }
+    pushUserPatch(clerkId).catch(() => {});
+    res.json({ credits_earned: 50, system_credits: result.rows[0].system_credits });
+  } catch (err) {
+    console.error("DAILY_CHALLENGE_CLAIM_ERROR:", err.message);
+    res.status(500).json({ error: "SERVER_ERROR" });
+  }
+});
+
+// Issues a one-time UUID that the client exchanges for an SSE connection.
+// Keeps the Clerk JWT out of URLs (and therefore out of nginx/proxy access logs).
+app.post("/api/stream-token", requireAuth, (req, res) => {
+  const { randomUUID } = require("crypto");
+  const token = randomUUID();
+  const expiresAt = Date.now() + 30_000; // valid for 30 seconds
+  sseTokens.set(token, { userId: req.auth.userId, expiresAt });
+  setTimeout(() => sseTokens.delete(token), 30_000); // guaranteed cleanup
+  res.json({ token });
+});
+
+app.get("/api/stream/:externalId", async (req, res) => {
+  const { externalId } = req.params;
+  const ot = req.query.t; // one-time token
+
+  if (!ot) return res.status(401).end();
+  const entry = sseTokens.get(ot);
+  if (!entry || entry.expiresAt < Date.now() || entry.userId !== externalId) {
+    return res.status(401).end();
+  }
+  sseTokens.delete(ot); // single use
+
+  res.setHeader("Content-Type",  "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection",    "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // disable nginx proxy buffering
+  res.flushHeaders();
+
+  sseClients.set(externalId, res);
+  res.write(":connected\n\n");
+
+  // Send current presence snapshot immediately so the grid is populated on load
+  if (presenceMap.size > 0) {
+    const sessions = [...presenceMap.values()];
+    res.write(`data: ${JSON.stringify({ type: "presence", data: sessions })}\n\n`);
+  }
+
+  // Keepalive comment every 25s — prevents proxies from closing idle connections
+  const ping = setInterval(() => res.write(":ping\n\n"), 25_000);
+
+  req.on("close", () => {
+    clearInterval(ping);
+    sseClients.delete(externalId);
+    // Guard: remove presence if the tab closed mid-session (complete/fail normally handles this)
+    if (presenceMap.has(externalId)) {
+      presenceMap.delete(externalId);
+      broadcastPresence();
+    }
+  });
+});
+
+// ── Push notification subscription ───────────────────────────────────────────
+app.post("/api/push/vapid-key", (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription?.endpoint) return res.status(400).json({ error: "Invalid payload" });
+  const clerkId = req.auth.userId;
+  try {
+    const userRes = await pool.query("SELECT id FROM users WHERE external_id = $1", [clerkId]);
+    if (!userRes.rows.length) return res.status(404).json({ error: "User not found" });
+    const userId = userRes.rows[0].id;
+    await pool.query(
+      `INSERT INTO push_subscriptions (user_id, endpoint, subscription)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (endpoint) DO UPDATE SET subscription = EXCLUDED.subscription`,
+      [userId, subscription.endpoint, JSON.stringify(subscription)],
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Push subscribe error:", err.message);
+    res.status(500).json({ error: "Failed to save subscription" });
+  }
+});
+
+app.delete("/api/push/unsubscribe", requireAuth, async (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) return res.status(400).json({ error: "Missing endpoint" });
+  await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]).catch(() => {});
+  res.json({ ok: true });
+});
+
+async function sendPushToUser(userId, payload) {
+  const subs = await pool.query(
+    "SELECT subscription FROM push_subscriptions WHERE user_id = $1",
+    [userId],
+  );
+  const sends = subs.rows.map(async (row) => {
+    try {
+      await webpush.sendNotification(row.subscription, JSON.stringify(payload));
+    } catch (err) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await pool.query(
+          "DELETE FROM push_subscriptions WHERE subscription->>'endpoint' = $1",
+          [row.subscription.endpoint],
+        ).catch(() => {});
+      }
+    }
+  });
+  await Promise.allSettled(sends);
+}
+
+// ── Streak reaper — runs every hour ──────────────────────────────────────────
+
+cron.schedule("0 * * * *", async () => {
+  try {
+    const expired = await pool.query(
+      `SELECT id, external_id, username, streak
+       FROM users
+       WHERE streak > 0
+         AND streak_last_updated < NOW() - INTERVAL '24 hours'`,
+    );
+    if (!expired.rows.length) return;
+
+    const ids = expired.rows.map((u) => u.id);
+    await pool.query(
+      `UPDATE users SET streak = 0 WHERE id = ANY($1::int[])`,
+      [ids],
+    );
+
+    for (const user of expired.rows) {
+      pushUserPatch(user.external_id).catch(() => {});
+      await sendPushToUser(user.id, {
+        title: "Streak Lost",
+        body: `Your ${user.streak}-day streak has ended. Complete a task today to start a new one.`,
+        icon: "/icons.svg",
+        badge: "/icons.svg",
+        tag: "streak-reset",
+        data: { url: "/" },
+      });
+    }
+
+    console.log(`Streak reaper: reset ${expired.rows.length} user(s)`);
+  } catch (err) {
+    console.error("Streak reaper error:", err.message);
+  }
+});
+
+// Dev-only: resets strike count for a user.
+if (process.env.NODE_ENV !== "production") {
+  app.post("/api/debug/clear-ban", async (req, res) => {
+    const { clerkId } = req.body;
+    if (!clerkId) return res.status(400).json({ error: "Missing clerkId" });
+    try {
+      const result = await pool.query(
+        "UPDATE users SET strikes = 0 WHERE external_id = $1 RETURNING external_id",
+        [clerkId],
+      );
+      if (!result.rows.length) return res.status(404).json({ error: "User not found" });
+      pushUserPatch(clerkId).catch(() => {});
+      res.json({ cleared: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+
+// ── Contact form ─────────────────────────────────────────────────────────────
+app.post("/contact", rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), async (req, res) => {
+  const { email, topic, message } = req.body;
+  if (!email || !message) return res.status(400).json({ error: "Missing fields" });
+
+  try {
+    await resend.emails.send({
+      from: "Zenith <noreply@zenithapp.org>",
+      to:   "contact@zenithapp.org",
+      replyTo: email,
+      subject: `[Zenith Contact] ${topic || "General Inquiry"}`,
+      html: `
+        <p><strong>From:</strong> ${email}</p>
+        <p><strong>Topic:</strong> ${topic || "—"}</p>
+        <hr/>
+        <p>${message.replace(/\n/g, "<br/>")}</p>
+      `,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Resend error:", err);
+    res.status(500).json({ error: "Failed to send" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`ZENITH ENGINE ONLINE ON PORT ${PORT}`));

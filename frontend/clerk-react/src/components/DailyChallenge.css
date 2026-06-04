@@ -1,0 +1,115 @@
+.daily-challenge {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.4s ease, background 0.4s ease;
+  flex-shrink: 0;
+}
+
+.daily-challenge.dc-complete {
+  border-color: rgba(52, 211, 153, 0.25);
+  background: rgba(52, 211, 153, 0.04);
+}
+
+.daily-challenge.dc-flash {
+  animation: dc-complete-flash 0.6s ease-out;
+}
+
+@keyframes dc-complete-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  40%  { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+.dc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+}
+
+.dc-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.dc-done-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.30);
+  color: #34d399;
+}
+
+.dc-text {
+  font-family: "Inter", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.70);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.daily-challenge.dc-complete .dc-text {
+  color: rgba(52, 211, 153, 0.75);
+  text-decoration: line-through;
+  text-decoration-color: rgba(52, 211, 153, 0.35);
+}
+
+.dc-bar {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dc-bar-pulse {
+  height: 100%;
+  width: 40%;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  animation: dc-bar-scan 2.4s ease-in-out infinite;
+}
+
+@keyframes dc-bar-scan {
+  0%   { transform: translateX(-150%); }
+  60%  { transform: translateX(400%); }
+  100% { transform: translateX(400%); }
+}
+
+/* ── Real progress fill ── */
+.dc-bar-fill {
+  height: 100%;
+  min-width: 4px;
+  background: var(--ui-accent, #22d3ee);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0.7;
+}
+
+.dc-bar-fill.done {
+  background: #34d399;
+  opacity: 1;
+}
+
+/* ── Quantitative progress counter (e.g. "1 / 2") ── */
+.dc-progress-count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.35);
+}

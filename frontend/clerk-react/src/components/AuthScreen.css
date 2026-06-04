@@ -1,0 +1,378 @@
+/* ============================================================
+   AUTH SCREEN — Zenith High-Gloss Adaptive
+   Full-viewport flex container; card never uses absolute
+   positioning so the mobile software keyboard cannot break layout.
+   ============================================================ */
+
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+ 
+  min-height: 100dvh;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+/* ── Vignette — darkens edges so the card reads clearly ── */
+.auth-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.18) 0%,
+    rgba(0, 0, 0, 0.58) 100%
+  );
+  pointer-events: none;
+}
+
+/* ── Card positioning — max-width for desktop ── */
+.auth-card-wrap {
+  width: 100%;
+  height: 65%;
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+  
+}
+
+/* ── Glass card — 25 px deep blur for high-gloss effect ── */
+.auth-card-glass {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-wrap: wrap;
+  text-align: center;
+  padding: 3.25rem 3rem 2.25rem;
+  padding: clamp(2rem, 8vw, 3.25rem) clamp(1.5rem, 6vw, 3rem) clamp(1.5rem, 5vw, 2.25rem);
+  background: rgba(3, 7, 18, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 22px;
+  animation: card-breathe 4s ease-in-out infinite;
+  isolation: isolate;
+  contain: paint;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .auth-card-glass {
+    background: rgba(3, 7, 18, 0.72);
+    -webkit-backdrop-filter: blur(5px) saturate(1.4);
+    backdrop-filter: blur(5px) saturate(1.4);
+  }
+}
+
+@keyframes card-breathe {
+  0%, 100% {
+    box-shadow:
+      0 48px 120px rgba(0, 0, 0, 0.70),
+      0 0 0 1px var(--accent-a16, rgba(34, 211, 238, 0.16)),
+      0 0 50px var(--accent-a06, rgba(34, 211, 238, 0.06)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 48px 120px rgba(0, 0, 0, 0.70),
+      0 0 0 1px var(--accent-a38, rgba(34, 211, 238, 0.38)),
+      0 0 80px var(--accent-a12, rgba(34, 211, 238, 0.12)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Scanline micro-texture */
+.auth-card-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.006) 2px,
+    rgba(255, 255, 255, 0.006) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Top edge glow line */
+.auth-card-glass::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-a60, rgba(34, 211, 238, 0.60)),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 3;
+}
+
+.auth-card-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Wordmark block ── */
+.auth-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 26px;
+}
+
+.auth-eyebrow {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.30em;
+  color: rgba(255, 255, 255, 0.26);
+  text-transform: uppercase;
+}
+
+.auth-wordmark {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-size: 2.5rem;
+  font-size: clamp(2.5rem, 10vw, 4rem);
+  font-weight: 900;
+  letter-spacing: 0.20em;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow:
+    0 0 30px var(--accent-a38, rgba(34, 211, 238, 0.38)),
+    0 0 70px var(--accent-a16, rgba(34, 211, 238, 0.16));
+}
+
+.auth-accent-line {
+  display: block;
+  width: 30px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: var(--ui-accent, #22d3ee);
+  box-shadow: 0 0 12px var(--ui-accent, #22d3ee),
+              0 0 28px var(--accent-a40, rgba(34, 211, 238, 0.40));
+}
+
+.auth-version {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.20);
+}
+
+/* ── Entry animations — replaces framer-motion ── */
+@keyframes auth-card-enter {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes auth-logo-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes auth-rule-enter {
+  from { opacity: 0; transform: scaleX(0); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+@keyframes auth-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes auth-cta-wrap-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.auth-card-wrap { animation: auth-card-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both; }
+.auth-logo      { animation: auth-logo-enter 0.65s ease 0.65s both; }
+.auth-rule      { transform-origin: left center; animation: auth-rule-enter 0.7s ease-out 0.9s both; }
+.auth-body      { animation: auth-fade-in 0.55s ease 1.05s both; }
+.auth-cta-wrap  { animation: auth-cta-wrap-enter 0.5s ease 1.2s both; }
+.auth-trust     { animation: auth-fade-in 0.5s ease 1.45s both; }
+
+/* ── Separator ── */
+.auth-rule {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--accent-a45, rgba(34, 211, 238, 0.45)),
+    var(--accent-a10, rgba(34, 211, 238, 0.10)) 60%,
+    transparent
+  );
+  margin-bottom: 26px;
+  flex-shrink: 0;
+}
+
+/* ── Body copy ── */
+.auth-body {
+  font-family: "Inter", sans-serif;
+  font-size: 0.75rem;
+  font-size: clamp(0.75rem, 2vw, 0.82rem);
+  font-weight: 400;
+  line-height: 1.72;
+  color: rgba(255, 255, 255, 0.38);
+  margin-bottom: 34px;
+  max-width: 285px;
+}
+
+/* ── CTA button ── */
+.auth-cta-wrap {
+  width: 100%;
+  margin-bottom: 26px;
+}
+
+.auth-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.85rem 2.5rem;
+  padding: clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 5vw, 2.5rem);
+  min-height: 48px;
+  background: var(--accent-a10, rgba(34, 211, 238, 0.10));
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  animation: btn-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes btn-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 14px var(--accent-a16, rgba(34, 211, 238, 0.16)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 32px var(--accent-a30, rgba(34, 211, 238, 0.30)),
+      0 0 64px var(--accent-a10, rgba(34, 211, 238, 0.10)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+.auth-cta:active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease;
+}
+
+.auth-cta:hover {
+  animation: none;
+  background: var(--accent-a20, rgba(34, 211, 238, 0.20));
+  border-color: var(--ui-accent, #22d3ee);
+  box-shadow:
+    0 0 40px var(--accent-a40, rgba(34, 211, 238, 0.40)),
+    0 0 80px var(--accent-a16, rgba(34, 211, 238, 0.16)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Loading state — no pointer-events:none, Clerk's onClick must still fire */
+.auth-cta--loading {
+  animation: none;
+  opacity: 0.75;
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.auth-cta-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: auth-spin 0.65s linear infinite;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Trust strip ── */
+.auth-trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.auth-trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "Inter", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.18);
+  white-space: nowrap;
+}
+
+.auth-trust-icon {
+  font-size: 0.65rem;
+  opacity: 0.55;
+}
+
+.auth-trust-sep {
+  color: rgba(255, 255, 255, 0.10);
+  font-size: 0.65rem;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* ── Mobile — 90 % fluid sheet, still centered ── */
+@media (max-width: 480px) {
+  .auth-screen {
+    padding: 16px;
+  }
+
+  .auth-card-wrap {
+    width: 90%;
+    max-width: 90%;
+  }
+
+  .auth-card-glass {
+    padding: 40px 24px 30px;
+    border-radius: 18px;
+  }
+
+  .auth-wordmark {
+    font-size: 3rem;
+  }
+
+  .auth-body {
+    font-size: 0.78rem;
+  }
+
+  /* 16 px prevents iOS forced-zoom on focus */
+  .auth-cta {
+    font-size: 0.68rem;
+    padding: 13px 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .auth-wordmark {
+    font-size: 2.5rem;
+  }
+}

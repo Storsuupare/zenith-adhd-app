@@ -24,143 +24,752 @@
   --ui-accent: #ffffff;
   --ui-text-main: #ffffff;
   --ui-text-dim: rgba(255, 255, 255, 0.5);
+
+  /* Pre-computed --ui-accent alpha variants (replaces color-mix for broad compatibility) */
+  --accent-a04: rgba(255, 255, 255, 0.04);
+  --accent-a06: rgba(255, 255, 255, 0.06);
+  --accent-a08: rgba(255, 255, 255, 0.08);
+  --accent-a10: rgba(255, 255, 255, 0.1);
+  --accent-a12: rgba(255, 255, 255, 0.12);
+  --accent-a15: rgba(255, 255, 255, 0.15);
+  --accent-a16: rgba(255, 255, 255, 0.16);
+  --accent-a18: rgba(255, 255, 255, 0.18);
+  --accent-a20: rgba(255, 255, 255, 0.2);
+  --accent-a22: rgba(255, 255, 255, 0.22);
+  --accent-a25: rgba(255, 255, 255, 0.25);
+  --accent-a28: rgba(255, 255, 255, 0.28);
+  --accent-a30: rgba(255, 255, 255, 0.3);
+  --accent-a35: rgba(255, 255, 255, 0.35);
+  --accent-a38: rgba(255, 255, 255, 0.38);
+  --accent-a40: rgba(255, 255, 255, 0.4);
+  --accent-a45: rgba(255, 255, 255, 0.45);
+  --accent-a50: rgba(255, 255, 255, 0.5);
+  --accent-a55: rgba(255, 255, 255, 0.55);
+  --accent-a60: rgba(255, 255, 255, 0.6);
+  --accent-a70: rgba(255, 255, 255, 0.7);
+  --accent-blend-white: #ffffff;
 }
 
 /* ============================================================
    2. GLOBAL RESET & STAGE
    ============================================================ */
 * {
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   margin: 0;
   padding: 0;
+}
+
+/* Constrain replaced elements only — not every child in the tree */
+img,
+video,
+canvas,
+svg,
+picture,
+embed,
+iframe,
+object {
+  max-width: 100%;
+  height: auto;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: none !important;
+  background-color: #020408;
+  position: relative;
+}
+
+html {
+  width: 100%;
+  height: -webkit-fill-available;
+  max-width: 100%;
+  background: #020408;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* NOTE: overflow-x NOT set on html — old Android WebKit breaks position:fixed when html has overflow */
 }
 
 body {
-  background-color: var(--solar-core);
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+
+  height: 100%;
+  overflow: hidden; /* body never scrolls; inner containers do */
+
+  /* Aesthetics */
+  background-color: #020408;
   color: var(--text-main);
   font-family: "Inter", sans-serif;
-  font-size: 17px;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
+  font-size: clamp(0.85rem, 0.75rem + 0.5vw, 1.06rem);
+
+  /* Smoothness */
   -webkit-font-smoothing: antialiased;
-}
-body::after {
-  content: "";
-  position: fixed;
-  top: -100%;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(0, 242, 255, 0.03) 50%,
-    transparent
-  );
-  animation: radar-sweep 10s infinite linear;
-  pointer-events: none;
-  z-index: 10;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body:has(.kinetic-focus-overlay) ::after {
-  display: none;
+@supports (text-size-adjust: 100%) {
+  html,
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+#root {
+  position: relative;
+  width: 100%;
+  height: 100vh;   /* fixed height — required for flex scroll to work */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@supports (overscroll-behavior: scroll) {
+  html,
+  body {
+    overscroll-behavior: scroll;
+  }
+}
+
+
+
+.dashboard-layout {
+  position: relative;
+}
+
+.dashboard-layout::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: inset 0 0 140px 40px var(--aura-color, transparent);
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* has-aura lives on zenith-os-shell (parent) — target the ::before via descendant */
+.zenith-os-shell.has-aura .dashboard-layout::before {
+  opacity: 0.14;
+  transition: opacity 1.2s ease;
 }
 
 .app-container {
   --solar-core: #020203;
   --solar-accent: #050508;
   --solar-glow: rgba(0, 0, 0, 0);
-  transition: all 8s cubic-bezier(0.4, 0, 0.2, 1);
+  --solar-dark-half: #010101;
+  --solar-dark-90: #020203;
+  --solar-glow-a60: transparent;
+  transition: background 8s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+/* ── Shell: persistent sidebar + scrollable content ── */
+.zenith-os-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background: transparent;
+}
+
+.zenith-main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* lets the flex item shrink below content height so overflow-y:auto actually scrolls */
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -ms-overflow-style: none;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.zenith-main-content::-webkit-scrollbar {
+  display: none;
+}
+@supports (scrollbar-width: none) {
+  .zenith-main-content {
+    scrollbar-width: none;
+  }
+}
+
+/* ── Page transition (compositor-only, replaces framer-motion) ── */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.page-enter {
+  width: 100%;
+  flex-shrink: 0;
+  animation: page-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  height: 100%;
+  min-height: 100dvh;
+}
+
+/* Phase classes only set backdrop colors and accent. --ui-glass stays neutral dark
+   (inherits :root) so panel backgrounds never bleed the solar phase color. */
 .phase-morning {
   --solar-core: #1e2a44;
   --solar-accent: #ff9a9e;
   --solar-glow: rgba(255, 154, 158, 0.2);
   --ui-accent: #ff9a9e;
-  --ui-glass: rgba(30, 42, 68, 0.4);
+  --accent-a04: rgba(255, 154, 158, 0.04);
+  --accent-a06: rgba(255, 154, 158, 0.06);
+  --accent-a08: rgba(255, 154, 158, 0.08);
+  --accent-a10: rgba(255, 154, 158, 0.1);
+  --accent-a12: rgba(255, 154, 158, 0.12);
+  --accent-a15: rgba(255, 154, 158, 0.15);
+  --accent-a16: rgba(255, 154, 158, 0.16);
+  --accent-a18: rgba(255, 154, 158, 0.18);
+  --accent-a20: rgba(255, 154, 158, 0.2);
+  --accent-a22: rgba(255, 154, 158, 0.22);
+  --accent-a25: rgba(255, 154, 158, 0.25);
+  --accent-a28: rgba(255, 154, 158, 0.28);
+  --accent-a30: rgba(255, 154, 158, 0.3);
+  --accent-a35: rgba(255, 154, 158, 0.35);
+  --accent-a38: rgba(255, 154, 158, 0.38);
+  --accent-a40: rgba(255, 154, 158, 0.4);
+  --accent-a45: rgba(255, 154, 158, 0.45);
+  --accent-a50: rgba(255, 154, 158, 0.5);
+  --accent-a55: rgba(255, 154, 158, 0.55);
+  --accent-a60: rgba(255, 154, 158, 0.6);
+  --accent-a70: rgba(255, 154, 158, 0.7);
+  --accent-blend-white: #ffaeb2;
+  --solar-dark-half: #0f1522;
+  --solar-dark-90: #1b263d;
+  --solar-glow-a60: rgba(255, 154, 158, 0.12);
 }
 .phase-day {
   --solar-core: #003264;
   --solar-accent: #0072ff;
   --solar-glow: rgba(0, 198, 255, 0.3);
   --ui-accent: #00c6ff;
-  --ui-glass: rgba(0, 50, 100, 0.3);
+  --accent-a04: rgba(0, 198, 255, 0.04);
+  --accent-a06: rgba(0, 198, 255, 0.06);
+  --accent-a08: rgba(0, 198, 255, 0.08);
+  --accent-a10: rgba(0, 198, 255, 0.1);
+  --accent-a12: rgba(0, 198, 255, 0.12);
+  --accent-a15: rgba(0, 198, 255, 0.15);
+  --accent-a16: rgba(0, 198, 255, 0.16);
+  --accent-a18: rgba(0, 198, 255, 0.18);
+  --accent-a20: rgba(0, 198, 255, 0.2);
+  --accent-a22: rgba(0, 198, 255, 0.22);
+  --accent-a25: rgba(0, 198, 255, 0.25);
+  --accent-a28: rgba(0, 198, 255, 0.28);
+  --accent-a30: rgba(0, 198, 255, 0.3);
+  --accent-a35: rgba(0, 198, 255, 0.35);
+  --accent-a38: rgba(0, 198, 255, 0.38);
+  --accent-a40: rgba(0, 198, 255, 0.4);
+  --accent-a45: rgba(0, 198, 255, 0.45);
+  --accent-a50: rgba(0, 198, 255, 0.5);
+  --accent-a55: rgba(0, 198, 255, 0.55);
+  --accent-a60: rgba(0, 198, 255, 0.6);
+  --accent-a70: rgba(0, 198, 255, 0.7);
+  --accent-blend-white: #33d1ff;
+  --solar-dark-half: #001932;
+  --solar-dark-90: #002d5a;
+  --solar-glow-a60: rgba(0, 198, 255, 0.18);
 }
 .phase-noon {
   --solar-core: #001f3f;
   --solar-accent: #0074d9;
   --solar-glow: rgba(255, 255, 255, 0.2);
   --ui-accent: #ffffff;
-  --ui-glass: rgba(255, 255, 255, 0.05);
+  --accent-a04: rgba(255, 255, 255, 0.04);
+  --accent-a06: rgba(255, 255, 255, 0.06);
+  --accent-a08: rgba(255, 255, 255, 0.08);
+  --accent-a10: rgba(255, 255, 255, 0.1);
+  --accent-a12: rgba(255, 255, 255, 0.12);
+  --accent-a15: rgba(255, 255, 255, 0.15);
+  --accent-a16: rgba(255, 255, 255, 0.16);
+  --accent-a18: rgba(255, 255, 255, 0.18);
+  --accent-a20: rgba(255, 255, 255, 0.2);
+  --accent-a22: rgba(255, 255, 255, 0.22);
+  --accent-a25: rgba(255, 255, 255, 0.25);
+  --accent-a28: rgba(255, 255, 255, 0.28);
+  --accent-a30: rgba(255, 255, 255, 0.3);
+  --accent-a35: rgba(255, 255, 255, 0.35);
+  --accent-a38: rgba(255, 255, 255, 0.38);
+  --accent-a40: rgba(255, 255, 255, 0.4);
+  --accent-a45: rgba(255, 255, 255, 0.45);
+  --accent-a50: rgba(255, 255, 255, 0.5);
+  --accent-a55: rgba(255, 255, 255, 0.55);
+  --accent-a60: rgba(255, 255, 255, 0.6);
+  --accent-a70: rgba(255, 255, 255, 0.7);
+  --accent-blend-white: #ffffff;
+  --solar-dark-half: #000f1f;
+  --solar-dark-90: #001c38;
+  --solar-glow-a60: rgba(255, 255, 255, 0.12);
 }
 .phase-evening {
   --solar-core: #2c3e50;
   --solar-accent: #fd746c;
   --solar-glow: rgba(253, 116, 108, 0.15);
   --ui-accent: #fd746c;
-  --ui-glass: rgba(44, 62, 80, 0.4);
+  --accent-a04: rgba(253, 116, 108, 0.04);
+  --accent-a06: rgba(253, 116, 108, 0.06);
+  --accent-a08: rgba(253, 116, 108, 0.08);
+  --accent-a10: rgba(253, 116, 108, 0.1);
+  --accent-a12: rgba(253, 116, 108, 0.12);
+  --accent-a15: rgba(253, 116, 108, 0.15);
+  --accent-a16: rgba(253, 116, 108, 0.16);
+  --accent-a18: rgba(253, 116, 108, 0.18);
+  --accent-a20: rgba(253, 116, 108, 0.2);
+  --accent-a22: rgba(253, 116, 108, 0.22);
+  --accent-a25: rgba(253, 116, 108, 0.25);
+  --accent-a28: rgba(253, 116, 108, 0.28);
+  --accent-a30: rgba(253, 116, 108, 0.3);
+  --accent-a35: rgba(253, 116, 108, 0.35);
+  --accent-a38: rgba(253, 116, 108, 0.38);
+  --accent-a40: rgba(253, 116, 108, 0.4);
+  --accent-a45: rgba(253, 116, 108, 0.45);
+  --accent-a50: rgba(253, 116, 108, 0.5);
+  --accent-a55: rgba(253, 116, 108, 0.55);
+  --accent-a60: rgba(253, 116, 108, 0.6);
+  --accent-a70: rgba(253, 116, 108, 0.7);
+  --accent-blend-white: #fd9089;
+  --solar-dark-half: #161f28;
+  --solar-dark-90: #273748;
+  --solar-glow-a60: rgba(253, 116, 108, 0.09);
 }
 .phase-sunset {
   --solar-core: #41295a;
   --solar-accent: #2f0743;
   --solar-glow: rgba(238, 9, 121, 0.2);
   --ui-accent: #ee0979;
-  --ui-glass: rgba(65, 41, 90, 0.5);
+  --accent-a04: rgba(238, 9, 121, 0.04);
+  --accent-a06: rgba(238, 9, 121, 0.06);
+  --accent-a08: rgba(238, 9, 121, 0.08);
+  --accent-a10: rgba(238, 9, 121, 0.1);
+  --accent-a12: rgba(238, 9, 121, 0.12);
+  --accent-a15: rgba(238, 9, 121, 0.15);
+  --accent-a16: rgba(238, 9, 121, 0.16);
+  --accent-a18: rgba(238, 9, 121, 0.18);
+  --accent-a20: rgba(238, 9, 121, 0.2);
+  --accent-a22: rgba(238, 9, 121, 0.22);
+  --accent-a25: rgba(238, 9, 121, 0.25);
+  --accent-a28: rgba(238, 9, 121, 0.28);
+  --accent-a30: rgba(238, 9, 121, 0.3);
+  --accent-a35: rgba(238, 9, 121, 0.35);
+  --accent-a38: rgba(238, 9, 121, 0.38);
+  --accent-a40: rgba(238, 9, 121, 0.4);
+  --accent-a45: rgba(238, 9, 121, 0.45);
+  --accent-a50: rgba(238, 9, 121, 0.5);
+  --accent-a55: rgba(238, 9, 121, 0.55);
+  --accent-a60: rgba(238, 9, 121, 0.6);
+  --accent-a70: rgba(238, 9, 121, 0.7);
+  --accent-blend-white: #f13a94;
+  --solar-dark-half: #20142d;
+  --solar-dark-90: #3a2451;
+  --solar-glow-a60: rgba(238, 9, 121, 0.12);
 }
 .phase-night {
-  --solar-core: #010101;
+  --solar-core: #03060b;
   --solar-accent: #0f172a;
   --solar-glow: rgba(56, 189, 248, 0.05);
   --ui-accent: #38bdf8;
-  --ui-glass: rgba(15, 23, 42, 0.6);
+  --accent-a04: rgba(56, 189, 248, 0.04);
+  --accent-a06: rgba(56, 189, 248, 0.06);
+  --accent-a08: rgba(56, 189, 248, 0.08);
+  --accent-a10: rgba(56, 189, 248, 0.1);
+  --accent-a12: rgba(56, 189, 248, 0.12);
+  --accent-a15: rgba(56, 189, 248, 0.15);
+  --accent-a16: rgba(56, 189, 248, 0.16);
+  --accent-a18: rgba(56, 189, 248, 0.18);
+  --accent-a20: rgba(56, 189, 248, 0.2);
+  --accent-a22: rgba(56, 189, 248, 0.22);
+  --accent-a25: rgba(56, 189, 248, 0.25);
+  --accent-a28: rgba(56, 189, 248, 0.28);
+  --accent-a30: rgba(56, 189, 248, 0.3);
+  --accent-a35: rgba(56, 189, 248, 0.35);
+  --accent-a38: rgba(56, 189, 248, 0.38);
+  --accent-a40: rgba(56, 189, 248, 0.4);
+  --accent-a45: rgba(56, 189, 248, 0.45);
+  --accent-a50: rgba(56, 189, 248, 0.5);
+  --accent-a55: rgba(56, 189, 248, 0.55);
+  --accent-a60: rgba(56, 189, 248, 0.6);
+  --accent-a70: rgba(56, 189, 248, 0.7);
+  --accent-blend-white: #60caf9;
+  --solar-dark-half: #010305;
+  --solar-dark-90: #02050a;
+  --solar-glow-a60: rgba(56, 189, 248, 0.03);
+}
+
+/* ============================================================
+   2b. THEME OVERRIDES
+   These rules come AFTER phase rules — equal specificity, later wins.
+   Phase classes set the time-of-day sky; theme classes overlay accent
+   identity and (for immersive themes) the full sky palette.
+   Celestial body visibility (sun / clouds / moon / stars) is controlled
+   in SolarBackdrop via the DARK_THEMES / CLOUD_HIDDEN sets in App.jsx.
+   ============================================================ */
+
+/* ── Cobalt ── */
+.theme-cobalt {
+  --ui-accent: #3b82f6;
+  --solar-glow: rgba(59,130,246,0.2);
+  --accent-a04: rgba(59,130,246,0.04);  --accent-a06: rgba(59,130,246,0.06);
+  --accent-a08: rgba(59,130,246,0.08);  --accent-a10: rgba(59,130,246,0.1);
+  --accent-a12: rgba(59,130,246,0.12);  --accent-a15: rgba(59,130,246,0.15);
+  --accent-a16: rgba(59,130,246,0.16);  --accent-a18: rgba(59,130,246,0.18);
+  --accent-a20: rgba(59,130,246,0.2);   --accent-a22: rgba(59,130,246,0.22);
+  --accent-a25: rgba(59,130,246,0.25);  --accent-a28: rgba(59,130,246,0.28);
+  --accent-a30: rgba(59,130,246,0.3);   --accent-a35: rgba(59,130,246,0.35);
+  --accent-a38: rgba(59,130,246,0.38);  --accent-a40: rgba(59,130,246,0.4);
+  --accent-a45: rgba(59,130,246,0.45);  --accent-a50: rgba(59,130,246,0.5);
+  --accent-a55: rgba(59,130,246,0.55);  --accent-a60: rgba(59,130,246,0.6);
+  --accent-a70: rgba(59,130,246,0.7);
+  --accent-blend-white: #6a9ff8;
+  --solar-glow-a60: rgba(59,130,246,0.12);
+}
+
+/* ── Amber ── */
+.theme-amber {
+  --ui-accent: #f59e0b;
+  --solar-glow: rgba(245,158,11,0.22);
+  --accent-a04: rgba(245,158,11,0.04);  --accent-a06: rgba(245,158,11,0.06);
+  --accent-a08: rgba(245,158,11,0.08);  --accent-a10: rgba(245,158,11,0.1);
+  --accent-a12: rgba(245,158,11,0.12);  --accent-a15: rgba(245,158,11,0.15);
+  --accent-a16: rgba(245,158,11,0.16);  --accent-a18: rgba(245,158,11,0.18);
+  --accent-a20: rgba(245,158,11,0.2);   --accent-a22: rgba(245,158,11,0.22);
+  --accent-a25: rgba(245,158,11,0.25);  --accent-a28: rgba(245,158,11,0.28);
+  --accent-a30: rgba(245,158,11,0.3);   --accent-a35: rgba(245,158,11,0.35);
+  --accent-a38: rgba(245,158,11,0.38);  --accent-a40: rgba(245,158,11,0.4);
+  --accent-a45: rgba(245,158,11,0.45);  --accent-a50: rgba(245,158,11,0.5);
+  --accent-a55: rgba(245,158,11,0.55);  --accent-a60: rgba(245,158,11,0.6);
+  --accent-a70: rgba(245,158,11,0.7);
+  --accent-blend-white: #f7b23c;
+  --solar-glow-a60: rgba(245,158,11,0.12);
+}
+
+/* ── Crimson ── */
+.theme-crimson {
+  --ui-accent: #ef4444;
+  --solar-glow: rgba(239,68,68,0.2);
+  --accent-a04: rgba(239,68,68,0.04);   --accent-a06: rgba(239,68,68,0.06);
+  --accent-a08: rgba(239,68,68,0.08);   --accent-a10: rgba(239,68,68,0.1);
+  --accent-a12: rgba(239,68,68,0.12);   --accent-a15: rgba(239,68,68,0.15);
+  --accent-a16: rgba(239,68,68,0.16);   --accent-a18: rgba(239,68,68,0.18);
+  --accent-a20: rgba(239,68,68,0.2);    --accent-a22: rgba(239,68,68,0.22);
+  --accent-a25: rgba(239,68,68,0.25);   --accent-a28: rgba(239,68,68,0.28);
+  --accent-a30: rgba(239,68,68,0.3);    --accent-a35: rgba(239,68,68,0.35);
+  --accent-a38: rgba(239,68,68,0.38);   --accent-a40: rgba(239,68,68,0.4);
+  --accent-a45: rgba(239,68,68,0.45);   --accent-a50: rgba(239,68,68,0.5);
+  --accent-a55: rgba(239,68,68,0.55);   --accent-a60: rgba(239,68,68,0.6);
+  --accent-a70: rgba(239,68,68,0.7);
+  --accent-blend-white: #f27070;
+  --solar-glow-a60: rgba(239,68,68,0.12);
+}
+
+/* ── Violet ── */
+.theme-violet {
+  --ui-accent: #8b5cf6;
+  --solar-glow: rgba(139,92,246,0.2);
+  --accent-a04: rgba(139,92,246,0.04);  --accent-a06: rgba(139,92,246,0.06);
+  --accent-a08: rgba(139,92,246,0.08);  --accent-a10: rgba(139,92,246,0.1);
+  --accent-a12: rgba(139,92,246,0.12);  --accent-a15: rgba(139,92,246,0.15);
+  --accent-a16: rgba(139,92,246,0.16);  --accent-a18: rgba(139,92,246,0.18);
+  --accent-a20: rgba(139,92,246,0.2);   --accent-a22: rgba(139,92,246,0.22);
+  --accent-a25: rgba(139,92,246,0.25);  --accent-a28: rgba(139,92,246,0.28);
+  --accent-a30: rgba(139,92,246,0.3);   --accent-a35: rgba(139,92,246,0.35);
+  --accent-a38: rgba(139,92,246,0.38);  --accent-a40: rgba(139,92,246,0.4);
+  --accent-a45: rgba(139,92,246,0.45);  --accent-a50: rgba(139,92,246,0.5);
+  --accent-a55: rgba(139,92,246,0.55);  --accent-a60: rgba(139,92,246,0.6);
+  --accent-a70: rgba(139,92,246,0.7);
+  --accent-blend-white: #a37ef8;
+  --solar-glow-a60: rgba(139,92,246,0.12);
+}
+
+/* ── Jade ── */
+.theme-jade {
+  --ui-accent: #10b981;
+  --solar-glow: rgba(16,185,129,0.2);
+  --accent-a04: rgba(16,185,129,0.04);  --accent-a06: rgba(16,185,129,0.06);
+  --accent-a08: rgba(16,185,129,0.08);  --accent-a10: rgba(16,185,129,0.1);
+  --accent-a12: rgba(16,185,129,0.12);  --accent-a15: rgba(16,185,129,0.15);
+  --accent-a16: rgba(16,185,129,0.16);  --accent-a18: rgba(16,185,129,0.18);
+  --accent-a20: rgba(16,185,129,0.2);   --accent-a22: rgba(16,185,129,0.22);
+  --accent-a25: rgba(16,185,129,0.25);  --accent-a28: rgba(16,185,129,0.28);
+  --accent-a30: rgba(16,185,129,0.3);   --accent-a35: rgba(16,185,129,0.35);
+  --accent-a38: rgba(16,185,129,0.38);  --accent-a40: rgba(16,185,129,0.4);
+  --accent-a45: rgba(16,185,129,0.45);  --accent-a50: rgba(16,185,129,0.5);
+  --accent-a55: rgba(16,185,129,0.55);  --accent-a60: rgba(16,185,129,0.6);
+  --accent-a70: rgba(16,185,129,0.7);
+  --accent-blend-white: #3ec79a;
+  --solar-glow-a60: rgba(16,185,129,0.12);
+}
+
+/* ── Neon (PRO) — cyberpunk dark ── */
+.theme-neon {
+  --solar-core: #050108;
+  --solar-accent: #08000f;
+  --ui-accent: #f72585;
+  --solar-glow: rgba(247,37,133,0.25);
+  --accent-a04: rgba(247,37,133,0.04);  --accent-a06: rgba(247,37,133,0.06);
+  --accent-a08: rgba(247,37,133,0.08);  --accent-a10: rgba(247,37,133,0.1);
+  --accent-a12: rgba(247,37,133,0.12);  --accent-a15: rgba(247,37,133,0.15);
+  --accent-a16: rgba(247,37,133,0.16);  --accent-a18: rgba(247,37,133,0.18);
+  --accent-a20: rgba(247,37,133,0.2);   --accent-a22: rgba(247,37,133,0.22);
+  --accent-a25: rgba(247,37,133,0.25);  --accent-a28: rgba(247,37,133,0.28);
+  --accent-a30: rgba(247,37,133,0.3);   --accent-a35: rgba(247,37,133,0.35);
+  --accent-a38: rgba(247,37,133,0.38);  --accent-a40: rgba(247,37,133,0.4);
+  --accent-a45: rgba(247,37,133,0.45);  --accent-a50: rgba(247,37,133,0.5);
+  --accent-a55: rgba(247,37,133,0.55);  --accent-a60: rgba(247,37,133,0.6);
+  --accent-a70: rgba(247,37,133,0.7);
+  --accent-blend-white: #f951a1;
+  --solar-dark-half: #030006;
+  --solar-dark-90: #07000e;
+  --solar-glow-a60: rgba(247,37,133,0.08);
+}
+.theme-neon .star { background: rgba(247,37,133,0.9); box-shadow: 0 0 4px rgba(247,37,133,0.7); }
+.theme-neon .moon { background: radial-gradient(circle at 36% 34%, #fce4f0, #b03070); }
+
+/* ── Arctic (PRO) — ice aurora ── */
+.theme-arctic {
+  --solar-core: #060e1e;
+  --solar-accent: #091528;
+  --ui-accent: #67e8f9;
+  --solar-glow: rgba(103,232,249,0.2);
+  --accent-a04: rgba(103,232,249,0.04);  --accent-a06: rgba(103,232,249,0.06);
+  --accent-a08: rgba(103,232,249,0.08);  --accent-a10: rgba(103,232,249,0.1);
+  --accent-a12: rgba(103,232,249,0.12);  --accent-a15: rgba(103,232,249,0.15);
+  --accent-a16: rgba(103,232,249,0.16);  --accent-a18: rgba(103,232,249,0.18);
+  --accent-a20: rgba(103,232,249,0.2);   --accent-a22: rgba(103,232,249,0.22);
+  --accent-a25: rgba(103,232,249,0.25);  --accent-a28: rgba(103,232,249,0.28);
+  --accent-a30: rgba(103,232,249,0.3);   --accent-a35: rgba(103,232,249,0.35);
+  --accent-a38: rgba(103,232,249,0.38);  --accent-a40: rgba(103,232,249,0.4);
+  --accent-a45: rgba(103,232,249,0.45);  --accent-a50: rgba(103,232,249,0.5);
+  --accent-a55: rgba(103,232,249,0.55);  --accent-a60: rgba(103,232,249,0.6);
+  --accent-a70: rgba(103,232,249,0.7);
+  --accent-blend-white: #86edf9;
+  --solar-dark-half: #040b16;
+  --solar-dark-90: #071220;
+  --solar-glow-a60: rgba(103,232,249,0.08);
+}
+.theme-arctic .star { background: rgba(200,240,255,0.95); box-shadow: 0 0 4px rgba(103,232,249,0.6); }
+.theme-arctic .moon {
+  background: radial-gradient(circle at 36% 34%, #e8f9ff, #9dd5e8);
+  box-shadow: inset -10px -4px 0 4px rgba(100,180,220,0.45),
+    0 0 30px 12px rgba(103,232,249,0.4),
+    0 0 70px 30px rgba(80,200,240,0.15);
+}
+
+/* ── Solar (PRO) — intense warm sun ── */
+.theme-solar {
+  --solar-core: #1a0900;
+  --solar-accent: #2c1400;
+  --ui-accent: #fb8500;
+  --solar-glow: rgba(251,133,0,0.25);
+  --accent-a04: rgba(251,133,0,0.04);   --accent-a06: rgba(251,133,0,0.06);
+  --accent-a08: rgba(251,133,0,0.08);   --accent-a10: rgba(251,133,0,0.1);
+  --accent-a12: rgba(251,133,0,0.12);   --accent-a15: rgba(251,133,0,0.15);
+  --accent-a16: rgba(251,133,0,0.16);   --accent-a18: rgba(251,133,0,0.18);
+  --accent-a20: rgba(251,133,0,0.2);    --accent-a22: rgba(251,133,0,0.22);
+  --accent-a25: rgba(251,133,0,0.25);   --accent-a28: rgba(251,133,0,0.28);
+  --accent-a30: rgba(251,133,0,0.3);    --accent-a35: rgba(251,133,0,0.35);
+  --accent-a38: rgba(251,133,0,0.38);   --accent-a40: rgba(251,133,0,0.4);
+  --accent-a45: rgba(251,133,0,0.45);   --accent-a50: rgba(251,133,0,0.5);
+  --accent-a55: rgba(251,133,0,0.55);   --accent-a60: rgba(251,133,0,0.6);
+  --accent-a70: rgba(251,133,0,0.7);
+  --accent-blend-white: #fc9f33;
+  --solar-dark-half: #100600;
+  --solar-dark-90: #1f0c00;
+  --solar-glow-a60: rgba(251,133,0,0.12);
+}
+/* Solar sun is always boosted — wider glow, no filter (GPU-safe) */
+.theme-solar .sun-morning {
+  box-shadow: 0 0 70px 28px rgba(255,140,60,0.75), 0 0 160px 70px rgba(255,90,20,0.35);
+}
+.theme-solar .sun-day {
+  box-shadow: 0 0 100px 40px rgba(255,255,180,0.85), 0 0 220px 100px rgba(255,220,80,0.4);
+}
+.theme-solar .sun-noon {
+  box-shadow: 0 0 120px 50px rgba(255,255,200,0.9), 0 0 260px 120px rgba(255,230,100,0.45);
+}
+.theme-solar .sun-evening {
+  box-shadow: 0 0 90px 32px rgba(255,160,0,0.8), 0 0 180px 80px rgba(255,100,0,0.35);
+}
+.theme-solar .sun-sunset {
+  box-shadow: 0 0 110px 44px rgba(240,80,20,0.75), 0 0 230px 100px rgba(200,30,0,0.35);
+}
+
+/* ── Nebula (ELITE) — cosmic purple ── */
+.theme-nebula {
+  --solar-core: #04000e;
+  --solar-accent: #080016;
+  --ui-accent: #a855f7;
+  --solar-glow: rgba(168,85,247,0.25);
+  --accent-a04: rgba(168,85,247,0.04);  --accent-a06: rgba(168,85,247,0.06);
+  --accent-a08: rgba(168,85,247,0.08);  --accent-a10: rgba(168,85,247,0.1);
+  --accent-a12: rgba(168,85,247,0.12);  --accent-a15: rgba(168,85,247,0.15);
+  --accent-a16: rgba(168,85,247,0.16);  --accent-a18: rgba(168,85,247,0.18);
+  --accent-a20: rgba(168,85,247,0.2);   --accent-a22: rgba(168,85,247,0.22);
+  --accent-a25: rgba(168,85,247,0.25);  --accent-a28: rgba(168,85,247,0.28);
+  --accent-a30: rgba(168,85,247,0.3);   --accent-a35: rgba(168,85,247,0.35);
+  --accent-a38: rgba(168,85,247,0.38);  --accent-a40: rgba(168,85,247,0.4);
+  --accent-a45: rgba(168,85,247,0.45);  --accent-a50: rgba(168,85,247,0.5);
+  --accent-a55: rgba(168,85,247,0.55);  --accent-a60: rgba(168,85,247,0.6);
+  --accent-a70: rgba(168,85,247,0.7);
+  --accent-blend-white: #bb77f9;
+  --solar-dark-half: #030009;
+  --solar-dark-90: #060012;
+  --solar-glow-a60: rgba(168,85,247,0.08);
+}
+.theme-nebula .star { background: rgba(220,180,255,0.9); box-shadow: 0 0 5px rgba(168,85,247,0.7); }
+.theme-nebula .moon {
+  background: radial-gradient(circle at 36% 34%, #f0e4ff, #8040b0);
+  box-shadow: inset -10px -4px 0 4px rgba(120,60,180,0.45),
+    0 0 28px 10px rgba(168,85,247,0.4),
+    0 0 70px 30px rgba(140,60,220,0.2);
+}
+
+/* ── Obsidian (ELITE) — maximum dark ── */
+.theme-obsidian {
+  --solar-core: #000000;
+  --solar-accent: #060006;
+  --ui-accent: #7c3aed;
+  --solar-glow: rgba(124,58,237,0.18);
+  --accent-a04: rgba(124,58,237,0.04);  --accent-a06: rgba(124,58,237,0.06);
+  --accent-a08: rgba(124,58,237,0.08);  --accent-a10: rgba(124,58,237,0.1);
+  --accent-a12: rgba(124,58,237,0.12);  --accent-a15: rgba(124,58,237,0.15);
+  --accent-a16: rgba(124,58,237,0.16);  --accent-a18: rgba(124,58,237,0.18);
+  --accent-a20: rgba(124,58,237,0.2);   --accent-a22: rgba(124,58,237,0.22);
+  --accent-a25: rgba(124,58,237,0.25);  --accent-a28: rgba(124,58,237,0.28);
+  --accent-a30: rgba(124,58,237,0.3);   --accent-a35: rgba(124,58,237,0.35);
+  --accent-a38: rgba(124,58,237,0.38);  --accent-a40: rgba(124,58,237,0.4);
+  --accent-a45: rgba(124,58,237,0.45);  --accent-a50: rgba(124,58,237,0.5);
+  --accent-a55: rgba(124,58,237,0.55);  --accent-a60: rgba(124,58,237,0.6);
+  --accent-a70: rgba(124,58,237,0.7);
+  --accent-blend-white: #9661f1;
+  --solar-dark-half: #000000;
+  --solar-dark-90: #040004;
+  --solar-glow-a60: rgba(124,58,237,0.06);
+}
+.theme-obsidian .star { background: rgba(160,160,185,0.45); }
+.theme-obsidian .moon {
+  background: radial-gradient(circle at 36% 34%, #b8b8c8, #6a6a80);
+  box-shadow: inset -8px -4px 0 3px rgba(80,80,100,0.4),
+    0 0 16px 6px rgba(124,58,237,0.2),
+    0 0 40px 16px rgba(100,50,200,0.08);
+}
+
+/* ── Ghost (ELITE) — pale ethereal ── */
+.theme-ghost {
+  --solar-core: #0d0d12;
+  --solar-accent: #14141e;
+  --ui-accent: #c8d6e5;
+  --solar-glow: rgba(200,214,229,0.18);
+  --accent-a04: rgba(200,214,229,0.04);  --accent-a06: rgba(200,214,229,0.06);
+  --accent-a08: rgba(200,214,229,0.08);  --accent-a10: rgba(200,214,229,0.1);
+  --accent-a12: rgba(200,214,229,0.12);  --accent-a15: rgba(200,214,229,0.15);
+  --accent-a16: rgba(200,214,229,0.16);  --accent-a18: rgba(200,214,229,0.18);
+  --accent-a20: rgba(200,214,229,0.2);   --accent-a22: rgba(200,214,229,0.22);
+  --accent-a25: rgba(200,214,229,0.25);  --accent-a28: rgba(200,214,229,0.28);
+  --accent-a30: rgba(200,214,229,0.3);   --accent-a35: rgba(200,214,229,0.35);
+  --accent-a38: rgba(200,214,229,0.38);  --accent-a40: rgba(200,214,229,0.4);
+  --accent-a45: rgba(200,214,229,0.45);  --accent-a50: rgba(200,214,229,0.5);
+  --accent-a55: rgba(200,214,229,0.55);  --accent-a60: rgba(200,214,229,0.6);
+  --accent-a70: rgba(200,214,229,0.7);
+  --accent-blend-white: #d8e3ee;
+  --solar-dark-half: #0a0a0e;
+  --solar-dark-90: #111118;
+  --solar-glow-a60: rgba(200,214,229,0.08);
+}
+.theme-ghost .cloud { background: rgba(255,255,255,0.18); opacity: 0.5; }
+.theme-ghost .moon {
+  background: radial-gradient(circle at 36% 34%, #ffffff, #d0d8e8);
+  box-shadow: inset -10px -4px 0 4px rgba(180,190,210,0.45),
+    0 0 40px 18px rgba(200,214,229,0.5),
+    0 0 100px 50px rgba(180,200,230,0.2);
+}
+.theme-ghost .star { background: rgba(220,230,245,0.85); box-shadow: 0 0 3px rgba(200,214,229,0.5); }
+
+/* ── Sky gradient — direct backdrop overrides (reliable, no custom-property inheritance) ──
+   body.theme-X .solar-backdrop has specificity 0,2,1 which beats plain .solar-backdrop (0,1,0),
+   so it always wins. The transition declared on .solar-backdrop still fires because
+   we're changing the same `background` property on the same element.
+   Tint themes (cobalt/amber/crimson/violet/jade) intentionally have no rule here —
+   they keep the phase sky and only change the UI accent colour.                              */
+body.theme-neon    .solar-backdrop { background: linear-gradient(to bottom, #050108 0%, #08000f 100%); }
+body.theme-arctic  .solar-backdrop { background: linear-gradient(to bottom, #060e1e 0%, #091528 100%); }
+body.theme-solar   .solar-backdrop { background: linear-gradient(to bottom, #1a0900 0%, #2c1400 100%); }
+body.theme-nebula  .solar-backdrop { background: linear-gradient(to bottom, #04000e 0%, #080016 100%); }
+body.theme-obsidian .solar-backdrop { background: linear-gradient(to bottom, #000000 0%, #060006 100%); }
+body.theme-ghost   .solar-backdrop { background: linear-gradient(to bottom, #0d0d12 0%, #14141e 100%); }
+
+/* Switching TO an immersive theme is fast (user expects immediate feedback).
+   Switching AWAY uses the default 8s (gradual return to the natural sky). */
+body:is(.theme-neon,.theme-arctic,.theme-solar,.theme-nebula,.theme-obsidian,.theme-ghost) .solar-backdrop {
+  transition: background 1.5s ease;
 }
 
 /* ============================================================
    3. MASTER GRID ENGINE
+   Layout columns/gap/padding owned by DashboardView.css.
+   Only non-layout properties live here.
    ============================================================ */
 .dashboard-layout {
   position: relative;
-  display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
-  gap: 30px;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 20px;
-
-  width: 100vw;
-  height: 100vh;
-  box-sizing: border-box;
-  overflow: hidden;
-
+  width: 100%;
   background: transparent;
+  contain: layout style;
 }
 
-.dashboard-layout.kinetic-active {
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
-
-  padding: 0;
-}
 
 .solar-backdrop {
   position: fixed;
-  inset: 0;
+  /* Explicit fallbacks — inset shorthand not supported pre-Chrome 87 / old Android WebKit.
+     Without these, the backdrop renders 0×0 and the html background shows around it. */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0; /* modern shorthand override */
+  width: 100%; /* belt-and-suspenders for very old engines */
+  height: 100%;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+  opacity: 1;
   background: linear-gradient(
     to bottom,
-    var(--solar-core) 0%,
-    var(--solar-accent) 100%
+    var(--solar-core, #010101) 0%,
+    var(--solar-accent, #010101) 100%
   );
   transition: background 8s cubic-bezier(0.4, 0, 0.2, 1);
   animation: sky-breathe 12s ease-in-out infinite;
+  will-change: filter; /* sky-breathe animates filter:brightness, not transform */
 }
 
+@supports (contain: paint) {
+  .solar-backdrop {
+    contain: paint; /* forces compositor children to paint within bounds — modern browsers only */
+  }
+}
 
 @keyframes obsidian-drift {
   0%,
@@ -179,9 +788,44 @@ body:has(.kinetic-focus-overlay) ::after {
 .operative-status-column {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
-  padding: 10px;
+  height: auto;
+  overflow-y: visible;
+  overflow-x: hidden;
+  padding: clamp(0.4rem, 1vw, 0.75rem);
+  -ms-overflow-style: none;
+  min-width: 0;
+}
+
+/* ── Fluid-first safety: prevent long strings from pushing flex/grid cells past viewport ── */
+.mission-control-column,
+.operative-status-column,
+.card-main-content,
+.dashboard-layout,
+.stat-hud-container,
+.mission-form-container,
+.daily-challenge-container,
+.logs-section {
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.mission-control-column::-webkit-scrollbar,
+.operative-status-column::-webkit-scrollbar {
+  display: none;
+}
+@supports (scrollbar-width: none) {
+  .mission-control-column,
+  .operative-status-column {
+    scrollbar-width: none;
+  }
+}
+.daily-challenge-container {
+  gap: 20px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  width: 100%;
+  
 }
 
 /* CUSTOM SCROLLBAR */
@@ -207,23 +851,27 @@ h4 {
   margin-bottom: 0.5rem;
 }
 
+h1 {
+  font-size: 1.8rem;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+}
+h2 {
+  font-size: 1.4rem;
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+}
+h3 {
+  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 2vw, 1.3rem);
+}
+h4 {
+  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 1.5vw, 1rem);
+}
+
 /* ============================================================
    5. MISSION PARAMETERS (INPUT SECTION)
    ============================================================ */
 
-@keyframes radar-sweep {
-  0% {
-    top: -100%;
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    top: 100%;
-    opacity: 0;
-  }
-}
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -255,13 +903,22 @@ h4 {
 }
 
 @keyframes danger-alert {
-  from { opacity: 1; }
-  to   { opacity: 0.35; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
 }
 
 @keyframes prestige-pulse {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.02); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
 }
 
 @keyframes shimmer-swipe {
@@ -324,18 +981,32 @@ h4 {
 }
 
 @keyframes sky-breathe {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.92; }
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
 }
 
 @keyframes cloud-drift {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(120px); }
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(60px, 0, 0);
+  } /* translate3d forces GPU composite on old Android */
 }
 
 .backdrop-clouds {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
+  overflow: hidden; /* second clip layer — belt-and-suspenders against compositor escapes */
   pointer-events: none;
 }
 
@@ -343,33 +1014,44 @@ h4 {
   position: absolute;
   background: rgba(255, 255, 255, 0.55);
   border-radius: 50px;
-  will-change: transform;
   animation: cloud-drift ease-in-out infinite alternate;
 }
 
 .cloud-1 {
-  width: 280px; height: 70px;
-  top: 8%; left: 5%;
+  width: 65vw;
+  max-width: 280px;
+  height: 70px;
+  top: 8%;
+  left: 5%;
   opacity: 0.65;
   animation-duration: 18s;
 }
 .cloud-2 {
-  width: 200px; height: 55px;
-  top: 18%; left: 40%;
+  width: 48vw;
+  max-width: 200px;
+  height: 55px;
+  top: 18%;
+  left: 32%; /* was 40% — moved left so right edge stays within viewport */
   opacity: 0.5;
   animation-duration: 24s;
   animation-delay: -6s;
 }
 .cloud-3 {
-  width: 320px; height: 80px;
-  top: 30%; left: 60%;
+  width: 55vw;
+  max-width: 280px;
+  height: 80px;
+  top: 30%;
+  left: 38%; /* was 60%+320px — would overflow a 360px viewport by 176px */
   opacity: 0.4;
   animation-duration: 30s;
   animation-delay: -12s;
 }
 .cloud-4 {
-  width: 180px; height: 50px;
-  top: 12%; left: 70%;
+  width: 38vw;
+  max-width: 160px;
+  height: 50px;
+  top: 12%;
+  left: 52%; /* was 70%+180px — overflowed at every mobile width */
   opacity: 0.55;
   animation-duration: 20s;
   animation-delay: -4s;
@@ -383,14 +1065,15 @@ h4 {
   border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  will-change: opacity;
   transition: opacity 3s ease;
 }
 
 /* Morning: rising low on left horizon, warm orange-pink */
 .sun-morning {
-  width: 58px; height: 58px;
-  top: 84%; left: 28%;
+  width: 58px;
+  height: 58px;
+  top: 84%;
+  left: 28%;
   background: radial-gradient(circle at 40% 38%, #ffcc80, #ff7043);
   box-shadow:
     0 0 50px 18px rgba(255, 120, 60, 0.55),
@@ -399,8 +1082,10 @@ h4 {
 
 /* Day: high in sky, bright white-yellow */
 .sun-day {
-  width: 88px; height: 88px;
-  top: 18%; left: 62%;
+  width: 88px;
+  height: 88px;
+  top: 18%;
+  left: 62%;
   background: radial-gradient(circle at 38% 36%, #ffffff, #fff9c4);
   box-shadow:
     0 0 70px 25px rgba(255, 255, 200, 0.7),
@@ -409,8 +1094,10 @@ h4 {
 
 /* Noon: peak position, center-top, intense white */
 .sun-noon {
-  width: 98px; height: 98px;
-  top: 9%; left: 50%;
+  width: 98px;
+  height: 98px;
+  top: 9%;
+  left: 50%;
   background: radial-gradient(circle at 38% 36%, #ffffff, #fffde7);
   box-shadow:
     0 0 90px 35px rgba(255, 255, 220, 0.75),
@@ -419,8 +1106,10 @@ h4 {
 
 /* Evening: descending right side, amber */
 .sun-evening {
-  width: 74px; height: 74px;
-  top: 60%; left: 72%;
+  width: 74px;
+  height: 74px;
+  top: 60%;
+  left: 72%;
   background: radial-gradient(circle at 38% 38%, #ffd54f, #ff6f00);
   box-shadow:
     0 0 65px 22px rgba(255, 140, 0, 0.6),
@@ -429,8 +1118,10 @@ h4 {
 
 /* Sunset: near right horizon, deep orange-red */
 .sun-sunset {
-  width: 68px; height: 68px;
-  top: 88%; left: 80%;
+  width: 68px;
+  height: 68px;
+  top: 88%;
+  left: 80%;
   background: radial-gradient(circle at 38% 38%, #ff7043, #b71c1c);
   box-shadow:
     0 0 80px 30px rgba(220, 50, 20, 0.55),
@@ -452,7 +1143,6 @@ h4 {
   left: 72%;
   width: 70px;
   height: 70px;
-  will-change: opacity;
   border-radius: 50%;
   background: radial-gradient(circle at 36% 34%, #fffde7, #c5caa0);
   box-shadow:
@@ -465,13 +1155,24 @@ h4 {
   position: absolute;
   inset: -28px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(220, 220, 160, 0.2), transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(220, 220, 160, 0.2),
+    transparent 70%
+  );
   animation: moon-pulse 4s ease-in-out infinite;
 }
 
 @keyframes moon-pulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50%       { opacity: 1;   transform: scale(1.08); }
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
 }
 
 /* ============================================================
@@ -487,13 +1188,20 @@ h4 {
   position: absolute;
   border-radius: 50%;
   background: #ffffff;
-  will-change: transform, opacity;
+  /* No will-change: 60 compositor layers is GPU-budget death on mid-tier devices */
   animation: star-twinkle 2.5s ease-in-out infinite;
 }
 
 @keyframes star-twinkle {
-  0%, 100% { opacity: 0.25; transform: scale(1); }
-  50%       { opacity: 1;   transform: scale(1.4); }
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
 }
 
 .glint {
@@ -510,128 +1218,7 @@ h4 {
   );
 }
 
-/* ============================================================
-   AUTH SCREEN
-   ============================================================ */
-.auth-hero {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-}
-
-.auth-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 52px 56px;
-  width: 100%;
-  max-width: 420px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 18px;
-  backdrop-filter: blur(16px);
-  box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.auth-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-
-.auth-brand-name {
-  font-family: "Inter", sans-serif;
-  font-size: 3.8rem;
-  font-weight: 900;
-  letter-spacing: 0.2em;
-  color: #ffffff;
-  line-height: 1;
-  text-shadow: 0 0 60px rgba(255, 255, 255, 0.12);
-}
-
-.auth-brand-tagline {
-  font-family: "Inter", sans-serif;
-  font-size: 0.55rem;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  color: rgba(255, 255, 255, 0.28);
-  text-transform: uppercase;
-}
-
-.auth-divider {
-  width: 36px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--ui-accent, rgba(255, 255, 255, 0.35)),
-    transparent
-  );
-  margin-bottom: 24px;
-}
-
-.auth-status {
-  font-family: "Inter", sans-serif;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-.auth-body {
-  font-family: "Inter", sans-serif;
-  font-size: 0.82rem;
-  font-weight: 400;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.45);
-  margin-bottom: 32px;
-  max-width: 290px;
-}
-
-.btn-initiate {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  padding: 13px 38px;
-  font-family: "Inter", sans-serif;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(6px);
-  margin-bottom: 22px;
-}
-
-.btn-initiate:hover {
-  background: var(--ui-accent, rgba(255, 255, 255, 0.9));
-  color: #000000;
-  border-color: var(--ui-accent, #ffffff);
-  box-shadow: 0 0 28px color-mix(in srgb, var(--ui-accent, #fff) 35%, transparent);
-}
-
-.auth-footnote {
-  font-family: "Inter", sans-serif;
-  font-size: 0.52rem;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  color: rgba(255, 255, 255, 0.18);
-  text-transform: uppercase;
-}
+/* Auth screen styles → clerk-react/src/components/AuthScreen.css */
 
 /* ============================================================
    LOADING SCREEN
@@ -642,6 +1229,7 @@ h4 {
   align-items: center;
   justify-content: center;
   height: 100vh;
+  min-height: 100dvh; /* reserve exact viewport so swap doesn't shift */
   background-color: #050508;
   color: rgba(255, 255, 255, 0.5);
   font-family: "Inter", sans-serif;
@@ -650,6 +1238,7 @@ h4 {
   letter-spacing: 0.22em;
   text-align: center;
   text-transform: uppercase;
+  contain: layout style paint;
 }
 
 .loading-screen::after {
@@ -662,71 +1251,132 @@ h4 {
   animation: blink 0.8s infinite steps(2);
 }
 
+.ban-screen {
+  gap: 14px;
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.ban-screen::after {
+  display: none;
+}
+
+.ban-icon {
+  font-size: 2.2rem;
+  color: #ff4466;
+  filter: drop-shadow(0 0 12px rgba(255, 34, 68, 0.5));
+}
+
+.ban-title {
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #ff4466;
+  margin: 0;
+}
+
+.ban-message {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.5);
+  max-width: 340px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.ban-signout-btn {
+  margin-top: 8px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  background: rgba(255, 34, 68, 0.08);
+  border: 1px solid rgba(255, 34, 68, 0.25);
+  color: #ff4466;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.ban-signout-btn:hover {
+  background: rgba(255, 34, 68, 0.15);
+  border-color: rgba(255, 34, 68, 0.45);
+}
+
 /* ============================================================
-   12. RESPONSIVE RECOVERY
+   CONTENT-VISIBILITY — Skip off-screen layout/paint (LCP booster)
    ============================================================ */
-@media (max-width: 1024px) {
-  .dashboard-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-    overflow-y: auto;
-  }
-  .mission-control-column,
+/* Below-fold sections: logs, skill sidebar, elevation chart, summit history */
+.logs-section,
+.elevation-chart-wrap,
+.summit-history-wrap {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+/* ============================================================
+   12. RESPONSIVE RECOVERY — View-Lock Architecture
+   ============================================================ */
+/* ── Mobile (≤768px): skill sidebar gets a top separator when stacked ── */
+@media screen and (max-width: 768px) {
   .operative-status-column {
-    height: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 8px;
   }
 }
 
-@media (max-width: 1024px) {
-  .skill-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-}
+/* Columns are height: auto everywhere — zenith-main-content handles all scrolling. */
 
 /* ============================================================
    CLERK MODAL OVERRIDES
    ============================================================ */
 .cl-rootBox {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  z-index: 9999 !important;
+  position: fixed !important; 
+  top: 0;
+  width: 100% !important;
+  height: 100dvh !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: rgba(0, 0, 0, 0.75) !important;
-  backdrop-filter: blur(8px) !important;
+  background: rgba(0, 0, 0, 0.9) !important;
+  contain: paint;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .cl-rootBox {
+    background: rgba(0, 0, 0, 0.75) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    backdrop-filter: blur(8px) !important;
+  }
 }
 
 .cl-cardBox {
   position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
   transform: none !important;
-  margin: auto !important;
+  margin-bottom: 40px;
+  
+  
 }
 .cl-socialButtonsBlockButton:hover {
-  background:    rgba(255, 255, 255, 0.08) !important;
-  border-color:  rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
 }
 
 .cl-formFieldInput:focus {
   border-color: rgba(34, 211, 238, 0.45) !important;
-  outline:      none !important;
-  box-shadow:   0 0 0 3px rgba(34, 211, 238, 0.08) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08) !important;
 }
 
 .cl-formButtonPrimary:hover {
-  background:  rgba(34, 211, 238, 0.2) !important;
+  background: rgba(34, 211, 238, 0.2) !important;
   border-color: rgba(34, 211, 238, 0.55) !important;
-  box-shadow:  0 0 20px rgba(34, 211, 238, 0.18) !important;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.18) !important;
 }
 
 .cl-footerActionLink:hover {
@@ -734,7 +1384,7 @@ h4 {
 }
 
 .cl-modalCloseButton:hover {
-  color:      rgba(255, 255, 255, 0.75) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
   background: rgba(255, 255, 255, 0.06) !important;
 }
 
@@ -752,7 +1402,7 @@ h4 {
   align-items: center;
   gap: 7px;
 
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
   padding: 8px 22px;
@@ -763,9 +1413,20 @@ h4 {
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  backdrop-filter: blur(8px);
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   white-space: nowrap;
+  isolation: isolate;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .bag-toggle-fixed {
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
 }
 
 .bag-toggle-fixed:hover,
@@ -773,7 +1434,7 @@ h4 {
   background: var(--ui-accent, #fff);
   color: #000;
   border-color: var(--ui-accent, #fff);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--ui-accent, #fff) 30%, transparent);
+  box-shadow: 0 0 20px var(--accent-a30, rgba(255, 255, 255, 0.3));
 }
 
 .bag-toggle-icon {
@@ -784,6 +1445,26 @@ h4 {
 .bag-toggle-count {
   opacity: 0.55;
   font-size: 0.6rem;
+}
+
+/* ============================================================
+   FOCUS RULE — hide columns when an immersive overlay is active.
+   LootDisplay is portaled to document.body so it lives outside
+   this stacking context and is never hidden.
+   .solar-backdrop is pointer-events:none and stays visible.
+   ============================================================ */
+.dashboard-layout.overlay-active .mission-control-column,
+.dashboard-layout.overlay-active .operative-status-column {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Absolute-position audit: any absolute-positioned descendant must be
+   relative to the column, not the viewport, to prevent right-side push.
+   Force them to stay inside their column's coordinate space. */
+.mission-control-column,
+.operative-status-column {
+  isolation: isolate;
 }
 
 @media (min-width: 768px) {
@@ -802,3 +1483,442 @@ h4 {
     letter-spacing: 8px;
   }
 }
+
+/* ============================================================
+   UNIVERSAL ADAPTIVE SCALING
+   Legacy & small-form-factor (iPhone 4/SE, older Galaxy)
+   ============================================================ */
+
+.device-small .dashboard-layout {
+  padding: 6px 8px;
+  gap: 6px;
+}
+
+/* StatHUD flush with top */
+.device-small .level-container {
+  margin-bottom: 6px;
+}
+
+/* Icons: 80% of their inherited size */
+.device-small .flame-icon {
+  font-size: 0.8em;
+}
+.device-small .bag-toggle-icon {
+  font-size: 0.8em;
+}
+.device-small [class$="-icon"],
+.device-small [class*=" icon-"],
+.device-small [class^="icon-"] {
+  font-size: 0.8em;
+}
+
+/* Typography: auto-shrink headers via clamp */
+.device-small h1 {
+  font-size: clamp(0.9rem, 4vw, 1.5rem);
+}
+.device-small h2 {
+  font-size: clamp(0.8rem, 3.5vw, 1.25rem);
+}
+.device-small h3,
+.device-small .section-title {
+  font-size: clamp(0.52rem, 2.5vw, 0.68rem);
+  margin-bottom: 6px;
+}
+.device-small h4 {
+  font-size: clamp(0.6rem, 2.5vw, 0.85rem);
+}
+
+/* Collapse vertical padding on mission sections */
+.device-small .logs-section {
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.device-small .empty-state {
+  padding: 10px 0;
+}
+
+/* Mirror the same rules via media query for zero-flash pre-JS */
+@media (max-height: 700px) {
+  .dashboard-layout {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .level-container {
+    margin-bottom: 6px;
+  }
+  .logs-section {
+    margin-top: 4px;
+    padding-top: 8px;
+  }
+  .empty-state {
+    padding: 10px 0;
+  }
+}
+
+/* ============================================================
+   VERY SMALL DEVICES — iPhone 4/SE, old Galaxy (≤ 360px)
+   ============================================================ */
+@media (max-width: 360px) {
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .dashboard-layout {
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
+  .mission-control-column,
+  .operative-status-column {
+    padding: 4px;
+    min-width: 0;
+  }
+
+  /* Bag toggle: icon-only to save width */
+  .bag-toggle-fixed {
+    padding: 6px 12px;
+    font-size: 0.58rem;
+    gap: 4px;
+    top: 10px;
+  }
+
+  .bag-toggle-icon {
+    font-size: 0.75rem;
+  }
+
+  .bag-toggle-count {
+    font-size: 0.52rem;
+  }
+
+  /* Celestial bodies: smaller */
+  .sun-morning {
+    width: 42px;
+    height: 42px;
+  }
+  .sun-day {
+    width: 64px;
+    height: 64px;
+  }
+  .sun-noon {
+    width: 72px;
+    height: 72px;
+  }
+  .sun-evening {
+    width: 54px;
+    height: 54px;
+  }
+  .sun-sunset {
+    width: 48px;
+    height: 48px;
+  }
+
+  .moon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .cloud-1 {
+    width: 160px;
+    height: 45px;
+  }
+  .cloud-2 {
+    width: 120px;
+    height: 36px;
+  }
+  .cloud-3 {
+    width: 180px;
+    height: 50px;
+  }
+  .cloud-4 {
+    width: 100px;
+    height: 32px;
+  }
+
+  /* Loading screen */
+  .loading-screen {
+    font-size: 0.6rem;
+  }
+}
+
+/* ============================================================
+   SHARED PAGE CHROME — back button + header row used on all sub-pages
+   ============================================================ */
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.page-back-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.15s ease;
+  margin-left: -8px;
+}
+
+@media (hover: hover) {
+  .page-back-btn:hover { color: #fff; }
+}
+
+/* ============================================================
+   REDZONE MODE — 12 AM → 5 AM Environmental State
+   Applied via .dashboard-layout.redzone-mode (set inline in App.jsx)
+   ============================================================ */
+
+/* Override the phase accent to threat-amber — every component that
+   reads --ui-accent (borders, buttons, glows, badges) shifts to warning. */
+.dashboard-layout.redzone-mode {
+  --ui-accent: #f59e0b;
+  --solar-glow: rgba(245, 158, 11, 0.18);
+  --ui-border: rgba(245, 158, 11, 0.1);
+}
+
+/* Ambient indigo aura — you're in Night Owl hyperfocus territory, not danger. */
+.dashboard-layout.redzone-mode::before {
+  --aura-color: rgba(100, 60, 240, 0.28);
+  opacity: 0.18;
+}
+
+/* Viewport-edge vignette: deep violet dusk bleeding from corners.
+   Atmospheric and focused, not alarming. */
+.dashboard-layout.redzone-mode::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(50, 20, 140, 0.08) 100%
+  );
+  box-shadow: inset 0 0 160px 40px rgba(60, 30, 160, 0.07);
+  animation: redzone-vignette-pulse 4s ease-in-out infinite;
+}
+
+@keyframes redzone-vignette-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Weather-aware sky dimming ──────────────────────────────────────────── */
+/* The WeatherOverlay SVG sits on top of .solar-backdrop (same z-index, later
+
+/* ── Solar backdrop dims and shifts warm when redzone is active.
+   :has() lets us target the sibling that appears earlier in the DOM. */
+body:has(.dashboard-layout.redzone-mode) .solar-backdrop {
+  filter: hue-rotate(-18deg) saturate(0.62) brightness(0.52);
+  transition: filter 3s ease;
+}
+
+/* Bag toggle inherits amber accent on hover during redzone */
+.dashboard-layout.redzone-mode .bag-toggle-fixed:hover,
+.dashboard-layout.redzone-mode .bag-toggle-fixed.active {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+}
+
+/* ============================================================
+   UPGRADE/EXCHANGE PAGE LAYOUT - CLS & Tablet Optimization
+   ============================================================ */
+
+.upgrade-page {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100dvh; /* Hard lock to screen height */
+  overflow: hidden; /* Prevent the page itself from scrolling */
+}
+
+.upgrade-header {
+  /* Fixes LCP/CLS by reserving header space */
+  min-height: 120px;
+  margin-bottom: 8px;
+}
+
+/* Stabilize height to prevent jumping when switching tiers */
+.tier-details-container {
+  flex: 1; /* Take up all available middle space */
+  overflow-y: auto; /* Only this section scrolls */
+  contain: layout;
+  display: flex;
+  flex-direction: column;
+}
+
+.checkout-error-banner {
+  /* Prevent layout shift when error appears */
+  position: absolute;
+  width: calc(100% - 40px);
+  transform: translateY(-110%);
+  z-index: 5;
+}
+
+/* Tablet & Desktop Refactor */
+@media (min-width: 768px) {
+  .upgrade-page {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto 1fr auto; /* Middle row (details) is flexible */
+    grid-template-areas:
+      "back header"
+      "picker details"
+      "picker cta";
+    gap: 32px;
+    padding: 40px;
+    height: 100dvh;
+    align-items: stretch;
+  }
+
+  .upgrade-back-btn {
+    grid-area: back;
+  }
+  .upgrade-header {
+    grid-area: header;
+  }
+
+  .upgrade-tier-picker {
+    grid-area: picker;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .tier-details-container {
+    grid-area: details;
+    margin: 0;
+    max-height: 100%;
+  }
+
+  .upgrade-cta-section {
+    grid-area: cta;
+    background: rgba(3, 7, 18, 0.95);
+    padding: 20px;
+    border: 1px solid var(--ui-border);
+    border-radius: 16px;
+    margin-top: 10px;
+    /* Ensures it never renders off-screen on tablets */
+    align-self: end;
+    contain: content;
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .upgrade-cta-section {
+      background: rgba(3, 7, 18, 0.8);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+  }
+}
+
+/* ============================================================
+   ACCESSIBILITY — Reduced motion
+   Pause all purely decorative background animations so users
+   with vestibular/motion sensitivity get a still experience.
+   The solar backdrop gradient transition (background property)
+   is kept because it is slow and positional, not spinning/bouncing.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .solar-backdrop {
+    animation: none;
+  }
+  .cloud {
+    animation: none;
+  }
+  .star {
+    animation: none;
+    opacity: 0.6;
+  }
+  .moon-glow {
+    animation: none;
+  }
+  .dashboard-layout.redzone-mode::after {
+    animation: none;
+    opacity: 0.75;
+  }
+}
+
+/* ============================================================
+   EXCHANGE PAGE — natural page scroll
+   Exchange page grows with its content; scroll happens at the
+   main-content level. overflow-x: hidden blocks horizontal bleed.
+   ============================================================ */
+@supports selector(:has(a, b)) {
+  .zenith-main-content:has(.exchange-page) {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .zenith-main-content:has(.exchange-page) .page-enter {
+    height: auto;
+    min-height: 100%;
+  }
+}
+
+/* ── Dashboard: independent column scrolling on desktop ─────────────────────
+   Below 1025px the whole page scrolls as one unit.
+   At 1025px+ the two grid columns each scroll independently so users never
+   have to page-scroll past one tall column to reach the other.
+   ============================================================ */
+@supports selector(:has(a, b)) {
+  @media screen and (min-width: 1025px) {
+    .zenith-main-content:has(.dashboard-layout) {
+      overflow: hidden;
+    }
+
+    .zenith-main-content:has(.dashboard-layout) .page-enter {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .zenith-main-content:has(.dashboard-layout) .dashboard-layout {
+      flex: 1;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .zenith-main-content:has(.dashboard-layout) .mission-control-column,
+    .zenith-main-content:has(.dashboard-layout) .skill-sidebar-container {
+      height: 100%;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .zenith-main-content:has(.dashboard-layout) .mission-control-column::-webkit-scrollbar,
+    .zenith-main-content:has(.dashboard-layout) .skill-sidebar-container::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+
+

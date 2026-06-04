@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Zenith",
+    "slug": "zenith-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "zenith",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "org.zenithapp.mobile"
+    },
+    "android": {
+      "package": "org.zenithapp.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#090c13",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser"
+    ]
+  }
+}

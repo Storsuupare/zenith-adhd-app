@@ -4,18 +4,29 @@
 
 .upgrade-page {
   position: relative;
-  max-width: 860px;
+  max-width: 100%;
+  width: 100%;
+  height: 100dvh;
+
+  box-sizing: border-box;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 16px;
   font-family: "Inter", sans-serif;
+  overflow: hidden;
+}
+
+.upgrade-page *,
+.upgrade-page *::before,
+.upgrade-page *::after {
+  box-sizing: border-box;
 }
 
 /* ── Back button ─────────────────────────────────────────────── */
 .upgrade-back-btn {
-  align-self: flex-start;
+  flex: 0 0 auto;
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.35);
@@ -28,17 +39,21 @@
   padding: 0;
   transition: color 0.2s ease;
 }
-.upgrade-back-btn:hover { color: rgba(255, 255, 255, 0.75); }
+
+@media (hover: hover) {
+  .upgrade-back-btn:hover { color: rgba(255, 255, 255, 0.75); }
+}
 
 /* ── Header ──────────────────────────────────────────────────── */
 .upgrade-header {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .upgrade-eyebrow {
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.28em;
   color: var(--ui-accent, #22d3ee);
@@ -82,12 +97,12 @@
 }
 
 .upgrade-tier-node.current {
-  border-color: color-mix(in srgb, var(--tier-color) 45%, transparent);
-  background: color-mix(in srgb, var(--tier-color) 7%, transparent);
+  border-color: var(--tier-color, #22d3ee);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .upgrade-tier-node.passed {
-  border-color: color-mix(in srgb, var(--tier-color) 25%, transparent);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .tier-node-label {
@@ -99,13 +114,13 @@
 }
 
 .tier-node-badge {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--tier-color);
-  background: color-mix(in srgb, var(--tier-color) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tier-color) 30%, transparent);
+  color: var(--tier-color, #22d3ee);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--tier-color, #22d3ee);
   padding: 2px 8px;
   border-radius: 3px;
 }
@@ -127,11 +142,18 @@
   align-items: flex-start;
   gap: 16px;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 14px;
-  backdrop-filter: blur(6px);
   transition: border-color 0.2s ease, background 0.2s ease;
+  isolation: isolate;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .upgrade-benefit-card {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
 }
 
 .upgrade-benefit-card.active {
@@ -169,7 +191,7 @@
 }
 
 .benefit-value {
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -216,15 +238,17 @@
   text-align: left;
 }
 
-.tier-pick-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--tier-color) 35%, transparent);
-  background: color-mix(in srgb, var(--tier-color) 6%, transparent);
+@media (hover: hover) {
+  .tier-pick-btn:hover:not(:disabled) {
+    border-color: var(--tier-color, #22d3ee);
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 .tier-pick-btn.selected {
-  border-color: color-mix(in srgb, var(--tier-color) 55%, transparent);
-  background: color-mix(in srgb, var(--tier-color) 10%, transparent);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--tier-color) 12%, transparent);
+  border-color: var(--tier-color, #22d3ee);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
 }
 
 .tier-pick-btn.current-tier {
@@ -237,7 +261,7 @@
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--tier-color);
+  color: var(--tier-color, #22d3ee);
 }
 
 .tier-pick-tagline {
@@ -246,16 +270,36 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* ── Tier details scroll container ───────────────────────────── */
+/* flex: 1 here so the CTA card is always pinned at the bottom   */
+.tier-details-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+}
+.tier-details-container::-webkit-scrollbar { display: none; }
+@supports (scrollbar-width: none) {
+  .tier-details-container { scrollbar-width: none; }
+}
+
 /* ── Tier detail card ────────────────────────────────────────── */
 .tier-detail-card {
   padding: 24px;
-  background: color-mix(in srgb, var(--tier-color) 5%, rgba(0, 0, 0, 0.2));
-  border: 1px solid color-mix(in srgb, var(--tier-color) 20%, transparent);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  backdrop-filter: blur(6px);
+  isolation: isolate;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .tier-detail-card {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
 }
 
 .tier-detail-desc {
@@ -285,7 +329,7 @@
 }
 
 .tier-perk-icon {
-  color: var(--tier-color);
+  color: var(--tier-color, #22d3ee);
   font-size: 0.88rem;
   width: 16px;
   text-align: center;
@@ -294,7 +338,11 @@
 
 /* ── CTA section ─────────────────────────────────────────────── */
 .upgrade-cta-section {
-  margin-top: 4px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 10px;
+  background: var(--solar-core, #030712);
+  z-index: 10;
 }
 
 .upgrade-cta-card {
@@ -303,11 +351,18 @@
   justify-content: space-between;
   gap: 24px;
   padding: 28px 32px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 18px;
-  backdrop-filter: blur(8px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  isolation: isolate;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .upgrade-cta-card {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
 }
 
 .cta-left {
@@ -317,7 +372,7 @@
 }
 
 .cta-plan-label {
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.24em;
   text-transform: uppercase;
@@ -351,13 +406,13 @@
 .cta-initiate-btn {
   flex-shrink: 0;
   padding: 14px 36px;
-  background: rgba(34, 211, 238, 0.1);
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: var(--tier-color, #22d3ee);
+  border: 1px solid var(--tier-color, #22d3ee);
   border-radius: 8px;
-  color: #ffffff;
+  color: #000000;
   font-family: "Inter", sans-serif;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
@@ -365,10 +420,11 @@
   white-space: nowrap;
 }
 
-.cta-initiate-btn:hover {
-  background: rgba(34, 211, 238, 0.2);
-  border-color: rgba(34, 211, 238, 0.55);
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.18);
+@media (hover: hover) {
+  .cta-initiate-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+    box-shadow: 0 0 28px rgba(255, 255, 255, 0.1);
+  }
 }
 
 /* ── Checkout redirect overlay ───────────────────────────────── */
@@ -381,9 +437,16 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  background: rgba(0, 0, 0, 0.82);
-  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.95);
   font-family: "Inter", sans-serif;
+  isolation: isolate;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .checkout-overlay {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
 }
 
 .checkout-spinner {
@@ -450,9 +513,71 @@
   padding: 2px 4px;
   transition: color 0.15s ease;
 }
-.checkout-error-dismiss:hover { color: rgba(255, 255, 255, 0.7); }
 
-/* ── Active banner (already upgraded) ───────────────────────── */
+@media (hover: hover) {
+  .checkout-error-dismiss:hover { color: rgba(255, 255, 255, 0.7); }
+}
+
+/* ── Tablet — covers everything from large phones to iPad Pro landscape ── */
+@media (min-width: 600px) and (max-width: 1366px) {
+  .upgrade-page {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .upgrade-header {
+    gap: 4px;
+  }
+
+  .upgrade-title {
+    font-size: 1.4rem;
+  }
+
+  .upgrade-subtitle {
+    font-size: 0.75rem;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .upgrade-tier-picker {
+    gap: 8px;
+  }
+
+  .tier-pick-btn {
+    padding: 10px 14px;
+  }
+
+  .tier-detail-card {
+    padding: 16px;
+  }
+
+  .upgrade-cta-card {
+    padding: 16px 20px;
+    gap: 16px;
+  }
+}
+
+/* ── Portrait tablets (600–900px) — stack CTA vertically so button is full-width ── */
+@media (min-width: 600px) and (max-width: 900px) {
+  .upgrade-cta-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cta-initiate-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .cta-plan-note {
+    max-width: 100%;
+  }
+}
+
 .upgrade-active-banner {
   display: flex;
   align-items: center;
@@ -470,4 +595,55 @@
 .active-banner-icon {
   font-size: 1rem;
   color: #34d399;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .upgrade-page {
+    padding: 20px 16px 48px;
+    gap: 24px;
+  }
+
+  .upgrade-title {
+    font-size: 1.5rem;
+  }
+
+  .upgrade-tier-picker {
+    flex-direction: column;
+  }
+
+  .tier-pick-btn {
+    width: 100%;
+    padding: 14px 16px;
+  }
+
+  .tier-detail-card {
+    padding: 18px 16px;
+  }
+
+  .upgrade-cta-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px 18px;
+    gap: 16px;
+  }
+
+  .cta-plan-note {
+    max-width: 100%;
+  }
+
+  .cta-initiate-btn {
+    width: 100%;
+    text-align: center;
+    padding: 14px 20px;
+  }
+
+  .upgrade-active-banner {
+    padding: 14px 16px;
+  }
+
+  .checkout-error-banner {
+    padding: 10px 12px;
+    font-size: 0.72rem;
+  }
 }

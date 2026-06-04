@@ -5,9 +5,9 @@ const PaymentCancel = ({ onRetry, onDismiss }) => (
   <div className="payment-cancel-screen">
     <div className="payment-cancel-card">
       <div className="cancel-icon" aria-hidden="true">⊗</div>
-      <h1 className="cancel-title">Transaction Halted</h1>
+      <h1 className="cancel-title">YIKES! Transaction Halted</h1>
       <p className="cancel-body">
-        Your payment was cancelled and nothing was charged. No worries — you
+        Your payment was cancelled and nothing was charged! No worries you
         can try again whenever you're ready.
       </p>
       <div className="cancel-actions">

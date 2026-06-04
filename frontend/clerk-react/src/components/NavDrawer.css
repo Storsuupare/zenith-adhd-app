@@ -1,0 +1,725 @@
+/* ============================================================
+   ZENITH NAV DRAWER — Command Trigger + Hydraulic Drawer
+   ============================================================
+
+   Architecture:
+     .nav-trigger   — fixed hamburger button, always visible
+     .nav-overlay   — full-screen blur backdrop, closes drawer on click
+     .nav-drawer    — slide-in panel from left, fixed, over all content
+
+   Trigger and drawer are position:fixed so they NEVER affect layout.
+   ============================================================ */
+
+/* ── Nav Trigger Block ────────────────────────────────────── */
+
+.nav-trigger-block {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem;
+  margin: 0.6rem 0 0.8rem 0.6rem;
+  margin: clamp(0.5rem, 1.5vw, 0.75rem) 0 clamp(0.75rem, 2vw, 1rem) clamp(0.5rem, 1.5vw, 0.75rem);
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 2px solid var(--ui-accent, #22d3ee);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+  flex-shrink: 0;
+  contain: paint;
+  transition: border-left-color 0.3s ease, box-shadow 0.22s ease;
+  align-self: flex-start;
+}
+
+.nav-trigger-block:hover,
+.nav-trigger-block:focus-within,
+.nav-trigger-block.is-open {
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.28), 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.nav-trigger-block.rz:hover,
+.nav-trigger-block.rz:focus-within,
+.nav-trigger-block.rz.is-open {
+  box-shadow: 0 0 10px rgba(255, 34, 68, 0.28), 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .nav-trigger-block {
+    background: rgba(0, 0, 0, 0.32);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+}
+
+.nav-trigger-block.rz {
+  border-left-color: #ff2244;
+}
+
+/* ── Ghost Trigger button ─────────────────────────────────── */
+
+.nav-trigger {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.72;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  transition: opacity 0.22s ease;
+}
+
+.nav-trigger:hover,
+.nav-trigger:focus-visible {
+  opacity: 1;
+}
+
+.nav-trigger.is-open {
+  opacity: 1;
+}
+
+/* Hamburger bars  */
+.trigger-bar {
+  display: block;
+  width: 16px;
+  height: 1.5px;
+  background: var(--ui-accent, #ffffff);
+  border-radius: 2px;
+  transform-origin: center;
+  transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
+              opacity  0.2s ease;
+}
+
+/* Morphs to × when open */
+.nav-trigger.is-open .trigger-bar:nth-child(1) {
+  transform: translateY(6.5px) rotate(45deg);
+}
+.nav-trigger.is-open .trigger-bar:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.nav-trigger.is-open .trigger-bar:nth-child(3) {
+  transform: translateY(-6.5px) rotate(-45deg);
+}
+
+@media (max-width: 480px) {
+  .nav-trigger {
+    gap: 4px;
+    width: 32px;
+    height: 32px;
+  }
+  .trigger-bar {
+    width: 14px;
+  }
+}
+
+/* ── Background Overlay ───────────────────────────────────── */
+
+.nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.nav-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Drawer Panel ─────────────────────────────────────────── */
+
+.nav-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 350;
+
+  /* Desktop default: 300px */
+  width: 300px;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(3, 7, 18, 0.98);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+  /* Starts off-screen — pre-promoted to compositor layer to avoid paint on open */
+  transform: translateX(-100%);
+  opacity: 0.4;
+  will-change: transform;
+  transition:
+    transform 0.32s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity   0.28s ease-in-out;
+
+  overflow: hidden;
+  contain: layout paint;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .nav-drawer {
+    background: rgba(3, 7, 18, 0.88);
+
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+  }
+}
+
+/* Scanline texture */
+.nav-drawer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.004) 2px,
+    rgba(255, 255, 255, 0.004) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Neon edge glow */
+.nav-drawer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--ui-accent, #22d3ee) 25%,
+    var(--ui-accent, #22d3ee) 75%,
+    transparent 100%
+  );
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.nav-drawer.rz::after {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #ff2244 25%,
+    #ff2244 75%,
+    transparent 100%
+  );
+}
+
+/* Open state */
+.nav-drawer.open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Mobile: near full-width */
+@media (max-width: 600px) {
+  .nav-drawer {
+    width: 88vw;
+    max-width: 340px;
+  }
+}
+
+/* ── Drawer Header ────────────────────────────────────────── */
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 18px 16px;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-brand-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--ui-accent, #22d3ee) 0%, rgba(34, 211, 238, 0.28) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #000;
+  flex-shrink: 0;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.2);
+}
+
+.drawer-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.drawer-brand-name {
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.drawer-brand-ver {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+}
+
+.drawer-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.drawer-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* ── Operator Block ───────────────────────────────────────── */
+
+.drawer-operator {
+  padding: 14px 18px;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.drawer-op-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.drawer-op-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.drawer-op-rank-short {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--ui-accent, #22d3ee);
+  line-height: 1;
+}
+
+.drawer-op-lvl {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.32);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.drawer-op-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drawer-op-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.drawer-op-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ffffff;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-op-credits {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.06em;
+}
+
+/* BW bar */
+.drawer-bw {
+  margin-top: 2px;
+}
+
+.drawer-bw-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.drawer-bw-text {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+}
+
+.drawer-bw-num {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-bw-max {
+  color: rgba(255, 255, 255, 0.28);
+  font-weight: 500;
+}
+
+.drawer-bw-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.drawer-bw-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ui-accent, #22d3ee);
+  box-shadow: 0 0 6px var(--ui-accent, #22d3ee);
+  transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.drawer-bw-fill.low      { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+.drawer-bw-fill.critical { background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: bw-crit 0.8s ease-in-out infinite; }
+
+@keyframes bw-crit {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+
+.drawer-divider {
+  height: 1px;
+  margin: 0 16px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Nav Links ────────────────────────────────────────────── */
+
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px;
+  gap: 2px;
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  
+  -ms-overflow-style: none;
+}
+
+.drawer-nav::-webkit-scrollbar { display: none; }
+
+.drawer-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.48);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+
+  /* Staggered slide-in when drawer opens */
+  opacity: 0;
+  transform: translateX(-12px);
+  transition:
+    color       0.18s ease,
+    background  0.18s ease,
+    opacity     0.28s ease var(--item-delay, 0s),
+    transform   0.28s cubic-bezier(0.23, 1, 0.32, 1) var(--item-delay, 0s);
+}
+
+.nav-drawer.open .drawer-nav-item {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.drawer-nav-item {
+  touch-action: manipulation;
+}
+
+.nav-drawer.open .drawer-nav-item:active {
+  transform: translateX(0) scale(0.98);
+  transition: transform 0.08s ease;
+}
+
+.drawer-nav-item:hover {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.drawer-nav-item.active {
+  color: #ffffff;
+  background: rgba(34, 211, 238, 0.08);
+}
+
+/* Left accent on active */
+.drawer-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--ui-accent, #22d3ee);
+  box-shadow: 0 0 8px var(--ui-accent, #22d3ee);
+}
+
+.nav-drawer.rz .drawer-nav-item.active {
+  background: rgba(255, 34, 68, 0.08);
+}
+
+.nav-drawer.rz .drawer-nav-item.active::before {
+  background: #ff2244;
+  box-shadow: 0 0 8px #ff2244;
+}
+
+/* Hover shimmer sweep */
+.drawer-nav-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.025), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.4s ease;
+  pointer-events: none;
+}
+
+.drawer-nav-item:hover::after {
+  transform: translateX(100%);
+}
+
+.drawer-nav-icon {
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.18s ease, filter 0.18s ease;
+}
+
+.drawer-nav-item.active .drawer-nav-icon {
+  color: var(--ui-accent, #22d3ee);
+  filter: drop-shadow(0 0 5px var(--ui-accent, #22d3ee));
+}
+
+.nav-drawer.rz .drawer-nav-item.active .drawer-nav-icon {
+  color: #ff4466;
+  filter: drop-shadow(0 0 5px #ff2244);
+}
+
+.drawer-nav-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.drawer-nav-label {
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.14em;
+  color: inherit;
+  line-height: 1;
+}
+
+.drawer-nav-sub {
+  font-size: 0.68rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.28);
+  line-height: 1;
+}
+
+.drawer-nav-item.active .drawer-nav-sub {
+  color: rgba(34, 211, 238, 0.5);
+}
+
+.drawer-nav-arrow {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.18);
+  transition: color 0.18s ease, transform 0.18s ease;
+  line-height: 1;
+}
+
+/* ── Unread dot — Release Notes ────────────────────────────── */
+
+@keyframes unread-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.drawer-unread-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ui-accent, #22d3ee);
+  margin-left: 7px;
+  vertical-align: middle;
+  animation: unread-blink 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.drawer-nav-item:hover .drawer-nav-arrow,
+.drawer-nav-item.active .drawer-nav-arrow {
+  color: var(--ui-accent, #22d3ee);
+  transform: translateX(3px);
+}
+
+.nav-drawer.rz .drawer-nav-item:hover .drawer-nav-arrow,
+.nav-drawer.rz .drawer-nav-item.active .drawer-nav-arrow {
+  color: #ff4466;
+}
+
+/* ── Red Zone Footer ──────────────────────────────────────── */
+
+.drawer-redzone-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 14px 20px;
+  padding: 10px 14px;
+  background: rgba(255, 34, 68, 0.08);
+  border: 1px solid rgba(255, 34, 68, 0.2);
+  border-radius: 10px;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.drawer-rz-icon {
+  font-size: 1rem;
+  color: #ff4466;
+  flex-shrink: 0;
+}
+
+.drawer-rz-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drawer-rz-text span:first-child {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #ff4466;
+}
+
+.drawer-rz-text span:last-child {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255, 34, 68, 0.55);
+}
+
+
+/* ── Legal footer ── */
+.drawer-legal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px 20px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.drawer-legal-link {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.22);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.drawer-legal-link:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.drawer-legal-sep {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-bw-fill.critical { animation: none; }
+  .drawer-nav-item {
+    opacity: 1;
+    transform: none;
+    transition: color 0.18s ease, background 0.18s ease;
+  }
+}

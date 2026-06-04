@@ -1,0 +1,192 @@
+/* ──────────────────────────────────────────────────────────
+   PRESTIGE CINEMATIC
+   Full-screen dramatic reveal when a skill hits prestige.
+   Gold/amber theme — GPU-safe: only transform + opacity.
+   ────────────────────────────────────────────────────────── */
+
+.pc-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.pc-root.pc-visible {
+  opacity: 1;
+}
+
+/* Dark backdrop — user can click it to dismiss */
+.pc-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 2, 12, 0.96);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .pc-overlay {
+    background: rgba(4, 2, 12, 0.92);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* ── Main card ── */
+.pc-card {
+  position: relative;
+  z-index: 1;
+  width: min(400px, calc(100vw - 32px));
+  padding: 52px 36px 40px;
+  background: linear-gradient(160deg, rgba(22, 14, 38, 0.98), rgba(8, 4, 20, 0.99));
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 18px;
+  text-align: center;
+  overflow: hidden;
+
+  transform: translateY(28px) scale(0.97);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pc-root.pc-visible .pc-card {
+  transform: translateY(0) scale(1);
+}
+
+/* Radial ambient glow behind content */
+.pc-ambient-glow {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.10) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+/* ── Skill icon ── */
+.pc-icon {
+  font-size: 56px;
+  line-height: 1;
+  color: #fbbf24;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.65), 0 0 50px rgba(251, 191, 36, 0.25);
+  margin-bottom: 10px;
+}
+
+.pc-skill-name {
+  font-family: var(--font-mono, "Courier New", monospace);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+
+/* ── Rank banner ── */
+.pc-rank-banner {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.pc-rank-label {
+  font-family: var(--font-mono, "Courier New", monospace);
+  font-size: 12px;
+  letter-spacing: 0.34em;
+  color: rgba(251, 191, 36, 0.55);
+  text-transform: uppercase;
+}
+
+.pc-rank-roman {
+  font-family: var(--font-mono, "Courier New", monospace);
+  font-size: 48px;
+  font-weight: 700;
+  color: #fbbf24;
+  line-height: 1;
+  text-shadow:
+    0 0 24px rgba(251, 191, 36, 0.55),
+    0 0 60px rgba(251, 191, 36, 0.2);
+}
+
+/* ── Prestige stars ── */
+.pc-stars {
+  font-size: 22px;
+  color: #fbbf24;
+  letter-spacing: 0.18em;
+  margin-bottom: 36px;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+}
+
+/* ── Reward rows ── */
+.pc-rewards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  background: rgba(251, 191, 36, 0.04);
+  border: 1px solid rgba(251, 191, 36, 0.1);
+  border-radius: 10px;
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+.pc-reward-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pc-reward-icon {
+  font-size: 13px;
+  color: rgba(251, 191, 36, 0.55);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.pc-reward-val {
+  font-family: var(--font-mono, "Courier New", monospace);
+  font-size: 17px;
+  font-weight: 600;
+  color: #fbbf24;
+  min-width: 96px;
+}
+
+.pc-reward-tag {
+  font-family: var(--font-mono, "Courier New", monospace);
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+/* ── Claim button ── */
+.pc-claim-btn {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.14), rgba(251, 191, 36, 0.05));
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 10px;
+  font-family: var(--font-mono, "Courier New", monospace);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: #fbbf24;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.pc-claim-btn:hover {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(251, 191, 36, 0.1));
+  border-color: rgba(251, 191, 36, 0.46);
+}
+
+.pc-claim-btn:active {
+  transform: scale(0.98);
+}

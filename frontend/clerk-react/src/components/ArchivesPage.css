@@ -1,0 +1,502 @@
+/* ============================================================
+   ARCHIVES PAGE
+   ============================================================ */
+
+.archives-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 24px 28px 80px;
+  box-sizing: border-box;
+}
+
+/* ── Header ── */
+.archives-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  
+  
+}
+
+.archives-header-left { display: flex; flex-direction: column; gap: 4px; }
+
+.archives-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--ui-accent, #22d3ee);
+  text-transform: uppercase;
+}
+
+.archives-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.archives-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  line-height: 1;
+  margin: 0;
+}
+
+.archives-sub {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+}
+
+/* ── Stat chips ── */
+.archives-stat-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.archives-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  min-width: 70px;
+}
+
+.archives-chip-val {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.archives-chip-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.32);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Content grid ── */
+.archives-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+}
+
+/* ── Base styles shared by all four sections ── */
+.archives-section1,
+.archives-section2,
+.archives-section3,
+.archives-section4 {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Section 1 (Personal Records) and Section 4 (Skill XP) span full width */
+.archives-section1,
+.archives-section4 {
+  grid-column: 1 / -1;
+}
+
+/* Section 4 — grows to full content height, page handles scroll */
+.archives-section4 {
+ min-height: 80dvh;
+}
+
+/* ── Records grid ── */
+.archives-records-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.archives-record-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.archives-record-val {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--ui-accent, #22d3ee);
+  line-height: 1;
+}
+
+.archives-record-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* ── Section header ── */
+.archives-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.archives-section-icon {
+  font-size: 0.8rem;
+  color: var(--ui-accent, #22d3ee);
+  opacity: 0.7;
+}
+
+.archives-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.archives-section-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.28);
+  letter-spacing: 0.06em;
+}
+
+/* ── Skill chart ── */
+.archives-skill-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  
+}
+
+/* ── Skill table — 2 columns so all 12 skills fit without excessive height ── */
+.archives-skill-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  
+}
+
+.archives-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.15s ease;
+}
+
+@media (hover: hover) {
+  .archives-skill-row:hover { background: rgba(255, 255, 255, 0.05); }
+}
+
+.archives-skill-rank {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.28);
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.archives-skill-icon {
+  font-size: 0.85rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.archives-skill-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.75);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.archives-skill-level {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.archives-skill-xp-bar {
+  width: 80px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.archives-skill-xp-fill {
+  height: 100%;
+  border-radius: 3px;
+  opacity: 0.75;
+  transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.archives-skill-xp-val {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+  width: 56px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.archives-skill-prestige {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fbbf24;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+/* ── Empty state ── */
+.archives-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.22);
+  text-align: center;
+}
+
+/* ── Tooltip ── */
+.archives-tooltip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(8, 8, 15, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .archives-tooltip {
+    background: rgba(8, 8, 15, 0.96);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}
+
+.archives-tooltip-icon { font-size: 1rem; line-height: 1.4; }
+.archives-tooltip-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.1em;
+}
+.archives-tooltip-val {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+}
+.archives-tooltip-prestige {
+  font-size: 0.68rem;
+  color: #fbbf24;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   MOBILE — Vertical stack (≤768px)
+   ============================================================ */
+@media (max-width: 768px) {
+  .archives-page {
+    padding: 16px 16px 80px;
+  }
+
+  .archives-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .archives-title {
+    font-size: 1.25rem;
+  }
+
+  /* Chips scroll horizontally on mobile */
+  .archives-stat-chips {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    padding-bottom: 4px;
+    gap: 8px;
+  }
+  .archives-stat-chips::-webkit-scrollbar { display: none; }
+  @supports (scrollbar-width: none) {
+    .archives-stat-chips { scrollbar-width: none; }
+  }
+
+  .archives-chip {
+    flex-shrink: 0;
+    min-width: 64px;
+    padding: 8px 12px;
+  }
+
+  /* Single-column stack */
+  .archives-content {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Full-width sections reset to single column */
+  .archives-section1,
+  .archives-section4 {
+    grid-column: 1;
+  }
+
+  /* 2-column records grid on mobile */
+  .archives-records-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Tighten section padding */
+  .archives-section1,
+  .archives-section2,
+  .archives-section3,
+  .archives-section4 {
+    padding: 14px;
+  }
+
+  .archives-skill-table {
+    grid-template-columns: 1fr;
+    min-height: 100dvh;
+  }
+
+  /* Hide XP bar on small screens to prevent overflow */
+  .archives-skill-xp-bar {
+    display: none;
+  }
+
+  /* Skip width animation — 12 bars at once is too many paint passes */
+  .archives-skill-xp-fill {
+    transition: none;
+  }
+
+  .archives-skill-xp-val {
+    width: 44px;
+    font-size: 0.65rem;
+  }
+
+  .archives-skill-name {
+    font-size: 0.68rem;
+  }
+}
+
+/* ── Very small phones (≤380px) ── */
+@media (max-width: 380px) {
+  .archives-page { padding: 12px 12px 80px; }
+  .archives-title { font-size: 1.1rem; }
+  .archives-skill-prestige { display: none; }
+
+  /* 2×2 chip grid instead of horizontal scroll on tiny screens */
+  .archives-stat-chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+  .archives-chip {
+    flex: 0 0 calc(50% - 4px);
+    min-width: unset;
+  }
+}
+
+/* ── Portrait tablet (769px – 1024px) ── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .archives-page {
+    padding: 20px 20px 80px;
+  }
+
+  .archives-content {
+    gap: 14px;
+  }
+
+  .archives-section1,
+  .archives-section2,
+  .archives-section3,
+  .archives-section4 {
+    padding: 14px 16px;
+  }
+
+  archives-section4 {
+  min-height: 80dvh;
+  }
+  
+
+  .archives-skill-xp-bar {
+    width: 60px;
+  }
+
+
+}
+
+/* ── Landscape tablet + small laptop (1025px – 1366px) ── */
+@media (min-width: 1025px) and (max-width: 1366px) {
+  .archives-page {
+    padding: 20px 24px 80px;
+  }
+
+  .archives-skill-xp-bar {
+    width: 70px;
+  }
+}
+
+/* ── Large desktop (1367px+) ── */
+@media (min-width: 1367px) {
+  .archives-page {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 28px 40px 80px;
+  }
+}

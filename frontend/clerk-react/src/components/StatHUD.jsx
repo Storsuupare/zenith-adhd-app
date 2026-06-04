@@ -1,6 +1,7 @@
 import React from "react";
 import SystemResourceHUD from "./SystemResourceHUD";
 
+const TIER_LABELS = ["", "PRO", "ELITE"];
 
 const StatHUD = ({
   currentLevel,
@@ -13,53 +14,95 @@ const StatHUD = ({
   currentLevelXP,
   getRank,
   onLogout,
-  clerkId,
-  refreshKey,
+  credits,
+  sysVersion,
+  accountTier  = 0,
+  xpGain        = 0,
+  xpBurstKey    = 0,
+  isRedzone     = false,
+  onDailyBonus,
+  bonusClaimed  = false,
 }) => {
-  const ghostPercent = Math.min(((currentLevelXP + previewXP) / nextLevelXP) * 100, 100);
+  const ghostPercent = Math.min(
+    ((currentLevelXP + previewXP) / nextLevelXP) * 100,
+    100,
+  );
+
+  const tierLabel = TIER_LABELS[Math.min(accountTier, 2)];
 
   return (
-    <div className="level-container">
+    <div className={`level-container${isRedzone ? " redzone-active" : ""}${accountTier >= 2 ? " tier-elite-hud" : accountTier >= 1 ? " tier-pro-hud" : ""}`}>
+
       <div className="hud-top-row">
         <div className="hud-rank-group">
-          <span className="rank-label">CURRENT RANK</span>
+          <div className="rank-label-row">
+            <span className="rank-label">Rank</span>
+            {tierLabel && (
+              <span className={`tier-badge tier-badge--${accountTier}`}>
+                {tierLabel}
+              </span>
+            )}
+            {isRedzone && (
+              <span className="redzone-badge">RED ZONE</span>
+            )}
+          </div>
           <span className="rank-text">
             {getRank(currentLevel)}
             <span className="lvl-tag"> LVL {currentLevel}</span>
           </span>
         </div>
+
         <div className="hud-right-group">
           <div className="hud-xp-group">
             <span className="total-xp-display">{totalXP.toLocaleString()}</span>
-            <span className="xp-suffix">TOTAL XP</span>
+            <span className="xp-suffix">Total XP</span>
           </div>
-          {onLogout && (
-            <button className="hud-logout-btn" onClick={onLogout}>
-              <span>⏻</span>
-              <span className="logout-text">Log Out</span>
-            </button>
-          )}
         </div>
       </div>
 
       <div className="progress-track">
-       
         <div
           className="progress-fill ghost"
           style={{ width: `${ghostPercent}%`, opacity: previewXP > 0 ? 1 : 0 }}
         />
-        
-        <div className="progress-fill" style={{ width: `${progressPercent}%` }}>
+        <div
+          className={`progress-fill${xpGain > 0 ? " surge" : ""}`}
+          style={{ width: `${progressPercent}%` }}
+        >
           <div className="fill-glare" />
         </div>
+        {xpGain > 0 && (
+          <div className="xp-reward-burst" key={xpBurstKey}>
+            +{xpGain.toLocaleString()} XP
+          </div>
+        )}
       </div>
 
       <div className="hud-bottom-row">
-        <div className="streak-display">STREAKS: {streak}</div>
-        <div className="xp-remaining">{xpRemaining.toLocaleString()} XP TO NEXT LEVEL</div>
+        <div className="xp-remaining">
+          {xpRemaining.toLocaleString()} XP to next level
+        </div>
+        <div className={`streak-display${streak > 0 ? " momentum-active" : ""}`}>
+          <span className="flame-icon">🔥</span>
+          {streak} day streak
+          {streak > 0 && (
+            <span className="multiplier-badge">
+              x{Math.min(1 + streak * 0.05, 2.0).toFixed(2)} XP
+            </span>
+          )}
+        </div>
       </div>
+      {streak === 0 && (
+        <p className="streak-hint">Complete a mission to start your streak</p>
+      )}
 
-      <SystemResourceHUD clerkId={clerkId} refreshKey={refreshKey} />
+      <SystemResourceHUD
+        credits={credits}
+        sysVersion={sysVersion}
+        accountTier={accountTier}
+        onDailyBonus={onDailyBonus}
+        bonusClaimed={bonusClaimed}
+      />
     </div>
   );
 };

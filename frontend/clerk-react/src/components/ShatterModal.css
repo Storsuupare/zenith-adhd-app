@@ -1,0 +1,220 @@
+/* ============================================================
+   SHATTER MODAL — Phase 1 Mission Deconstruction
+   ============================================================ */
+
+.shatter-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: shatter-overlay-in 0.18s ease;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .shatter-overlay {
+    background: rgba(0, 0, 0, 0.82);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}
+
+@keyframes shatter-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.shatter-container {
+  background: rgba(6, 10, 18, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 2px solid var(--ui-accent, rgba(99, 202, 183, 0.8));
+  border-radius: 16px;
+  padding: 36px 32px 28px;
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 32px 80px rgba(0, 0, 0, 0.7),
+    0 0 40px var(--accent-a06, rgba(99, 202, 183, 0.06));
+  animation: shatter-container-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes shatter-container-in {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ---- Header ---- */
+.shatter-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shatter-eyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ui-accent, rgba(99, 202, 183, 0.9));
+}
+
+.shatter-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+  word-break: break-word;
+}
+
+.shatter-subtitle {
+  font-family: "Inter", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---- Inputs ---- */
+.shatter-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shatter-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shatter-step-num {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--ui-accent, rgba(99, 202, 183, 0.6));
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: right;
+}
+
+.shatter-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 11px 14px;
+  color: rgba(255, 255, 255, 0.88);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  box-sizing: border-box;
+}
+
+.shatter-input:focus {
+  outline: none;
+  border-color: var(--accent-a55, rgba(99, 202, 183, 0.55));
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.shatter-input::placeholder {
+  color: rgba(255, 255, 255, 0.18);
+}
+
+/* ---- Validation ---- */
+.shatter-error {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(251, 113, 133, 0.85);
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(251, 113, 133, 0.07);
+  border: 1px solid rgba(251, 113, 133, 0.2);
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Buttons ---- */
+.shatter-button-group {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.shatter-btn-deploy {
+  flex: 1;
+  padding: 13px 16px;
+  background: var(--accent-a12, rgba(99, 202, 183, 0.12));
+  border: 1px solid var(--ui-accent, rgba(99, 202, 183, 0.7));
+  border-radius: 8px;
+  color: var(--ui-accent, rgba(99, 202, 183, 1));
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.shatter-btn-skip {
+  padding: 13px 14px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.shatter-btn-cancel {
+  padding: 13px 14px;
+  background: transparent;
+  border: 1px solid rgba(251, 113, 133, 0.2);
+  border-radius: 8px;
+  color: rgba(251, 113, 133, 0.55);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+@media (hover: hover) {
+  .shatter-btn-deploy:hover {
+    background: var(--ui-accent, rgba(99, 202, 183, 0.9));
+    color: #000;
+  }
+
+  .shatter-btn-skip:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .shatter-btn-cancel:hover {
+    border-color: rgba(251, 113, 133, 0.55);
+    color: rgba(251, 113, 133, 1);
+  }
+}

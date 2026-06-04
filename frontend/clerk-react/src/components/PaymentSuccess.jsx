@@ -54,9 +54,6 @@ const PaymentSuccess = ({ onContinue }) => {
             <button className="success-cta" onClick={onContinue}>
               Enter Dashboard
             </button>
-            <p className="success-footnote">
-              If your tier doesn't update immediately, refresh the page once.
-            </p>
           </div>
         )}
       </div>

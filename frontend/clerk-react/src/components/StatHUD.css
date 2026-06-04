@@ -4,9 +4,7 @@
 
 .level-container {
   position: relative;
-  background: rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(10, 10, 15, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   padding: 20px 22px;
@@ -15,6 +13,15 @@
   flex-direction: column;
   gap: 14px;
   flex-shrink: 0;
+  isolation: isolate;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .level-container {
+    background: rgba(0, 0, 0, 0.22);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
 }
 
 .hud-top-row {
@@ -31,7 +38,7 @@
 
 .rank-label {
   font-family: "Inter", sans-serif;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   color: rgba(255, 255, 255, 0.38);
@@ -69,32 +76,6 @@
   gap: 2px;
 }
 
-.hud-logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.55);
-  font-family: "Inter", sans-serif;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  backdrop-filter: blur(6px);
-}
-
-.hud-logout-btn:hover {
-  background: rgba(251, 113, 133, 0.12);
-  border-color: rgba(251, 113, 133, 0.45);
-  color: #fb7185;
-  box-shadow: 0 0 12px rgba(251, 113, 133, 0.18);
-}
 
 .total-xp-display {
   font-family: "Inter", sans-serif;
@@ -107,7 +88,7 @@
 
 .xp-suffix {
   font-family: "Inter", sans-serif;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   color: var(--ui-accent);
@@ -118,7 +99,7 @@
 .progress-track {
   position: relative;
   width: 100%;
-  height: 5px;
+  height: 8px;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 50px;
   overflow: hidden;
@@ -132,7 +113,9 @@
   background: rgba(255, 255, 255, 0.22);
   border-radius: 50px;
   z-index: 1;
-  transition: width 0.3s ease, opacity 0.3s ease;
+  transition:
+    width 0.3s ease,
+    opacity 0.3s ease;
   animation: ghost-pulse 2s ease-in-out infinite;
 }
 
@@ -157,36 +140,460 @@
 
 .hud-bottom-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .streak-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: "Inter", sans-serif;
-  font-size: 0.65rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: bold;
   letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.38);
   text-transform: uppercase;
 }
 
+.momentum-active {
+  color: #fb923c;
+  text-shadow: 0 0 3px rgba(251, 146, 60, 0.3);
+}
+
+
+.multiplier-badge {
+  font-size: 0.85em;
+  background: rgba(251, 146, 60, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  margin-left: 4px;
+}
+
+.momentum-active {
+  animation: pulse-momentum 3s infinite ease-in-out;
+}
+
+@keyframes pulse-momentum {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
 .xp-remaining {
   font-family: "Inter", sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.38);
   text-transform: uppercase;
 }
 
-/* ── Mobile ── */
-@media (max-width: 520px) {
-  /* Hide the "Log Out" text — keep only the ⏻ icon so the top row never wraps */
-  .hud-logout-btn .logout-text {
-    display: none;
+/* ── Mobile — scale down for small screens ── */
+@media (max-width: 768px) {
+  .level-container {
+    padding: 16px 18px;
+    gap: 12px;
+    border-radius: 14px;
+    margin-bottom: 12px;
   }
 
-  .hud-logout-btn {
-    padding: 5px 8px;
+  .hud-top-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
   }
+
+  .rank-label {
+    font-size: 0.68rem;
+  }
+
+  .rank-text {
+    font-size: 1.1rem;
+  }
+
+  .lvl-tag {
+    font-size: 0.85rem;
+  }
+
+  .total-xp-display {
+    font-size: 1.0rem;
+  }
+
+  .xp-suffix {
+    font-size: 0.65rem;
+  }
+
+  .streak-display {
+    font-size: 0.68rem;
+    gap: 5px;
+  }
+
+  .multiplier-badge {
+    font-size: 0.8em;
+    padding: 1px 5px;
+  }
+
+  .xp-remaining {
+    font-size: 0.68rem;
+  }
+
+  .progress-track {
+    height: 6px;
+    border-radius: 50px;
+  }
+}
+
+
+/* ── Very small devices — iPhone 4/SE, old Galaxy (≤ 360px) ── */
+@media (max-width: 360px) {
+  .level-container {
+    padding: 10px 12px;
+    gap: 8px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+
+  .hud-top-row {
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .rank-label {
+    font-size: 0.65rem;
+  }
+
+  .rank-text {
+    font-size: clamp(0.8rem, 4.5vw, 1rem);
+  }
+
+  .lvl-tag {
+    font-size: 0.72rem;
+    margin-left: 4px;
+  }
+
+  .hud-right-group {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .total-xp-display {
+    font-size: clamp(0.8rem, 4.5vw, 0.95rem);
+  }
+
+  .xp-suffix {
+    font-size: 0.65rem;
+  }
+
+  .streak-display {
+    font-size: 0.68rem;
+    gap: 4px;
+  }
+
+  .multiplier-badge {
+    font-size: 0.75em;
+    padding: 1px 4px;
+  }
+
+  .xp-remaining {
+    font-size: 0.68rem;
+  }
+
+  .progress-track {
+    height: 4px;
+  }
+}
+
+/* ── device-small — legacy compact state ── */
+.device-small .level-container {
+  padding: 10px 12px;
+  gap: 8px;
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.device-small .rank-text {
+  font-size: clamp(0.85rem, 4vw, 1.1rem);
+}
+
+.device-small .rank-label {
+  font-size: 0.65rem;
+}
+
+.device-small .total-xp-display {
+  font-size: clamp(0.85rem, 4vw, 1rem);
+}
+
+.device-small .xp-suffix {
+  font-size: 0.65rem;
+}
+
+.device-small .streak-display {
+  font-size: 0.68rem;
+  gap: 4px;
+}
+
+.device-small .xp-remaining {
+  font-size: 0.68rem;
+}
+
+@media (max-height: 700px) {
+  .level-container {
+    padding: 10px 12px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+  .rank-text {
+    font-size: 1.05rem;
+  }
+  .total-xp-display {
+    font-size: 0.95rem;
+  }
+  .streak-display,
+  .xp-remaining {
+    font-size: 0.68rem;
+  }
+}
+
+/* ============================================================
+   TIER BADGE + REDZONE INDICATOR
+   ============================================================ */
+
+.rank-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.level-container .tier-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 3px;
+  line-height: 1.6;
+  width: auto;
+  height: auto;
+}
+
+.level-container .tier-badge--1 {
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  color: #22d3ee;
+}
+
+.level-container .tier-badge--2 {
+  background: rgba(251, 191, 36, 0.10);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  animation: elite-tier-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes elite-tier-pulse {
+  0%, 100% { box-shadow: none; }
+  50%       { box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
+}
+
+/* Red Zone badge — system warning state, amber alert palette */
+.redzone-badge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #f59e0b;
+  animation: redzone-pulse 2s ease-in-out infinite;
+}
+
+@keyframes redzone-pulse {
+  0%, 100% { opacity: 1;    box-shadow: 0 0 6px rgba(245, 158, 11, 0.20); }
+  50%       { opacity: 0.70; box-shadow: 0 0 12px rgba(245, 158, 11, 0.40); }
+}
+
+/* Red Zone container — amber border ring to match the global accent override */
+.level-container.redzone-active {
+  border-color: rgba(245, 158, 11, 0.28);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.08) inset,
+              0 0 18px rgba(245, 158, 11, 0.06);
+}
+
+/* PRO tier — persistent cyan border ring */
+.level-container.tier-pro-hud {
+  border-color: rgba(34, 211, 238, 0.22);
+}
+
+/* ELITE tier — gold border with slow breathing glow */
+.level-container.tier-elite-hud {
+  border-color: rgba(251, 191, 36, 0.26);
+  animation: elite-hud-pulse 3.5s ease-in-out infinite;
+}
+
+@keyframes elite-hud-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.06) inset; }
+  50%       { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.20) inset, 0 0 28px rgba(251, 191, 36, 0.06); }
+}
+
+/* Streak zero — gentle nudge */
+.streak-hint {
+  font-family: "Inter", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.22);
+  font-style: italic;
+  letter-spacing: 0.01em;
+  text-align: left;
+  padding: 0;
+  margin-top: -6px;
+}
+
+/* ============================================================
+   XP REWARD SURGE
+   ============================================================ */
+
+.progress-track {
+  position: relative;
+}
+
+.progress-fill.surge {
+  animation: xp-surge-flash 0.5s ease-out;
+}
+
+@keyframes xp-surge-flash {
+  0%   { opacity: 1; }
+  25%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.xp-reward-burst {
+  position: absolute;
+  right: 0;
+  top: -22px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--ui-accent, #22d3ee);
+  text-shadow: 0 0 12px var(--accent-a60, rgba(34, 211, 238, 0.60));
+  animation: burst-float-out 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes burst-float-out {
+  0%   { opacity: 0; transform: translateY(0) scale(0.7); }
+  15%  { opacity: 1; transform: translateY(-4px) scale(1.05); }
+  60%  { opacity: 1; transform: translateY(-10px) scale(1); }
+  100% { opacity: 0; transform: translateY(-18px) scale(0.95); }
+}
+
+/* ============================================================
+   LOADOUT ROW
+   ============================================================ */
+
+.loadout-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.loadout-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.loadout-slots {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  flex-wrap: wrap;
+  
+}
+
+.perk-slot {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  max-width: 120px;
+  overflow: hidden;
+}
+
+.perk-slot.empty {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.18);
+}
+
+.perk-slot.filled {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: var(--perk-color, rgba(255, 255, 255, 0.7));
+}
+
+.perk-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--perk-color, #fff);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.60);
+}
+
+.perk-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.perk-empty-label {
+  opacity: 0.5;
+  letter-spacing: 0.14em;
+}
+
+/* ELITE loadout gets a subtle gold accent on the row label */
+.loadout-tier-2 .loadout-label {
+  color: rgba(251, 191, 36, 0.45);
+}
+
+.loadout-tier-1 .loadout-label {
+  color: rgba(34, 211, 238, 0.40);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill.ghost             { animation: none; }
+  .momentum-active                 { animation: none; }
+  .level-container .tier-badge--2  { animation: none; }
+  .redzone-badge                   { animation: none; opacity: 1; box-shadow: none; }
+  .level-container.tier-elite-hud  { animation: none; }
+  .progress-fill.surge             { animation: none; filter: none; }
+  .xp-reward-burst                 { animation: none; opacity: 0; }
 }

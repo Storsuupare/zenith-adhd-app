@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "property-no-unknown": [true, {
+      "ignoreProperties": ["backdrop-filter", "contain-intrinsic-size"]
+    }],
+    "at-rule-no-unknown": [true, {
+      "ignoreAtRules": ["tailwind", "supports", "container"]
+    }]
+  }
+}

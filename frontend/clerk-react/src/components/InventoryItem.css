@@ -1,5 +1,5 @@
 /* ============================================================
-   INVENTORY SYSTEM 
+   INVENTORY SYSTEM
    ============================================================ */
 
 .zenith-inventory-system {
@@ -17,7 +17,7 @@
 }
 
 .shop-nav-icon {
-  color: var(--ui-accent);
+  color: var(--ui-accent, #22d3ee);
   margin-right: 2px;
 }
 
@@ -36,20 +36,36 @@
   cursor: pointer;
   font-family: inherit;
   font-weight: 700;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   transition: all 0.2s ease;
-  backdrop-filter: blur(6px);
   white-space: nowrap;
+  isolation: isolate;
+  touch-action: manipulation;
 }
 
-.nav-btn:hover,
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .nav-btn {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
 .nav-btn.active {
   background: var(--ui-accent, #ffffff);
   color: #000;
   border-color: var(--ui-accent, #ffffff);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--ui-accent) 30%, transparent);
+  box-shadow: 0 0 14px var(--accent-a30, rgba(255, 255, 255, 0.30));
+}
+
+@media (hover: hover) {
+  .nav-btn:hover {
+    background: var(--ui-accent, #ffffff);
+    color: #000;
+    border-color: var(--ui-accent, #ffffff);
+    box-shadow: 0 0 14px var(--accent-a30, rgba(255, 255, 255, 0.30));
+  }
 }
 
 .btn-content {
@@ -71,12 +87,20 @@
 }
 
 .inventory-vault-overlay {
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   padding: 20px;
-  animation: vaultOpen 0.25s ease-out;
+  contain: layout paint;
+  animation: vaultOpen 0.2s ease-out;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .inventory-vault-overlay {
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
 }
 
 @keyframes vaultOpen {
@@ -88,6 +112,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
+  contain: layout;
 }
 
 .inventory-card {
@@ -104,13 +129,15 @@
 }
 
 @keyframes fadeInCard {
-  from { opacity: 0; filter: blur(3px); }
-  to   { opacity: 1; filter: blur(0); }
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.inventory-card:hover {
-  border-color: color-mix(in srgb, var(--rarity-color, #fff) 30%, transparent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+@media (hover: hover) {
+  .inventory-card:hover {
+    border-color: rgba(255, 255, 255, 0.30);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
 }
 
 .item-header {
@@ -135,7 +162,7 @@
 }
 
 .item-header .rarity-tag {
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -145,24 +172,32 @@
 
 .info-toggle {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 2px;
   cursor: pointer;
-  border: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 25%, transparent);
-  background: color-mix(in srgb, var(--rarity-color, #fff) 6%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--rarity-color, rgba(255, 255, 255, 0.6));
   transition: background 0.15s ease, color 0.15s ease;
+  touch-action: manipulation;
 }
 
-.info-toggle:hover,
 .info-toggle.open {
-  background: color-mix(in srgb, var(--rarity-color, #fff) 16%, transparent);
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
-  border-color: color-mix(in srgb, var(--rarity-color, #fff) 50%, transparent);
+  border-color: rgba(255, 255, 255, 0.50);
+}
+
+@media (hover: hover) {
+  .info-toggle:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.50);
+  }
 }
 
 .item-description-layer {
@@ -170,8 +205,8 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px 0;
-  border-top: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 12%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 12%, transparent);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   margin-bottom: 12px;
   animation: descReveal 0.2s ease-out;
 }
@@ -182,7 +217,7 @@
 }
 
 .description-header {
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -205,12 +240,12 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--rarity-color, #fff) 7%, transparent);
-  border: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 18%, transparent);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .effect-label {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 900;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -222,7 +257,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--rarity-color, #fff);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--rarity-color, #fff) 40%, transparent);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.40);
 }
 
 .item-actions {
@@ -234,13 +269,14 @@
   width: 100%;
   padding: 8px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  touch-action: manipulation;
 }
 
 .scrap-btn {
@@ -249,10 +285,12 @@
   border: 1px solid rgba(255, 68, 68, 0.3);
 }
 
-.scrap-btn:hover {
-  background: rgba(255, 68, 68, 0.2);
-  border-color: #ff6b6b;
-  color: #fff;
+@media (hover: hover) {
+  .scrap-btn:hover {
+    background: rgba(255, 68, 68, 0.2);
+    border-color: #ff6b6b;
+    color: #fff;
+  }
 }
 
 .equip-btn {
@@ -261,17 +299,19 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.equip-btn:hover {
-  background: color-mix(in srgb, var(--rarity-color, #fff) 10%, transparent);
-  border-color: color-mix(in srgb, var(--rarity-color, #fff) 35%, transparent);
-  color: #fff;
+@media (hover: hover) {
+  .equip-btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #fff;
+  }
 }
 
 .equip-btn.active {
-  background: color-mix(in srgb, var(--rarity-color, #fff) 14%, transparent);
+  background: rgba(255, 255, 255, 0.14);
   color: var(--rarity-color, #fff);
-  border: 1px solid color-mix(in srgb, var(--rarity-color, #fff) 45%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--rarity-color, #fff) 20%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.20);
 }
 
 .rarity-junk      { border-top: 3px solid rgba(120, 120, 120, 0.6); }
@@ -290,7 +330,7 @@
 
 .nav-btn.upgrade-nav-btn {
   padding: 4px 10px;
-  font-size: 0.54rem;
+  font-size: 0.65rem;
   letter-spacing: 1px;
 }
 
@@ -300,11 +340,13 @@
   animation: upgrade-pulse 2.2s ease-in-out infinite;
 }
 
-.nav-btn.upgrade-nav-btn.required:hover {
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.7);
-  box-shadow: 0 0 16px rgba(251, 191, 36, 0.25);
-  color: #fde68a;
+@media (hover: hover) {
+  .nav-btn.upgrade-nav-btn.required:hover {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.7);
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.25);
+    color: #fde68a;
+  }
 }
 
 .nav-btn.upgrade-nav-btn.optimized {
@@ -312,11 +354,13 @@
   color: #34d399;
 }
 
-.nav-btn.upgrade-nav-btn.optimized:hover {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.6);
-  box-shadow: 0 0 14px rgba(52, 211, 153, 0.2);
-  color: #6ee7b7;
+@media (hover: hover) {
+  .nav-btn.upgrade-nav-btn.optimized:hover {
+    background: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.6);
+    box-shadow: 0 0 14px rgba(52, 211, 153, 0.2);
+    color: #6ee7b7;
+  }
 }
 
 @keyframes upgrade-pulse {
@@ -324,11 +368,13 @@
   50%       { opacity: 0.75; box-shadow: 0 0 12px rgba(251, 191, 36, 0.3); }
 }
 
-.nav-btn.logout-nav-btn:hover {
-  background: rgba(251, 113, 133, 0.15);
-  color: #fb7185;
-  border-color: rgba(251, 113, 133, 0.5);
-  box-shadow: 0 0 14px rgba(251, 113, 133, 0.2);
+@media (hover: hover) {
+  .nav-btn.logout-nav-btn:hover {
+    background: rgba(251, 113, 133, 0.15);
+    color: #fb7185;
+    border-color: rgba(251, 113, 133, 0.5);
+    box-shadow: 0 0 14px rgba(251, 113, 133, 0.2);
+  }
 }
 
 .empty-vault-notice {
@@ -340,4 +386,11 @@
   letter-spacing: 1px;
   font-size: 0.8rem;
   line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-vault-overlay              { animation: none; }
+  .inventory-card                       { animation: none; opacity: 1; }
+  .item-description-layer               { animation: none; }
+  .nav-btn.upgrade-nav-btn.required     { animation: none; }
 }

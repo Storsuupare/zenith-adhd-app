@@ -1,0 +1,1084 @@
+/* ============================================================
+   EXCHANGE PAGE — Single-section 100dvh architecture
+   Page-level scroll is OFF. Internal body scrolls only.
+   ============================================================ */
+
+/* ── Page shell: exactly 100dvh, nothing escapes ── */
+.exchange-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  contain: layout style;
+}
+
+/* ── Payment redirect overlay ── */
+.exchange-redirect-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 100;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .exchange-redirect-overlay {
+    background: rgba(0, 0, 0, 0.72);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+.exchange-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(34, 211, 238, 0.15);
+  border-top-color: #22d3ee;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Header: single row — back | title | credits ── */
+.exchange-header {
+  flex-shrink: 0;
+  padding: 0 16px;
+  height: 56px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+.exchange-title {
+  flex: 1;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #fff;
+  margin: 0;
+  line-height: 1;
+}
+
+.exchange-credits {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+
+/* ── Tab switcher: inside body, scrolls with content ── */
+.exchange-tabs {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.exchange-tab-btn {
+  flex: 1;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.exchange-tab-btn.active {
+  color: var(--ui-accent, #22d3ee);
+  border-bottom-color: var(--ui-accent, #22d3ee);
+}
+
+@media (hover: hover) {
+  .exchange-tab-btn:not(.active):hover {
+    color: rgba(255, 255, 255, 0.55);
+  }
+}
+
+.exchange-tab-icon {
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+/* ── Feedback bar: scrolls with body ── */
+.exchange-feedback {
+  margin: 8px 16px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.exchange-feedback--success {
+  background: rgba(52, 211, 153, 0.10);
+  border: 1px solid rgba(52, 211, 153, 0.20);
+  color: #34d399;
+}
+.exchange-feedback--error {
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.20);
+  color: #f87171;
+}
+
+/* ── Scrollable body: takes all remaining space ── */
+.exchange-body {
+  flex: 1;
+  min-height: 0;           /* critical — flex children need this to enable scroll */
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* ── Panel: full-width flex column, padded ── */
+.exchange-panel {
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px 80px;
+  box-sizing: border-box;
+  width: 100%;
+  
+}
+
+/* ── Section heading ── */
+.exchange-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.20em;
+  color: rgba(255, 255, 255, 0.38);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.exchange-section-icon { color: var(--ui-accent, #22d3ee); }
+
+/* ── Rarity section header ── */
+.exchange-rarity-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--rarity-color, rgba(255, 255, 255, 0.38));
+  padding: 4px 0 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  margin-top: 8px;
+}
+
+/* ── Shop item list ── */
+.exchange-shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exchange-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+@media (hover: hover) {
+  .exchange-shop-item:not(.locked):hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.exchange-shop-item.locked { opacity: 0.45; }
+
+.exchange-item-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #22d3ee;
+  flex-shrink: 0;
+}
+
+.exchange-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.exchange-item-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.03em;
+}
+
+.exchange-item-desc {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 2px;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.exchange-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.exchange-item-cost {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+
+.exchange-item-lock {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+}
+
+/* ── Buy button — min 44px touch target ── */
+.exchange-buy-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.25);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.exchange-buy-btn.can-buy {
+  cursor: pointer;
+  background: rgba(34, 211, 238, 0.08);
+  border-color: rgba(34, 211, 238, 0.25);
+  color: #22d3ee;
+}
+
+@media (hover: hover) {
+  .exchange-buy-btn.can-buy:hover {
+    background: rgba(34, 211, 238, 0.16);
+  }
+}
+
+/* ── Tier discount banner ── */
+
+
+/* ── Catalog loading / error states ── */
+.exchange-catalog-loading {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.3);
+  padding: 8px 0;
+}
+
+.exchange-catalog-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 10px;
+  font-size: 0.68rem;
+  color: rgba(239, 68, 68, 0.75);
+}
+
+.exchange-retry-btn {
+  padding: 5px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #f87171;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) {
+  .exchange-retry-btn:hover {
+    background: rgba(239, 68, 68, 0.18);
+  }
+}
+
+/* ── Skeleton when catalog not yet loaded ── */
+.exchange-shop-items:empty {
+  min-height: 200px;
+  border-radius: 12px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 2px,
+    transparent 2px,
+    transparent 8px
+  );
+}
+
+/* ── Maxed (Elite) state ── */
+.exchange-maxed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.exchange-maxed-icon  { font-size: 2rem; color: #fbbf24; }
+.exchange-maxed-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #fbbf24;
+}
+.exchange-maxed-sub {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.06em;
+}
+
+/* ── Tier picker ── */
+.exchange-tier-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.exchange-tier-btn {
+  flex: 1;
+  min-height: 52px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) {
+  .exchange-tier-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.exchange-tier-btn.selected {
+  background: rgba(34, 211, 238, 0.06);
+  border-color: var(--tier-color, #22d3ee);
+}
+
+.exchange-tier-btn.current {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.exchange-tier-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  color: var(--tier-color, #fff);
+}
+
+.exchange-tier-tagline {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.exchange-tier-price {
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  line-height: 1;
+}
+
+.exchange-tier-period {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+  margin-left: 1px;
+}
+
+/* ── Checkout CTA ── */
+.exchange-checkout-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exchange-checkout-btn {
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--tier-color, #22d3ee);
+  color: var(--tier-color, #22d3ee);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: background 0.15s ease;
+  touch-action: manipulation;
+}
+
+.exchange-checkout-label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.exchange-checkout-price {
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+@media (hover: hover) {
+  .exchange-checkout-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.exchange-checkout-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+/* ── Tier perks card ── */
+.exchange-tier-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  contain: layout style;
+}
+
+.exchange-tier-desc {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.exchange-tier-perks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+
+.exchange-tier-perk {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.4;
+}
+
+.exchange-tier-perk-icon {
+  color: var(--tier-color, #22d3ee);
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  margin-top: 1px;
+}
+
+/* ── Error inside checkout wrap ── */
+.exchange-error {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.20);
+  border-radius: 10px;
+  font-size: 0.68rem;
+  color: #f87171;
+  font-weight: 600;
+}
+
+/* ============================================================
+   MOBILE — ≤480px: tighten padding, larger touch targets
+   ============================================================ */
+@media (max-width: 480px) {
+  .exchange-header { padding: 10px 16px 8px; }
+  .exchange-title  { font-size: 1.2rem; }
+  .exchange-panel  { padding: 14px 16px 80px; gap: 14px; }
+
+  .exchange-shop-item {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .exchange-item-icon { width: 44px; height: 44px; font-size: 1.1rem; }
+
+  .exchange-item-right {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 10px;
+  }
+
+  .exchange-tier-picker {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .exchange-tier-btn {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+  }
+
+  .exchange-tier-tagline { font-size: 0.65rem; }
+}
+
+/* ============================================================
+   SMALL PHONES — ≤380px
+   ============================================================ */
+@media (max-width: 380px) {
+  .exchange-header { padding: 8px 12px 8px; }
+  .exchange-title  { font-size: 1.1rem; }
+  .exchange-panel  { padding: 12px 12px 80px; }
+}
+
+/* ============================================================
+   TABLET — 769px – 1024px
+   ============================================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .exchange-header { padding: 14px 28px 12px; }
+  .exchange-panel  { padding: 20px 28px 80px; }
+
+  .exchange-tier-btn {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+  }
+
+  .exchange-tier-perks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 20px;
+  }
+}
+
+/* ============================================================
+   DESKTOP — 1025px+: panel narrows to a readable max-width
+   ============================================================ */
+@media (min-width: 1025px) {
+  .exchange-header { padding: 16px 40px 14px; }
+  .exchange-panel  {
+    padding: 24px 40px 80px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   COSMETICS SHOP — Themes & Audio
+   ============================================================ */
+
+.cosm-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-accent, #22d3ee);
+}
+
+.cosm-section-icon { opacity: 0.7; }
+
+.cosm-section-note {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Theme grid ── */
+.cosm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 380px) {
+  .cosm-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Audio grid (2-col) ── */
+.cosm-grid--audio {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.cosm-grid--audio .cosm-audio-icon {
+  font-size: 1.4rem;
+  width: auto;
+  margin-bottom: 2px;
+}
+
+.cosm-grid--audio .cosm-desc {
+  display: block;
+  text-align: center;
+  font-size: 0.60rem;
+  white-space: normal;
+}
+
+/* ── Audio list (fallback — no longer used) ── */
+.cosm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Single cosmetic item ── */
+.cosm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cosm-item.cosm-active {
+  border-color: var(--ui-accent, #22d3ee);
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.cosm-item.cosm-pro   { border-color: rgba(34, 211, 238, 0.15); }
+.cosm-item.cosm-elite { border-color: rgba(251, 191, 36, 0.15); }
+
+/* Theme grid items are column-flex */
+.cosm-grid .cosm-item {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 10px;
+  min-height: 80px;
+}
+
+.cosm-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.cosm-active .cosm-swatch {
+  border-color: #fff;
+  box-shadow: 0 0 8px var(--cosm-color, #22d3ee);
+}
+
+.cosm-audio-icon {
+  font-size: 1rem;
+  color: var(--ui-accent, #22d3ee);
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.cosm-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cosm-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.cosm-desc {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.38);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Grid layout: info hidden, label goes below swatch */
+.cosm-grid .cosm-info {
+  align-items: center;
+}
+
+.cosm-grid .cosm-desc { display: none; }
+
+.cosm-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cosm-grid .cosm-action { justify-content: center; }
+
+/* Buttons */
+.cosm-btn {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.cosm-btn--apply {
+  border-color: var(--ui-accent, #22d3ee);
+  color: var(--ui-accent, #22d3ee);
+}
+
+@media (hover: hover) {
+  .cosm-btn--apply:hover {
+    background: rgba(34, 211, 238, 0.12);
+  }
+}
+
+.cosm-btn--buy.can-buy {
+  border-color: rgba(253, 186, 116, 0.6);
+  color: rgba(253, 186, 116, 0.9);
+}
+
+@media (hover: hover) {
+  .cosm-btn--buy.can-buy:hover {
+    background: rgba(253, 186, 116, 0.12);
+  }
+}
+
+.cosm-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Streak rescued confirmation banner ── */
+.streak-rescued-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  background: rgba(249, 115, 22, 0.10);
+  border: 1px solid rgba(249, 115, 22, 0.40);
+  border-radius: 10px;
+  animation: srb-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes srb-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.srb-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.srb-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.srb-title {
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f97316;
+  letter-spacing: -0.01em;
+}
+
+.srb-sub {
+  font-family: "Inter", sans-serif;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Active indicator */
+.cosm-active-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ui-accent, #22d3ee);
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(34, 211, 238, 0.10);
+}
+
+/* Tier tag (PRO/ELITE lock) */
+.cosm-tier-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.60rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  opacity: 0.8;
+}
+
+/* ── Preview button ── */
+.cosm-btn--preview {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@media (hover: hover) {
+  .cosm-btn--preview:hover {
+    border-color: var(--cosm-color, rgba(255, 255, 255, 0.5));
+    color: var(--cosm-color, rgba(255, 255, 255, 0.85));
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* "Live" indicator on the card while previewing */
+.cosm-previewing-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--cosm-color, #fff);
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--cosm-color, #fff) 15%, transparent);
+  animation: preview-live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes preview-live-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* Card highlight while previewing */
+.cosm-item.cosm-previewing {
+  border-color: var(--cosm-color, rgba(255, 255, 255, 0.3));
+  box-shadow: 0 0 0 1px var(--cosm-color, transparent),
+              0 0 18px color-mix(in srgb, var(--cosm-color, transparent) 20%, transparent);
+}
+
+/* ── Theme preview banner (fixed, portalled to document.body) ── */
+.theme-preview-banner {
+  position: fixed;
+  bottom: 72px;   /* sit above the bottom nav */
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 24px));
+  z-index: 9500;
+  background: rgba(8, 10, 18, 0.94);
+  border: 1px solid var(--preview-color, rgba(255, 255, 255, 0.2));
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  box-shadow:
+    0 0 0 1px var(--preview-color, transparent),
+    0 0 32px color-mix(in srgb, var(--preview-color, transparent) 20%, transparent),
+    0 16px 48px rgba(0, 0, 0, 0.7);
+  animation: tpb-slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes tpb-slide-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+}
+
+/* Countdown drain bar across the top edge */
+.tpb-drain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--preview-color, rgba(255, 255, 255, 0.4));
+  transform-origin: left center;
+  animation: tpb-drain-anim linear forwards;
+}
+
+@keyframes tpb-drain-anim {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+.tpb-back {
+  flex-shrink: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.45);
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) {
+  .tpb-back:hover {
+    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+}
+
+.tpb-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.tpb-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.30);
+}
+
+.tpb-name {
+  font-family: "Inter", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--preview-color, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tpb-cta {
+  flex-shrink: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--preview-color, #fff);
+  background: color-mix(in srgb, var(--preview-color, #fff) 12%, transparent);
+  border: 1px solid var(--preview-color, rgba(255, 255, 255, 0.3));
+  border-radius: 7px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .tpb-cta:hover {
+    background: color-mix(in srgb, var(--preview-color, #fff) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-preview-banner { animation: none; }
+  .tpb-drain            { animation: none; transform: scaleX(0.5); }
+  .cosm-previewing-tag  { animation: none; }
+}
+

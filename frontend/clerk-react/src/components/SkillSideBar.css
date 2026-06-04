@@ -1,14 +1,16 @@
 /* ============================================================
-   SKILL SIDEBAR 
+   SKILL SIDEBAR
    ============================================================ */
 
 .operative-status-column {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
+  height: auto;
+  overflow-y: visible;
   padding: 10px;
 }
+
+/* Sidebar grows to content height at all sizes — page scroll handles everything. */
 
 .skill-grid-container {
   background: transparent;
@@ -57,33 +59,82 @@
 
 .skill-card {
   position: relative;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 14px;
   padding: 14px 12px;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(4px);
+  contain: layout style;
   transition: border-color 0.3s ease, background 0.3s ease, transform 0.3s ease;
-  overflow: hidden;
+  
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
+  isolation: isolate;
+  touch-action: manipulation;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .skill-card {
+    background: rgba(0, 0, 0, 0.22);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
 }
 
 .skill-card.skill-expanded {
-  border-color: color-mix(in srgb, var(--ui-accent) 40%, transparent);
+  border-color: var(--accent-a40, rgba(34, 211, 238, 0.40));
   background: rgba(0, 0, 0, 0.32);
 }
 
-.skill-card:hover {
-  background: rgba(0, 0, 0, 0.32);
-  border-color: var(--ui-accent);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .skill-card:hover {
+    background: rgba(0, 0, 0, 0.32);
+    border-color: var(--ui-accent, #22d3ee);
+    transform: translateY(-2px);
+  }
+
+  .skill-card:hover .skill-icon-badge {
+    opacity: 1;
+  }
+
+  .skill-card:hover .skill-info-trigger {
+    color: var(--accent-a70, rgba(34, 211, 238, 0.70));
+  }
 }
 
 .skill-card.active-preview {
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(0, 0, 0, 0.28);
+}
+
+/* ── Active skill glow — pulses while that skill is being trained ── */
+.skill-card.skill-aura-active {
+  border-color: var(--tier-color, rgba(255, 255, 255, 0.35));
+}
+
+.skill-card.skill-aura-active::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 14px;
+  border: 1px solid var(--tier-color, rgba(255, 255, 255, 0.35));
+  pointer-events: none;
+  will-change: opacity;
+  animation: skill-aura-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes skill-aura-pulse {
+  0%, 100% { opacity: 0.20; }
+  50%       { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skill-card.skill-aura-active::before {
+    animation: none;
+    opacity: 0.50;
+  }
 }
 
 .skill-lvl-row {
@@ -95,29 +146,57 @@
 
 .skill-lvl {
   font-family: "Inter", sans-serif;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  color: var(--ui-accent);
+  color: var(--ui-accent, #22d3ee);
   background: rgba(255, 255, 255, 0.08);
   border-radius: 5px;
   padding: 3px 7px;
   letter-spacing: 0.04em;
 }
 
+.skill-xp-bonus {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--tier-color, rgba(255,255,255,0.4));
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
 .skill-rank {
   font-family: "Inter", sans-serif;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.4);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
+.skill-prestige-stars {
+  font-size: 0.7rem;
+  color: #fbbf24;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 6px rgba(251, 191, 36, 0.45);
+  line-height: 1;
+}
+
+.skill-prestige-boost {
+  margin-left: 5px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.55);
+}
+
 .skill-top-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: 6px;
+  gap: 2px 6px;
   margin-bottom: 4px;
 }
 
@@ -136,6 +215,7 @@
   color: rgba(255, 255, 255, 0.9);
   white-space: nowrap;
   text-align: right;
+  flex-shrink: 0;
 }
 
 .xp-fraction .dim {
@@ -143,8 +223,8 @@
 }
 
 .xp-fraction .label {
-  color: var(--ui-accent);
-  font-size: 0.55rem;
+  color: var(--ui-accent, #22d3ee);
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
@@ -152,8 +232,8 @@
 .skill-track {
   position: relative;
   width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 20px;
   margin: 10px 0 8px;
   overflow: hidden;
@@ -174,7 +254,7 @@
   border-radius: 20px;
   background: linear-gradient(
     90deg,
-    var(--ui-accent),
+    var(--ui-accent, #22d3ee),
     rgba(255, 255, 255, 0.75)
   );
   transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -197,15 +277,15 @@
 
 .skill-percent-readout {
   font-family: "Inter", sans-serif;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.6);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .prestige-locked-in {
-  border-color: var(--ui-accent) !important;
+  border-color: var(--ui-accent, #22d3ee) !important;
   background: rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -228,18 +308,21 @@
               border-color 0.35s ease,
               color 0.35s ease,
               transform 0.35s ease;
+  touch-action: manipulation;
 }
 
-.prestige-trigger-btn:hover {
-  background: var(--ui-accent);
-  border-color: var(--ui-accent);
-  color: #030712;
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .prestige-trigger-btn:hover {
+    background: var(--ui-accent, #22d3ee);
+    border-color: var(--ui-accent, #22d3ee);
+    color: #030712;
+    transform: translateY(-2px);
+  }
 }
 
 .prestige-locked-in .prestige-trigger-btn {
   background: rgba(255, 255, 255, 0.08);
-  border-color: var(--ui-accent);
+  border-color: var(--ui-accent, #22d3ee);
 }
 
 .btn-glitch-layer {
@@ -255,7 +338,7 @@
 
 .btn-subtext {
   display: block;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 500;
   opacity: 0.6;
   margin-top: 3px;
@@ -265,12 +348,11 @@
 .skill-icon-badge {
   margin-left: auto;
   font-size: 0.85rem;
-  color: var(--ui-accent);
+  color: var(--ui-accent, #22d3ee);
   opacity: 0.55;
   transition: opacity 0.2s ease;
 }
 
-.skill-card:hover .skill-icon-badge,
 .skill-card.skill-expanded .skill-icon-badge {
   opacity: 1;
 }
@@ -300,7 +382,7 @@
   font-size: 0.8rem;
   font-weight: 900;
   letter-spacing: 0.18em;
-  color: var(--ui-accent);
+  color: var(--ui-accent, #22d3ee);
   text-transform: uppercase;
   margin-bottom: 6px;
 }
@@ -312,6 +394,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  
 }
 
 .training-mission-item {
@@ -325,7 +408,7 @@
 }
 
 .training-dot {
-  color: var(--ui-accent);
+  color: var(--ui-accent, #22d3ee);
   font-size: 0.90rem;
   flex-shrink: 0;
 }
@@ -333,19 +416,207 @@
 .skill-info-trigger {
   margin-top: 10px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.48rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.45);
   text-transform: uppercase;
   text-align: center;
   transition: color 0.2s ease;
 }
 
-.skill-card:hover .skill-info-trigger {
-  color: color-mix(in srgb, var(--ui-accent) 70%, transparent);
+.skill-card.skill-expanded .skill-info-trigger {
+  color: var(--ui-accent, #22d3ee);
 }
 
-.skill-card.skill-expanded .skill-info-trigger {
-  color: var(--ui-accent);
+/* ============================================================
+   TIER SYSTEM
+   ============================================================ */
+
+.skill-card.tier-novice {
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+.skill-card.tier-adept {
+  border-color: rgba(0, 245, 255, 0.2);
+  background: rgba(0, 18, 28, 0.26);
+}
+
+.skill-card.tier-vanguard {
+  border-color: rgba(255, 0, 64, 0.3);
+  background: rgba(22, 0, 10, 0.26);
+}
+
+@media (hover: hover) {
+  .skill-card.tier-adept:hover {
+    border-color: #00f5ff;
+    box-shadow: 0 4px 24px rgba(0, 245, 255, 0.12);
+  }
+
+  .skill-card.tier-vanguard:hover {
+    border-color: #ff0040;
+    box-shadow: 0 4px 24px rgba(255, 0, 64, 0.15);
+  }
+}
+
+
+/* Active-mission aura glow on the card being trained */
+.skill-card.skill-aura-active {
+  box-shadow: 0 0 0 1px var(--tier-color), 0 0 18px var(--tier-glow);
+  transform: translate3d(0, -1px, 0);
+}
+
+/* ============================================================
+   BENEFIT UNLOCK SYSTEM
+   ============================================================ */
+
+.benefit-synced-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #00f5ff;
+  margin-bottom: 6px;
+  text-shadow: 0 0 10px rgba(0, 245, 255, 0.6);
+}
+
+/* ============================================================
+   LEVEL-UP ANIMATIONS  (all GPU-composited via translate3d)
+   ============================================================ */
+
+/* Per-card flash on level-up — pseudo-element driven by opacity + transform only */
+.skill-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--tier-color, rgba(255, 255, 255, 0.15));
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+@keyframes skill-flash {
+  0%   { opacity: 0;    transform: scale(1);     }
+  18%  { opacity: 0.32; transform: scale(1.012); }
+  45%  { opacity: 0.14; transform: scale(1.005); }
+  100% { opacity: 0;    transform: scale(1);     }
+}
+
+.skill-card.skill-level-flash::after {
+  animation: skill-flash 0.82s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Sidebar shimmer swipe — single translating gradient layer */
+.operative-status-column {
+  position: relative;
+  isolation: isolate;
+}
+
+.sidebar-shimmer-swipe {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    108deg,
+    transparent        38%,
+    rgba(255,255,255,0.04)  46%,
+    rgba(255,255,255,0.11)  52%,
+    rgba(255,255,255,0.04)  58%,
+    transparent        66%
+  );
+  pointer-events: none;
+  z-index: 20;
+  will-change: transform;
+  transform: translate3d(-130%, 0, 0);
+  animation: shimmer-swipe 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes shimmer-swipe {
+  from { transform: translate3d(-130%, 0, 0); }
+  to   { transform: translate3d(130%, 0, 0); }
+}
+
+/* ============================================================
+   MOBILE — 3-column compact grid (INP/CLS-safe)
+   ============================================================ */
+@media (max-width: 768px) {
+  .operative-status-column {
+    padding: 8px 8px 16px;
+  }
+
+  .skill-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .skill-card {
+    padding: 10px 9px;
+    border-radius: 11px;
+    min-height: 90px;
+  }
+
+  .skill-lvl-row {
+    margin-bottom: 6px;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .skill-lvl {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+
+  .skill-name {
+    font-size: 0.76rem;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+
+  .xp-fraction {
+    font-size: 0.68rem;
+  }
+
+  .skill-track {
+    height: 3px;
+    margin: 8px 0 6px;
+  }
+
+  .skill-percent-readout {
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.60);
+  }
+
+  .skill-info-trigger {
+    font-size: 0.68rem;
+    margin-top: 8px;
+  }
+
+  .skill-training-panel {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .training-benefit {
+    font-size: 0.70rem;
+  }
+
+  .training-missions-label {
+    font-size: 0.65rem;
+  }
+
+  .training-mission-item {
+    font-size: 0.65rem;
+  }
+
+  @keyframes training-reveal {
+    from { opacity: 0; transform: translateY(-3px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skill-fill.ghost              { animation: none; }
+  .skill-training-panel          { animation: none; }
+  .skill-card.skill-level-flash  { animation: none; filter: none; }
+  .sidebar-shimmer-swipe         { animation: none; opacity: 0; }
 }

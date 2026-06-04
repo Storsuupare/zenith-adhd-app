@@ -7,10 +7,11 @@ export default function VolumeSlider() {
   const [active, setActive] = useState(false);
   const trackRef  = useRef(null);
   const dragging  = useRef(false);
+  const rectRef   = useRef(null);
 
   const calcVol = useCallback((clientY) => {
-    if (!trackRef.current) return 0;
-    const rect = trackRef.current.getBoundingClientRect();
+    const rect = rectRef.current ?? trackRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
     return 1 - Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
   }, []);
 
@@ -23,15 +24,17 @@ export default function VolumeSlider() {
   const onMouseDown = (e) => {
     init();
     dragging.current = true;
+    rectRef.current = trackRef.current?.getBoundingClientRect() ?? null;
     apply(e.clientY);
 
     const onMove = (e) => apply(e.clientY);
     const onUp   = () => {
       dragging.current = false;
+      rectRef.current = null;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup',   onUp);
     };
-    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mousemove', onMove, { passive: true });
     window.addEventListener('mouseup',   onUp);
   };
 
@@ -43,6 +46,7 @@ export default function VolumeSlider() {
       e.preventDefault();
       init();
       dragging.current = true;
+      rectRef.current = trackRef.current?.getBoundingClientRect() ?? null;
       apply(e.touches[0].clientY);
     };
 
@@ -54,6 +58,7 @@ export default function VolumeSlider() {
 
     const onTouchEnd = () => {
       dragging.current = false;
+      rectRef.current = null;
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: false });

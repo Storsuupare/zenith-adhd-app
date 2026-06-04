@@ -1,929 +1,977 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { SignedIn, SignedOut, SignInButton, useUser, useClerk } from "@clerk/clerk-react";
-import axios from "axios";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  useUser,
+  useClerk,
+  useAuth,
+} from "@clerk/clerk-react";
+import {
+  fetchUser    as apiGetUser,
+  createUser   as apiCreateUser,
+  fetchTasks   as apiGetTasks,
+  createTask   as apiCreateTask,
+  createTaskBatch as apiCreateTaskBatch,
+  completeTask as apiCompleteTask,
+  failTask     as apiFailTask,
+  prestigeSkill as apiPrestigeSkill,
+  fetchInventory as apiFetchInventory,
+  rollLoot,
+  equipItem,
+  fetchModules,
+  claimDailyBonus,
+  configureAuth,
+} from "./services/api";
 import "./App.css";
 import "../clerk-react/src/components/StatHUD.css";
 import "../clerk-react/src/components/SkillSideBar.css";
 import "../clerk-react/src/components/NotificationCenter.css";
 import "../clerk-react/src/components/MissionForm.css";
 import "../clerk-react/src/components/LootDisplay.css";
-import "../clerk-react/src/components/KineticOverlay.css";
-import "../clerk-react/src/components/InventoryItem.css";
 import "../clerk-react/src/components/ContractCard.css";
 import "../clerk-react/src/components/VolumeSlider.css";
-import "../clerk-react/src/components/ShopModal.css";
-import ContractCard from "../clerk-react/src/components/ContractCard";
-import ShopModal from "../clerk-react/src/components/ShopModal";
-import VolumeSlider from "../clerk-react/src/components/VolumeSlider";
-import { prime, setPhase, setProtocol } from "./audio/audioEngine";
-import SkillSidebar from "../clerk-react/src/components/SkillSidebar";
-import MissionForm from "../clerk-react/src/components/MissionForm";
-import StatHUD from "../clerk-react/src/components/StatHUD";
-import KineticOverlay from "../clerk-react/src/components/KineticOverlay";
-import LootDisplay from "../clerk-react/src/components/LootDisplay";
-import NotificationCenter from "../clerk-react/src/components/NotificationCenter";
-import InventoryItem from "../clerk-react/src/components/InventoryItem";
-import UpgradePage from "../clerk-react/src/components/UpgradePage";
-import PaymentSuccess from "../clerk-react/src/components/PaymentSuccess";
-import PaymentCancel from "../clerk-react/src/components/PaymentCancel";
+import "../clerk-react/src/components/DailyChallenge.css";
 import "../clerk-react/src/components/PaymentSuccess.css";
 import "../clerk-react/src/components/PaymentCancel.css";
+import "../clerk-react/src/components/ShatterModal.css";
+import "../clerk-react/src/components/ElevationChart.css";
+import "../clerk-react/src/components/EarningSummary.css";
+import "../clerk-react/src/components/PrestigeCinematic.css";
+import "../clerk-react/src/components/SummitHistory.css";
+import "../clerk-react/src/components/NavDrawer.css";
+import "../clerk-react/src/components/DashboardView.css";
+;
 
-const SUBJECT_TO_SKILL_MAP = {
-  Python:                  "Logic Flow",
-  React:                   "Logic Flow",
-  SQL:                     "Logic Flow",
-  "Code Review":           "Logic Flow",
-  "Algorithm Design":      "Logic Flow",
-  "System Architecture":   "Logic Flow",
-  "Data Analysis":         "Logic Flow",
-  "Chess":                  "Logic Flow",
-  "Project Roadmapping":   "Logic Flow",
-  "Puzzle Operations":     "Logic Flow",
-  "Legal Analysis":        "Logic Flow",
-  "Debate Briefing":       "Logic Flow",
-  "Strategic Planning":    "Logic Flow",
-  "Network Architecture":  "Logic Flow",
+import { UserContext, TaskContext, UIContext, NavContextProvider } from "./AppContext";
+import { usePushNotifications } from "../clerk-react/src/hooks/usePushNotifications";
+import { API_BASE }   from "./config";
+import { getSolarPhase } from "./utils/solar";
+import {
+  PERK_EFFECT_HINTS,
+  SKILL_COLORS,
+  TIME_CONFIG,
+  SUBJECT_TO_SKILL_MAP,
+  COSMETICS,
+} from "../clerk-react/src/utils/constants";
 
-  Gym:                     "Vitality",
-  Walking:                 "Vitality",
-  Swimming:                "Vitality",
-  Cycling:                 "Vitality",
-  "Combat Training":       "Vitality",
-  "Endurance Protocol":    "Vitality",
-  "Mobility Sequence":     "Vitality",
-  "Cold Exposure":         "Vitality",
-  "Sprint Intervals":      "Vitality",
-  "Strength Circuit":      "Vitality",
+import NavDrawer, { NavTrigger } from "../clerk-react/src/components/NavDrawer";
+import AuthScreen from "../clerk-react/src/components/AuthScreen";
+import DashboardView    from "../clerk-react/src/components/DashboardView";
+import VaultPage        from "../clerk-react/src/components/VaultPage";
+import ArchivesPage     from "../clerk-react/src/components/ArchivesPage";
+import ExchangePage     from "../clerk-react/src/components/ExchangePage";
+import SettingsPage     from "../clerk-react/src/components/SettingsPage";
+import ReleaseNotesPage from "../clerk-react/src/components/ReleaseNotesPage";
+import PrivacyPage      from "../clerk-react/src/components/PrivacyPage";
+import TermsPage        from "../clerk-react/src/components/TermsPage";
 
-  Water:                   "Nutrition",
-  "Fuel Synthesis":        "Nutrition",
-  "Macro Calibration":     "Nutrition",
-  "Ration Prep":           "Nutrition",
-  "Supplement Protocol":   "Nutrition",
-  "Dietary Audit":         "Nutrition",
-  "Fasting Protocol":      "Nutrition",
+import LootDisplay      from "../clerk-react/src/components/LootDisplay";
+import EarningSummary  from "../clerk-react/src/components/EarningSummary";
+import NotificationCenter from "../clerk-react/src/components/NotificationCenter";
+import ShatterModal     from "../clerk-react/src/components/ShatterModal";
+import PaymentSuccess   from "../clerk-react/src/components/PaymentSuccess";
+import PaymentCancel    from "../clerk-react/src/components/PaymentCancel";
+import OnboardingModal       from "../clerk-react/src/components/OnboardingModal";
+import FirstSessionScreen   from "../clerk-react/src/components/FirstSessionScreen";
+import "../clerk-react/src/components/FirstSessionScreen.css";
+import PrestigeCinematic    from "../clerk-react/src/components/PrestigeCinematic";
+import ErrorBoundary    from "./components/ErrorBoundary";
 
-  Cleaning:                "Environment",
-  Laundry:                 "Environment",
-  "Space Optimization":    "Environment",
-  "Digital Purge":         "Environment",
-  "Field Repair":          "Environment",
-  "Workspace Config":      "Environment",
-  "Supply Run":            "Environment",
+import { playUISound, setPhase, setProtocol, duckNotification } from "./audio/audioEngine";
+import { useZenithAudio } from "./audio/useZenithAudio";
+import * as AchievementEngine from "./AchievementEngine.js";
+import * as DailyEngine from "./DailyEngine.js";
 
-  "Deep Work":             "Deep Focus",
-  "Flow State Session":    "Deep Focus",
-  "Isolation Sprint":      "Deep Focus",
-  "Single-Task Protocol":  "Deep Focus",
-  "Maker Block":           "Deep Focus",
-  "Zero-Interrupt Zone":   "Deep Focus",
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
 
-  Reading:                 "Synthesis",
-  "Philosophy Study":      "Synthesis",
-  "Research & Intel":      "Synthesis",
-  "Note Consolidation":    "Synthesis",
-  "Concept Mapping":       "Synthesis",
-  "Case Study Review":     "Synthesis",
-  "Language Acquisition":  "Synthesis",
-  "Science Study":         "Synthesis",
-  "History Analysis":      "Synthesis",
-
-  Admin:                   "Logistics",
-  "Inbox Zero":            "Logistics",
-  "Calendar Ops":          "Logistics",
-  "Task Triage":           "Logistics",
-  "Supply Chain":          "Logistics",
-  "Document Processing":   "Logistics",
-  "System Maintenance":    "Logistics",
-
-  Writing:                 "Creative",
-  "Signal Design":         "Creative",
-  "Audio Production":      "Creative",
-  "Visual Storytelling":   "Creative",
-  "Ideation Sprint":       "Creative",
-  "Interface Design":      "Creative",
-  "Worldbuilding":         "Creative",
-  "Music Composition":     "Creative",
-
-  Bills:                   "Wealth",
-  "Financial Audit":       "Wealth",
-  "Investment Review":     "Wealth",
-  "Revenue Protocol":      "Wealth",
-  "Asset Mapping":         "Wealth",
-  "Tax Operations":        "Wealth",
-  "Budget Calibration":    "Wealth",
-
-  Social:                  "Presence",
-  "Network Deployment":    "Presence",
-  "Mentorship Protocol":   "Presence",
-  "Community Signal":      "Presence",
-  "Bond Maintenance":      "Presence",
-  "Public Address":        "Presence",
-  "Conflict Resolution":   "Presence",
-
-  Meditation:              "Restoration",
-  Journaling:              "Restoration",
-  "Sleep Protocol":        "Restoration",
-  "Breath Work":           "Restoration",
-  "Neural Recovery":       "Restoration",
-  "Nature Immersion":      "Restoration",
-  "Sensory Deprivation":   "Restoration",
-  "Passive Decompression": "Restoration",
-
-  "Hard Task":             "Resolve",
-  "Morning Offensive":     "Resolve",
-  "Cold Protocol":         "Resolve",
-  "Discomfort Training":   "Resolve",
-  "Rejection Drill":       "Resolve",
-  "High-Stakes Execution": "Resolve",
-  "Accountability Check":  "Resolve",
-  "Fear Confrontation":    "Resolve",
+const CONTRACT_TIERS   = [
+  { mins: 5, xp: 250, req: 1 }, { mins: 15, xp: 1200, req: 1 },
+  { mins: 30, xp: 4000, req: 1 }, { mins: 60, xp: 10000, req: 20 },
+  { mins: 90, xp: 15800, req: 30 }, { mins: 120, xp: 30000, req: 40 },
+];
+const THEME_ACCENT = {
+  cobalt: "#3b82f6", amber: "#f59e0b", crimson: "#ef4444",
+  violet: "#8b5cf6", jade: "#10b981",
+  neon: "#f72585", arctic: "#67e8f9", solar: "#fb8500",
+  nebula: "#7209b7", obsidian: "#6d28d9", ghost: "#e2e8f0",
 };
 
-let audioCtx = null; 
+// ─────────────────────────────────────────────────────────────────────────────
+// Haptic audio engine (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+const HAPTIC_QUEUE = [];
+let hapticPending = false;
+
+const scheduleHaptic = (type, level = 1) => {
+  HAPTIC_QUEUE.push({ type, level });
+  if (hapticPending) return;
+  hapticPending = true;
+  requestAnimationFrame(() => {
+    requestIdleCallback
+      ? requestIdleCallback(flushHapticQueue, { timeout: 32 })
+      : setTimeout(flushHapticQueue, 0);
+  });
+};
+
+const flushHapticQueue = () => {
+  hapticPending = false;
+  while (HAPTIC_QUEUE.length) {
+    const { type, level } = HAPTIC_QUEUE.shift();
+    playHapticSync(type, level);
+  }
+};
+
+const playHapticSync = (type, level = 1) => {
+  if (!audioCtx)
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") { audioCtx.resume().catch(() => {}); return; }
+  const now = audioCtx.currentTime;
+  const createTone = (freq, startOffset, dur, waveType = "square", volume = 0.1, rampTo = 1.2) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = waveType;
+    o.frequency.setValueAtTime(freq, now + startOffset);
+    o.frequency.exponentialRampToValueAtTime(freq * rampTo, now + startOffset + dur);
+    g.gain.setValueAtTime(volume, now + startOffset);
+    g.gain.exponentialRampToValueAtTime(0.001, now + startOffset + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(now + startOffset); o.stop(now + startOffset + dur);
+  };
+  const makeNoise = (startOffset, dur, volume) => {
+    const src = audioCtx.createBufferSource();
+    const sz = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+    const buf = audioCtx.createBuffer(1, sz, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < sz; i++) data[i] = Math.random() * 2 - 1;
+    src.buffer = buf;
+    const gn = audioCtx.createGain();
+    gn.gain.setValueAtTime(volume, now + startOffset);
+    gn.gain.exponentialRampToValueAtTime(0.001, now + startOffset + dur);
+    src.connect(gn).connect(audioCtx.destination);
+    src.start(now + startOffset);
+  };
+  switch (type) {
+    case "TICK": {
+      createTone(1600, 0,     0.04, "sine", 0.045, 0.97);
+      createTone(2200, 0.025, 0.03, "sine", 0.022, 0.97);
+      break;
+    }
+    case "DEPLOY": {
+      const sp  = audioCtx.createOscillator();
+      const spG = audioCtx.createGain();
+      sp.type = "square";
+      sp.frequency.setValueAtTime(100, now);
+      sp.frequency.exponentialRampToValueAtTime(700, now + 0.14);
+      spG.gain.setValueAtTime(0.07, now);
+      spG.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      sp.connect(spG).connect(audioCtx.destination);
+      sp.start(now);
+      sp.stop(now + 0.14);
+      createTone(900,  0.15, 0.05, "sine",     0.1,  1.0);
+      createTone(1350, 0.17, 0.04, "sine",     0.06, 1.0);
+      createTone(65,   0.21, 0.4,  "sawtooth", 0.18, 0.45);
+      createTone(130,  0.21, 0.12, "square",   0.07, 0.75);
+      break;
+    }
+    case "VAULT_OPEN": {
+      createTone(95,   0,    0.12, "sawtooth", 0.14,  0.5);
+      createTone(75,   0.08, 0.22, "square",   0.09,  0.55);
+      createTone(3400, 0.07, 0.35, "sine",     0.03,  0.84);
+      createTone(1700, 0.09, 0.28, "sine",     0.025, 0.88);
+      makeNoise(0.05, 0.22, 0.028);
+      break;
+    }
+    case "SUCCESS": {
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+        createTone(f, i * 0.08, 0.55, "sine", 0.09, 1.004)
+      );
+      createTone(1318.5, 0.24, 0.5, "sine", 0.04, 1.002);
+      break;
+    }
+    case "ABORT": {
+      createTone(880, 0,    0.09, "square", 0.2,  1.0);
+      createTone(660, 0.12, 0.09, "square", 0.2,  1.0);
+      createTone(440, 0.24, 0.1,  "square", 0.25, 1.0);
+      const sw  = audioCtx.createOscillator();
+      const swG = audioCtx.createGain();
+      sw.type = "sawtooth";
+      sw.frequency.setValueAtTime(380, now + 0.33);
+      sw.frequency.exponentialRampToValueAtTime(32, now + 0.9);
+      swG.gain.setValueAtTime(0.18, now + 0.33);
+      swG.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+      sw.connect(swG).connect(audioCtx.destination);
+      sw.start(now + 0.33);
+      sw.stop(now + 0.9);
+      makeNoise(0.33, 0.14, 0.07);
+      break;
+    }
+    case "LEVEL_UP": {
+      if (level >= 99) {
+        [261.63, 329.63, 392.0, 523.25, 659.25].forEach((f, i) =>
+          createTone(f, i * 0.1, 1.4, "sine", 0.1, 1.008)
+        );
+      } else {
+        createTone(440, 0,    0.12, "sine", 0.1,  1.5);
+        createTone(659, 0.1,  0.12, "sine", 0.11, 1.2);
+        createTone(880, 0.21, 0.35, "sine", 0.09, 1.04);
+      }
+      break;
+    }
+    case "PRESTIGE_ASCENT": {
+      const tb  = audioCtx.createOscillator();
+      const tG  = audioCtx.createGain();
+      tb.type = "sawtooth";
+      tb.frequency.setValueAtTime(40, now);
+      tb.frequency.exponentialRampToValueAtTime(1200, now + 1.3);
+      tG.gain.setValueAtTime(0, now);
+      tG.gain.linearRampToValueAtTime(0.14, now + 0.65);
+      tG.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+      tb.connect(tG).connect(audioCtx.destination);
+      tb.start(now);
+      tb.stop(now + 1.3);
+      createTone(880, 1.1, 0.4, "sine", 0.06, 1.2);
+      break;
+    }
+    case "PRESTIGE_EQUIP": {
+      [220, 440, 660, 880].forEach((f, i) =>
+        createTone(f, i * 0.08, 0.45, "sine", 0.07, 1.15)
+      );
+      break;
+    }
+    case "HISS": {
+      makeNoise(0, 0.18, 0.05);
+      createTone(3200, 0, 0.1, "sine", 0.015, 0.5);
+      break;
+    }
+    case "SHARD_DROP": {
+      createTone(60,   0,    0.5, "sine", 0.35, 0.75);
+      createTone(2800, 0.02, 0.1, "sine", 0.08, 0.95);
+      makeNoise(0.02, 0.08, 0.015);
+      break;
+    }
+    case "SHEPARD": {
+      [220, 440, 880, 1760].forEach((freq, i) =>
+        createTone(freq, i * 0.055, 1.4, "sine", 0.058 - i * 0.01, 1.333)
+      );
+      break;
+    }
+    case "CREDIT": {
+      createTone(523.25, 0,    0.18, "sine", 0.08, 1.002);
+      createTone(659.25, 0.12, 0.18, "sine", 0.08, 1.002);
+      createTone(880,    0.24, 0.35, "sine", 0.07, 1.004);
+      break;
+    }
+    default: break;
+  }
+};
+const playHaptic = (type, level = 1) => scheduleHaptic(type, level);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getRank = (lvl) => {
+  if (lvl < 10)  return "STATIC";
+  if (lvl < 20)  return "IMPULSE";
+  if (lvl < 40)  return "SIGNAL";
+  if (lvl < 60)  return "KINETIC";
+  if (lvl < 80)  return "APEX";
+  if (lvl < 99)  return "PHANTOM";
+  return "ZENITH";
+};
+
+
+
+
+const getMissionStakes = (duration) => {
+  const stakes = { 5: 250, 15: 1200, 30: 4000, 60: 10000, 90: 15800, 120: 30000, 0.1666: 9999 };
+  const baseAmount = stakes[duration] || Math.floor(duration * 10);
+  const stakesHour = new Date().getHours();
+  if (stakesHour >= 0 && stakesHour < 5) return Math.floor(baseAmount / 2);
+  return baseAmount;
+};
+
+const calculateSurvivalStakes = (basePenalty) => {
+  const survivalHour = new Date().getHours();
+  const survivalMultiplier = survivalHour < 7 ? 3 : 1;
+  return basePenalty * survivalMultiplier;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DARK_THEMES  = new Set(["neon", "arctic", "nebula", "obsidian", "ghost"]);
+const CLOUD_HIDDEN = new Set(["neon", "arctic", "nebula", "obsidian"]);
+
+const SolarBackdrop = React.memo(function SolarBackdrop({ solarPhase, activeTheme }) {
+  const forceDark  = DARK_THEMES.has(activeTheme);
+  const showClouds = (solarPhase === "morning" || solarPhase === "day") && !CLOUD_HIDDEN.has(activeTheme);
+  const showNight  = solarPhase === "night" || forceDark;
+  const showSun    = solarPhase !== "night" && !forceDark;
+  const stars = React.useMemo(() => {
+    if (!showNight) return [];
+    return Array.from({ length: 60 }, (_, i) => ({
+      x: (i * 37) % 100, y: (i * 53) % 90,
+      delay: (i * 0.37) % 4, size: 1 + ((i * 7) % 3),
+    }));
+  }, [showNight]);
+  return (
+    <div className="solar-backdrop" aria-hidden="true">
+      {showSun && <div className={`sun sun-${solarPhase}`} />}
+      {showClouds && (
+        <div className="backdrop-clouds">
+          <div className="cloud cloud-1" /><div className="cloud cloud-2" />
+          <div className="cloud cloud-3" /><div className="cloud cloud-4" />
+        </div>
+      )}
+      {showNight && (
+        <div className="backdrop-night">
+          <div className="moon"><div className="moon-glow" /></div>
+          <div className="stars">
+            {stars.map((s, i) => (
+              <span key={i} className="star" style={{ left: `${s.x}%`, top: `${s.y}%`, width: `${s.size}px`, height: `${s.size}px`, animationDelay: `${s.delay}s` }} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
 
 const App = () => {
-  const [user, setUser] = useState(null);
-  const [contracts, setContracts] = useState([]);
-  const [inventory, setInventory] = useState([]);
+  const [user,       setUser]       = useState(null);
+  const [contracts,  setContracts]  = useState([]);
+  const [inventory,  setInventory]  = useState([]);
+  const [banReason, setBanReason] = useState(null);
 
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
 
-  const [taskName, setTaskName] = useState("");
-  const [duration, setDuration] = useState(30);
-  const [skills, setSkills] = useState([]);
+  useEffect(() => { configureAuth(getToken); }, []);
 
-  const [streak, setStreak] = useState(0);
-  const [isVitiated, setIsVitiated] = useState(false);
+  usePushNotifications(clerkUser?.id);
+  const navigate = useNavigate();
+
+
+  const [streak,        setStreak]        = useState(0);
   const [notifications, setNotifications] = useState([]);
 
   const [previewSkill, setPreviewSkill] = useState(null);
-  const [previewXP, setPreviewXP] = useState(0);
+  const [previewXP,    setPreviewXP]    = useState(0);
 
-  const [modules, setModules] = useState([]);
+  const [modules,        setModules]        = useState([]);
   const [selectedModule, setSelectedModule] = useState(null);
-  const [isPlanningMode, setIsPlanningMode] = useState(false);
 
-  const [isKineticMode, setIsKineticMode] = useState(false);
-  const [activeMission, setActiveMission] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [focusedContract, setFocusedContract] = useState(null);
-  const [liveTime, setLiveTime] = useState(0);
 
-  const [levelUpData, setLevelUpData] = useState(null);
-  const [isOpening, setIsOpening] = useState(false);
-  const [loot, setLoot] = useState(null);
+  const [levelUpData,    setLevelUpData]    = useState(null);
+  const [xpGain,         setXpGain]         = useState(0);
+  const [xpBurstKey,     setXpBurstKey]     = useState(0);
+  const [completionTick, setCompletionTick] = useState(0);
+  const [isOpening,      setIsOpening]      = useState(false);
+  const [loot,           setLoot]           = useState(null);
+  const [earningSummary, setEarningSummary] = useState(null);
+  const [prestigeData,   setPrestigeData]   = useState(null);
+  const [pendingLoot,    setPendingLoot]    = useState(null);
 
-  const [sysRefreshKey, setSysRefreshKey] = useState(0);
-  const [isShopOpen,   setIsShopOpen]   = useState(false);
-  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [currentView, setCurrentView] = useState("dashboard");
-  const [activeTheme, setActiveTheme] = useState("default");
-  const [activeAmbientTrack, setActiveAmbientTrack] = useState("focus");
-  const [paymentView, setPaymentView] = useState(null); // 'success' | 'cancelled' | null
+  const [showOnboarding,    setShowOnboarding]    = useState(false);
+  const [showFirstSession,  setShowFirstSession]  = useState(false);
 
-  const fetchUser = async () => {
+  const [isShatterModalOpen,  setIsShatterModalOpen]  = useState(false);
+  const [pendingTask,         setPendingTask]         = useState(null);
+  const [isInventoryOpen,     setIsInventoryOpen]     = useState(false);
+  const [activeTheme,         setActiveThemeRaw]      = useState(() => localStorage.getItem("zenith_theme") || "default");
+  const [elevationKey,        setElevationKey]        = useState(0);
+  const [chartPending,        setChartPending]        = useState(null);
+  const [activeAmbientTrack,  setActiveAmbientTrackRaw] = useState(() => localStorage.getItem("zenith_audio") || "focus");
+
+  const setActiveTheme = useCallback((id) => {
+    localStorage.setItem("zenith_theme", id);
+    setActiveThemeRaw(id);
+  }, []);
+
+  const setActiveAmbientTrack = useCallback((id) => {
+    localStorage.setItem("zenith_audio", id);
+    setActiveAmbientTrackRaw(id);
+  }, []);
+  const [paymentView,         setPaymentView]         = useState(null);
+  const [levelUpSkill,        setLevelUpSkill]        = useState(null);
+  const [activeSkillName,     setActiveSkillName]     = useState(null);
+
+  const [solarPhase, setSolarPhase] = useState(getSolarPhase());
+  const { playLevelUp, atmosphereVolume, handleAtmosphereVolumeChange } = useZenithAudio(solarPhase);
+
+  const isOpeningRef   = useRef(false);
+  const contractsRef   = useRef(contracts);
+  const userRef        = useRef(user);
+  const inventoryRef   = useRef(inventory);
+  useEffect(() => { contractsRef.current = contracts; }, [contracts]);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { inventoryRef.current = inventory; }, [inventory]);
+
+  // ── Fetchers ──────────────────────────────────────────────────────────────
+
+  const fetchUser = useCallback(async () => {
     if (!clerkUser?.id) return;
-
     try {
-      console.log("FETCHING OPERATOR DATA...");
-      const res = await axios.get(`http://localhost:5000/user/${clerkUser.id}`);
-
-      if (res.data) {
-        setUser(res.data);
-      }
+      const userResponse = await apiGetUser(clerkUser.id);
+      if (userResponse.data) setUser(userResponse.data);
     } catch (err) {
-      if (err.response?.status === 404) {
-        console.log("OPERATOR NOT FOUND. INITIALIZING NEW DATABASE ENTRY...");
+      if (err.response?.status === 403 && err.response?.data?.error === "USER_BANNED") {
+        setBanReason(err.response.data.reason || "Your account has been banned.");
+      } else if (err.response?.status === 404) {
         try {
-          const createRes = await axios.post(`http://localhost:5000/user`, {
-            clerkId: clerkUser.id,
+          const userCreateRes = await apiCreateUser({
+            clerkId:  clerkUser.id,
             username: clerkUser.username || "Recruit",
-            email: clerkUser.primaryEmailAddress?.emailAddress,
+            email:    clerkUser.primaryEmailAddress?.emailAddress,
           });
-          setUser(createRes.data);
+          setUser(userCreateRes.data);
         } catch (postErr) {
-          console.error("INITIALIZATION_FAILED:", postErr.message);
+          if (postErr.response?.status === 403 && postErr.response?.data?.error === "USERNAME_RESERVED") {
+            setBanReason("Your username contains a reserved word and is not allowed on Zenith. Change your username and try again, or contact support if you think this is a mistake.");
+          } else {
+            console.error("INITIALIZATION_FAILED:", postErr.message);
+          }
         }
       } else {
         console.error("CRITICAL_FETCH_ERROR:", err.message);
       }
     }
-  };
+  }, [clerkUser?.id]);
+
+  const fetchContracts = useCallback(async () => {
+    if (!clerkUser?.id) return;
+    try {
+      const res = await apiGetTasks(clerkUser.id);
+      setContracts(res.data);
+    } catch (err) { console.error("CONTRACT_SYNC_ERROR", err); }
+  }, [clerkUser?.id]);
+
+  const fetchInventory = useCallback(async () => {
+    if (!clerkUser?.id) return;
+    try {
+      const res = await apiFetchInventory(clerkUser.id);
+      setInventory(res.data);
+    } catch (err) { console.error("INVENTORY_SYNC_ERROR", err); }
+  }, [clerkUser?.id]);
 
   useEffect(() => {
-    if (isLoaded && clerkUser?.id) {
-      fetchUser();
-    }
+    if (isLoaded && clerkUser?.id) { fetchUser(); fetchContracts(); }
   }, [isLoaded, clerkUser?.id]);
 
+  // When user data loads, validate the stored theme and audio against the user's
+  // actual tier. If they can't access it (e.g. logged in on a shared device after
+  // a PRO user), silently reset to the free defaults.
   useEffect(() => {
-    const fetchContracts = async () => {
-      if (!isLoaded || !clerkUser?.id) return;
+    if (!user) return;
+    const tier  = user.account_tier ?? 0;
+    const owned = Array.isArray(user.purchased_cosmetics) ? user.purchased_cosmetics : [];
+
+    const storedTheme = localStorage.getItem("zenith_theme");
+    if (storedTheme && storedTheme !== "default") {
+      const meta = COSMETICS.themes.find(t => t.id === storedTheme);
+      const accessible =
+        !meta ||
+        meta.type === "free" ||
+        (meta.type === "credits" && owned.includes(storedTheme)) ||
+        (meta.type === "pro"    && tier >= 1) ||
+        (meta.type === "elite"  && tier >= 2);
+      if (!accessible) setActiveTheme("default");
+    }
+
+    const storedAudio = localStorage.getItem("zenith_audio");
+    if (storedAudio && storedAudio !== "focus") {
+      const meta = COSMETICS.audio.find(a => a.id === storedAudio);
+      const accessible =
+        !meta ||
+        meta.type === "free" ||
+        (meta.type === "credits" && owned.includes(storedAudio)) ||
+        (meta.type === "pro"    && tier >= 1) ||
+        (meta.type === "elite"  && tier >= 2);
+      if (!accessible) setActiveAmbientTrack("focus");
+    }
+  }, [user?.account_tier, user?.purchased_cosmetics]);
+
+  // Gate the first-session screen and onboarding tour once per user account.
+  // New users see the stripped-down first-session screen first, then the tour.
+  useEffect(() => {
+    if (!clerkUser?.id || !user) return;
+    const firstSessionKey = `zenith_first_session_${clerkUser.id}`;
+    const onboardedKey    = `zenith_onboarded_${clerkUser.id}`;
+    if (!localStorage.getItem(firstSessionKey)) {
+      setShowFirstSession(true);
+    } else if (!localStorage.getItem(onboardedKey)) {
+      setShowOnboarding(true);
+    }
+  }, [clerkUser?.id, user]);
+
+  useEffect(() => {
+    if (!isLoaded || !clerkUser?.id) return;
+    const currentClerkId = clerkUser.id;
+    // Safety-net poll — SSE handles real-time; this catches any missed events
+    const poll = setInterval(async () => {
+      if (document.hidden || isOpeningRef.current) return;
       try {
-        const res = await axios.get(
-          `http://localhost:5000/api/contracts?externalId=${clerkUser.id}`,
-        );
-        setContracts(res.data);
-      } catch (err) {
-        console.error("CONTRACT_SYNC_ERROR", err);
-      }
-    };
-    fetchContracts();
+        const [pollUserRes, pollTaskRes] = await Promise.all([
+          apiGetUser(currentClerkId),
+          apiGetTasks(currentClerkId),
+        ]);
+        if (pollUserRes.data) setUser(pollUserRes.data);
+        setContracts(pollTaskRes.data);
+      } catch { /* silent */ }
+    }, 60_000);
+    return () => clearInterval(poll);
   }, [isLoaded, clerkUser?.id]);
 
-  const handleContractCreated = (newContract) => {
-    setContracts((prev) => [...prev, newContract]);
-  };
+  // SSE: instant push for BW/XP/credits/tier changes — replaces 30s lag.
+  // EventSource doesn't support headers so the Clerk JWT is passed as a query
+  // param. getToken() always returns a fresh token (Clerk caches + auto-refreshes).
+  useEffect(() => {
+    if (!isLoaded || !clerkUser?.id) return;
+    let es = null;
+    let cancelled = false;
 
-  const getMissionStakes = (duration) => {
-    const stakes = {
-      5: 250,
-      15: 1200,
-      30: 4000,
-      60: 10000,
-      90: 15800,
-      120: 30000,
-      0.1666: 9999,
-    };
-    return stakes[duration] || Math.floor(duration * 10);
-  };
-
-  const playHaptic = async (type, level = 1) => {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") {
-      await audioCtx.resume();
-    }
-
-    const now = audioCtx.currentTime;
-
-    const createTone = (
-      freq,
-      startOffset,
-      duration,
-      waveType = "square",
-      volume = 0.1,
-      rampTo = 1.2,
-    ) => {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = waveType;
-      o.frequency.setValueAtTime(freq, now + startOffset);
-      o.frequency.exponentialRampToValueAtTime(
-        freq * rampTo,
-        now + startOffset + duration,
-      );
-      g.gain.setValueAtTime(volume, now + startOffset);
-      g.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
-      o.connect(g);
-      g.connect(audioCtx.destination);
-      o.start(now + startOffset);
-      o.stop(now + startOffset + duration);
+    const connect = async () => {
+      if (cancelled) return;
+      try {
+        const token = await getToken();
+        if (cancelled) return;
+        es = new EventSource(`${API_BASE}/api/stream/${clerkUser.id}?token=${encodeURIComponent(token)}`);
+        es.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "user_patch") {
+              const { inventory: inv, ...userFields } = msg.data;
+              setUser(prev => prev ? { ...prev, ...userFields } : prev);
+              if (inv) setInventory(inv);
+            }
+          } catch { /* malformed frame */ }
+        };
+      } catch { /* token fetch failed — safety-net poll covers this */ }
     };
 
-    const makeNoise = (startOffset, duration, volume) => {
-      const src = audioCtx.createBufferSource();
-      const sz = Math.floor(audioCtx.sampleRate * duration);
-      const buf = audioCtx.createBuffer(1, sz, audioCtx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < sz; i++) data[i] = Math.random() * 2 - 1;
-      src.buffer = buf;
-      const gn = audioCtx.createGain();
-      gn.gain.setValueAtTime(volume, now + startOffset);
-      gn.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
-      src.connect(gn).connect(audioCtx.destination);
-      src.start(now + startOffset);
-    };
+    connect();
+    return () => { cancelled = true; es?.close(); };
+  }, [isLoaded, clerkUser?.id]);
 
-    switch (type) {
+  // ── Notifications ─────────────────────────────────────────────────────────
 
-      case "TICK": {
-        createTone(1600, 0,     0.04, "sine", 0.045, 0.97);
-        createTone(2200, 0.025, 0.03, "sine", 0.022, 0.97);
-        break;
-      }
+  const addNotification = useCallback((notif) => {
+    const uniqueNotifId = Date.now();
+    duckNotification();
+    setNotifications(prev => [{ ...notif, id: uniqueNotifId }, ...prev].slice(0, 5));
+    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== uniqueNotifId)), 5500);
+  }, []);
 
-      case "DEPLOY": {
-        const spool = audioCtx.createOscillator();
-        const spoolG = audioCtx.createGain();
-        spool.type = "square";
-        spool.frequency.setValueAtTime(100, now);
-        spool.frequency.exponentialRampToValueAtTime(700, now + 0.14);
-        spoolG.gain.setValueAtTime(0.07, now);
-        spoolG.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        spool.connect(spoolG).connect(audioCtx.destination);
-        spool.start(now); spool.stop(now + 0.14);
-        createTone(900,  0.15, 0.05, "sine", 0.1,  1.0);
-        createTone(1350, 0.17, 0.04, "sine", 0.06, 1.0);
-        createTone(65,   0.21, 0.4,  "sawtooth", 0.18, 0.45);
-        createTone(130,  0.21, 0.12, "square",   0.07, 0.75);
-        break;
-      }
+  // ── Mission handlers ──────────────────────────────────────────────────────
 
-      case "VAULT_OPEN": {
-        createTone(95,   0,    0.12, "sawtooth", 0.14, 0.5);
-        createTone(75,   0.08, 0.22, "square",   0.09, 0.55);
-        createTone(3400, 0.07, 0.35, "sine",     0.03, 0.84);
-        createTone(1700, 0.09, 0.28, "sine",     0.025, 0.88);
-        makeNoise(0.05, 0.22, 0.028);
-        break;
-      }
+  const startMission = async (task, subTasks, optimisticId = null) => {
+    const { taskName: taskName, duration: tDuration, stakeAmount: tStake, skillName: tSkill } = task;
+    try {
+      const taskResponse = await apiCreateTask({
+        externalId: clerkUser.id,
+        taskName: taskName,
+        durationMinutes: tDuration,
+        stakeAmount: tStake,
+        skillName: tSkill || null,
+        sub_tasks: subTasks,
+      });
 
-      case "SUCCESS": {
-        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
-          createTone(f, i * 0.08, 0.55, "sine", 0.09, 1.004)
-        );
-        createTone(1318.5, 0.24, 0.5, "sine", 0.04, 1.002);
-        break;
-      }
+      setContracts(prev => {
+        const baseContracts = optimisticId ? prev.filter(c => c.id !== optimisticId) : prev;
+        return [...baseContracts, taskResponse.data];
+      });
+      await fetchUser();
 
-      case "ABORT": {
-        createTone(880, 0,    0.09, "square", 0.2,  1.0);
-        createTone(660, 0.12, 0.09, "square", 0.2,  1.0);
-        createTone(440, 0.24, 0.1,  "square", 0.25, 1.0);
-        const sweep = audioCtx.createOscillator();
-        const sweepG = audioCtx.createGain();
-        sweep.type = "sawtooth";
-        sweep.frequency.setValueAtTime(380, now + 0.33);
-        sweep.frequency.exponentialRampToValueAtTime(32, now + 0.9);
-        sweepG.gain.setValueAtTime(0.18, now + 0.33);
-        sweepG.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-        sweep.connect(sweepG).connect(audioCtx.destination);
-        sweep.start(now + 0.33); sweep.stop(now + 0.9);
-        makeNoise(0.33, 0.14, 0.07);
-        break;
-      }
+      if (tSkill) setActiveSkillName(tSkill.toUpperCase());
 
-      case "LEVEL_UP": {
-        if (level >= 99) {
-          [261.63, 329.63, 392.0, 523.25, 659.25].forEach((f, i) =>
-            createTone(f, i * 0.1, 1.4, "sine", 0.1, 1.008)
-          );
-        } else {
-          createTone(440, 0,    0.12, "sine", 0.1,  1.5);
-          createTone(659, 0.1,  0.12, "sine", 0.11, 1.2);
-          createTone(880, 0.21, 0.35, "sine", 0.09, 1.04);
-        }
-        break;
-      }
-
-      case "SCRAP": {
-        createTone(580, 0,    0.09, "sawtooth", 0.07, 0.38);
-        createTone(380, 0.07, 0.09, "sawtooth", 0.07, 0.38);
-        createTone(2600, 0,   0.13, "sine",     0.02, 0.7);
-        makeNoise(0, 0.1, 0.02);
-        break;
-      }
-
-      case "PRESTIGE_ASCENT": {
-        const turbine = audioCtx.createOscillator();
-        const tGain = audioCtx.createGain();
-        turbine.type = "sawtooth";
-        turbine.frequency.setValueAtTime(40, now);
-        turbine.frequency.exponentialRampToValueAtTime(1200, now + 1.3);
-        tGain.gain.setValueAtTime(0, now);
-        tGain.gain.linearRampToValueAtTime(0.14, now + 0.65);
-        tGain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
-        turbine.connect(tGain).connect(audioCtx.destination);
-        turbine.start(now); turbine.stop(now + 1.3);
-        createTone(880, 1.1, 0.4, "sine", 0.06, 1.2);
-        break;
-      }
-
-      case "PRESTIGE_EQUIP": {
-        [220, 440, 660, 880].forEach((f, i) =>
-          createTone(f, i * 0.08, 0.45, "sine", 0.07, 1.15)
-        );
-        break;
-      }
-
-      case "HISS": {
-        makeNoise(0, 0.18, 0.05);
-        createTone(3200, 0, 0.1, "sine", 0.015, 0.5);
-        break;
-      }
-
-      case "SHARD_DROP": {
-        createTone(60,   0,    0.5, "sine", 0.35, 0.75);
-        createTone(2800, 0.02, 0.1, "sine", 0.08, 0.95);
-        makeNoise(0.02, 0.08, 0.015);
-        break;
-      }
-
-      default: break;
+      setIsShatterModalOpen(false);
+      setPendingTask(null);
+      setPreviewXP(0);
+    } catch (err) {
+      if (optimisticId) setContracts(prev => prev.filter(c => c.id !== optimisticId));
+      console.error("START_FAILED:", err.response?.data || err.message);
+      const errData = err.response?.data;
+      addNotification({ type: "ERROR", message: errData?.detail || errData?.error || "Couldn't start task, try again" });
     }
   };
 
-  const handleInitiate = async () => {
+  const startShatteredMission = async (parentTask, subTasks) => {
+    if (!clerkUser?.id) return;
+    const SUB_DURATION = 30;
+    const baseStake    = getMissionStakes(SUB_DURATION);
+    const tasks = subTasks.map(sub => ({
+      taskName:        sub.text,
+      durationMinutes: SUB_DURATION,
+      stakeAmount:     calculateSurvivalStakes(baseStake),
+      skillName:       parentTask.skillName || null,
+    }));
+    try {
+      const batchResponse = await apiCreateTaskBatch({ externalId: clerkUser.id, tasks });
+      batchResponse.data.forEach(batchTask => setContracts(prev => [...prev, batchTask]));
+      await fetchUser();
+      setIsShatterModalOpen(false);
+      setPendingTask(null);
+      setPreviewXP(0);
+      addNotification({ type: "SUCCESS", message: `Task split into ${tasks.length} × 30 min chunks.` });
+    } catch (err) {
+      addNotification({ type: "ERROR", message: err.response?.data?.message || err.response?.data?.error || "Shatter failed" });
+    }
+  };
+
+  const handleInitiate = async (submittedName, submittedIntention = "", explicitSkill = null, duration = 30) => {
+    const resolvedName = submittedName.trim();
     const numericDuration = Number(duration);
-    const currentStake = getMissionStakes(numericDuration);
+    const currentStake    = getMissionStakes(numericDuration);
+    if (!resolvedName || !clerkUser?.id) return;
+    playHaptic("DEPLOY");
 
-    if (!taskName.trim() || !clerkUser?.id) {
-      console.error("START_FAILED: Missing task or Clerk Identity.");
+    let skillName = explicitSkill || null;
+    if (!skillName) {
+      const candidates = [resolvedName, resolvedName.split(":")[0].trim(), selectedModule?.subject].filter(Boolean);
+      for (const c of candidates) {
+        const hit = Object.entries(SUBJECT_TO_SKILL_MAP).find(([k]) => k.toLowerCase() === c.toLowerCase());
+        if (hit) { skillName = hit[1]; break; }
+      }
+    }
+
+    const task = {
+      taskName: resolvedName,
+      duration: numericDuration,
+      stakeAmount: currentStake,
+      skillName: skillName || null,
+      intention: submittedIntention.trim() || null,
+    };
+
+    const userTier     = user?.account_tier ?? 0;
+    const isSubscribed = userTier >= 1;
+
+    // 120 min is PRO+ only — block FREE users before any API call
+    if (numericDuration === 120 && !isSubscribed) {
+      addNotification({ type: "INFO", message: "120 min sessions are PRO only. Upgrade in the Shop." });
       return;
     }
 
-    playHaptic("DEPLOY");
+    // PRO+ on 120 min → open Shatter modal
+    if (numericDuration === 120 && isSubscribed) { setPendingTask(task); setIsShatterModalOpen(true); return; }
 
-    try {
-      const candidates = [
-        selectedModule?.subject,
-        taskName.trim(),
-        taskName.trim().split(":")[0].trim(),
-      ].filter(Boolean);
-      let skillName = null;
-      for (const c of candidates) {
-        const hit = Object.entries(SUBJECT_TO_SKILL_MAP).find(
-          ([k]) => k.toLowerCase() === c.toLowerCase()
-        );
-        if (hit) { skillName = hit[1]; break; }
-      }
+    // Optimistic: show card immediately before server round-trip
+    const optimisticId = `_opt_${Date.now()}`;
+    setContracts(prev => [...prev, {
+      id: optimisticId,
+      _optimistic: true,
+      title: resolvedName,
+      duration_minutes: numericDuration,
+      stake_amount: currentStake,
+      skill_name: skillName || "General",
+      deadline: null,
+    }]);
+    setPreviewXP(0);
 
-      const response = await axios.post("http://localhost:5000/api/contracts", {
-        externalId: clerkUser.id,
-        taskName: taskName.trim(),
-        durationMinutes: numericDuration,
-        stakeAmount: currentStake,
-        skillName: skillName || null,
-      });
-
-      setContracts((prev) => [...prev, response.data]);
-      await fetchUser();
-
-      if (isKineticMode) {
-        const totalSeconds = Math.floor(numericDuration * 60);
-        setActiveMission({
-          id: response.data.id,
-          taskName: taskName.trim(),
-          totalSeconds: totalSeconds,
-          isKinetic: true,
-        });
-        setTimeLeft(totalSeconds);
-      }
-
-      setTaskName("");
-      setPreviewXP(0);
-      console.log("DEPLOYMENT_SUCCESSFUL:", response.data);
-    } catch (err) {
-      console.error("START_FAILED:", err.response?.data || err.message);
-    }
+    await startMission(task, [], optimisticId);
   };
 
-  useEffect(() => {
-    if (!activeMission?.isKinetic || timeLeft <= 0) return;
+  const handleContractCreated = useCallback((newContract) => setContracts(prev => [...prev, newContract]), []);
 
-    const endAt = Date.now() + timeLeft * 1000;
-    let timerId;
+  const handleComplete = useCallback(async (taskId) => {
+    if (!clerkUser?.id || isOpeningRef.current) return;
+    const contract = contractsRef.current.find(c => String(c.id) === String(taskId));
 
-    const tick = () => {
-      const remaining = Math.ceil((endAt - Date.now()) / 1000);
-      setTimeLeft(Math.max(0, remaining));
-      if (remaining > 0) timerId = setTimeout(tick, 1000);
-    };
-
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        clearTimeout(timerId);
-      } else {
-        tick();
-      }
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    timerId = setTimeout(tick, 1000);
-
-    return () => {
-      clearTimeout(timerId);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [activeMission?.isKinetic]);
-
-  const addNotification = (notif) => {
-    const id = Date.now();
-    const newNotif = { ...notif, id };
-
-    setNotifications((prev) => [newNotif, ...prev].slice(0, 5));
-
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 5000);
-  };
-
-  const handleComplete = async (contractId) => {
-    if (!clerkUser?.id || isOpening) return;
+    // Optimistic: remove immediately so the UI responds in <16ms
+    setContracts(prev => prev.filter(t => String(t.id) !== String(taskId)));
 
     try {
+      isOpeningRef.current = true;
       setIsOpening(true);
+      if (contract?.duration_minutes)
+        setChartPending({ minutes: Number(contract.duration_minutes), title: contract.title || "Mission" });
 
-      const res = await axios.post(
-        `http://localhost:5000/api/contracts/${contractId}/complete`,
-        { externalId: clerkUser.id },
-      );
-
-      playHaptic("SUCCESS");
+      const completeRes = await apiCompleteTask(taskId);
+      playHaptic("SHEPARD");
 
       const {
-        reward,
-        user: updatedUser,
-        drop,
-        leveledUp,
-        newLevel,
-      } = res.data;
+        reward, credits_earned, user: updatedUser, drop, leveledUp, newLevel,
+        bw_stake, skill_name: completedSkillName, perk_active: completedPerkName, xp_multiplier: completedXpMult,
+      } = completeRes.data;
 
-      setUser((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          ...updatedUser,
-          mastery: prev.mastery || [],
-        };
+      setUser(prev => prev ? {
+        ...prev,
+        ...updatedUser,
+        system_credits: updatedUser?.system_credits ?? ((prev.system_credits ?? 0) + (credits_earned ?? 0)),
+      } : prev);
+
+      // Hold the loot drop — show cinematic reveal after earnings summary dismisses
+      if (drop) setPendingLoot(drop);
+
+      const currentTier = updatedUser?.account_tier ?? userRef.current?.account_tier ?? 0;
+      const currentStreak = updatedUser?.streak ?? userRef.current?.streak ?? 0;
+
+      // Show the earnings summary card — replaces the individual XP/credit notifications
+      setEarningSummary({
+        xpGained:      reward,
+        creditsEarned: credits_earned ?? 0,
+        skillName:     completedSkillName || null,
+        xpMultiplier:  completedXpMult ?? 1,
+        perkActive:    completedPerkName || null,
+        duration:      contract?.duration_minutes ?? null,
+        streak:        currentStreak,
+        levelUp:       leveledUp ? { level: newLevel, rank: getRank(newLevel), tier: currentTier } : null,
       });
-
-
-
-      if (drop) {
-        setInventory((prev) => [...prev, drop]);
-        setLoot(drop);
-        addNotification({
-          type: "SUCCESS",
-          message: `You found: ${drop.name}!`,
-        });
-      }
 
       if (leveledUp) {
-        addNotification({
-          type: "LEVEL_UP",
-          message: `Level up! You're now level ${newLevel} ✨`,
-        });
-        if (typeof playHaptic === "function") playHaptic("LEVEL_UP");
+        setLevelUpData({ level: newLevel, rank: getRank(newLevel), xpGain: reward, tier: currentTier, skillName: completedSkillName || null });
+        playLevelUp();
+        if (completedSkillName) setLevelUpSkill(completedSkillName);
+      } else {
+        setXpGain(reward);
+        setXpBurstKey(k => k + 1);
+        setTimeout(() => setXpGain(0), 2000);
       }
 
-      setContracts((prev) =>
-        prev.filter((c) => String(c.id) !== String(contractId)),
-      );
+      const sessionMins = contract?.duration_minutes ?? 0;
+      if (sessionMins >= 60) {
+        const breakMins = sessionMins >= 90 ? 15 : 10;
+        setTimeout(() => addNotification({ type: "critical", message: `⏸ Take a ${breakMins}-min break, you earned it.` }), 1800);
+      }
 
+      DailyEngine.signal({ skillName: completedSkillName || null, sessionMins }, clerkUser?.id);
+      setCompletionTick(t => t + 1);
+
+      AchievementEngine.check({ streak: updatedUser?.streak ?? userRef.current?.streak ?? 0, sessionMins })
+        .forEach(ach => addNotification({ type: "prestige", message: `🏆 ${ach.title}! ${ach.description}` }));
+
+      setContracts(prev => prev.filter(t => String(t.id) !== String(taskId)));
       setPreviewXP(0);
       setPreviewSkill(null);
-      setActiveMission(null);
+      setActiveSkillName(null);
+      setElevationKey(k => k + 1);
+      setTimeout(() => setChartPending(null), 1500);
 
-      addNotification({
-        type: "SUCCESS",
-        message: `Nice work! +${reward} XP earned`,
-      });
-
-      await fetchUser();
-
-      try {
-        await axios.post("http://localhost:8000/system/contract-reward", {
-          clerk_id: clerkUser.id,
-        });
-      } catch (sysErr) {
-        console.warn("[SYSTEM REWARD] Failed:", sysErr.message);
-      }
-
-      setSysRefreshKey((k) => k + 1);
-
+      await Promise.all([fetchUser(), fetchContracts()]);
+      isOpeningRef.current = false;
       setIsOpening(false);
     } catch (err) {
+      isOpeningRef.current = false;
       setIsOpening(false);
-      console.error(
-        "CRITICAL_SYNC_FAILURE:",
-        err.response?.data || err.message,
-      );
-      addNotification({ type: "ERROR", message: "Couldn't sync — try again" });
+      setChartPending(null);
+      if (contract) setContracts(prev => [...prev, contract]);
+      console.error("CRITICAL_SYNC_FAILURE:", err.response?.data || err.message);
+      if (err.response?.status === 425) {
+        const secs = err.response?.data?.seconds_remaining ?? 0;
+        const mins = Math.ceil(secs / 60);
+        addNotification({ type: "ERROR", message: `Task not complete yet — ${mins > 1 ? `${mins} min` : `${secs}s`} remaining` });
+      } else {
+        addNotification({ type: "ERROR", message: "Couldn't sync, try again" });
+      }
     }
-  };
+  }, [clerkUser?.id, addNotification, fetchUser, fetchContracts, playLevelUp]);
 
-  const handleAbort = async (contractId) => {
+  const handleAbort = useCallback(async (taskId) => {
     playHaptic("ABORT");
-    setIsVitiated(true);
+    const snapshot = contractsRef.current.find(t => t.id === taskId);
+
+    setContracts(prev => prev.filter(t => t.id !== taskId));
+    setActiveSkillName(null);
+    setPreviewXP(0);
+    setPreviewSkill(null);
 
     try {
-      const res = await axios.post(
-        `http://localhost:5000/api/contracts/${contractId}/fail`,
-      );
-
-      const updatedUser = res.data;
-
-      setUser((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          ...updatedUser,
-          contracts: (prev.contracts || []).filter((c) => c.id !== contractId),
-        };
-      });
-
-      addNotification({
-        type: "CRITICAL",
-        message: "Session ended — no worries, keep going 💙",
-      });
-
-      setTimeout(() => {
-        setActiveMission(null);
-        setIsVitiated(false);
-        setContracts((prev) => prev.filter((c) => c.id !== contractId));
-        setPreviewXP(0);
-        setPreviewSkill(null);
-      }, 1000);
-    } catch (err) {
-      console.error("ABORT SYNC FAILURE", err);
-      setIsVitiated(false);
-      setActiveMission(null);
-      addNotification({ type: "ERROR", message: "Couldn't end session — try again" });
-    }
-  };
-
-  useEffect(() => {
-    const recoverMission = async () => {
-      if (!user?.id) return;
-
-      try {
-        const res = await axios.get(
-          `http://localhost:5000/api/contracts/active/${user.id}`,
-        );
-
-        const mission = Array.isArray(res.data) ? res.data[0] : res.data;
-
-        if (!mission) return;
-
-        const deadlineMs = Date.parse(mission.deadline);
-        const nowMs = Date.now();
-
-        if (isNaN(deadlineMs)) {
-          console.warn("Invalid deadline received from server");
-          return;
-        }
-
-        const secondsRemaining = Math.floor((deadlineMs - nowMs) / 1000);
-
-        console.log("ZENITH SYNC:", {
-          task: mission.taskName,
-          diff: secondsRemaining,
-        });
-
-        if (secondsRemaining > 0) {
-          setActiveMission({ ...mission, isKinetic: true });
-          setTimeLeft(secondsRemaining);
-
-          console.log(
-            `[RECOVERED] ${secondsRemaining}s left on: ${mission.taskName}`,
-          );
-        } else {
-          console.log(
-            "Mission expired during downtime. Ready for new contracts.",
-          );
-          setActiveMission(null);
-        }
-      } catch (err) {
-        if (err.response?.status !== 404) {
-          console.error("CRITICAL_RECOVERY_FAILURE:", err.message);
-        }
+      const abortRes = await apiFailTask(taskId);
+      setUser(prev => prev ? { ...prev, ...abortRes.data } : prev);
+      if (abortRes.data.grace_period) {
+        addNotification({ type: "SUCCESS", message: "Task dropped — stake refunded, no penalty." });
+      } else if (abortRes.data.streak_shield_used) {
+        addNotification({ type: "SUCCESS", message: "Streak Guard activated — streak protected. Perk consumed." });
+      } else {
+        addNotification({ type: "CRITICAL", message: "Mission abandoned — stake lost, no rewards." });
       }
-    };
+      await fetchUser();
+    } catch (err) {
+      if (snapshot) setContracts(prev => [...prev, snapshot]);
+      console.error("ABORT SYNC FAILURE", err);
+      addNotification({ type: "ERROR", message: "Couldn't end session, try again" });
+    }
+  }, [clerkUser?.id, addNotification, fetchUser]);
 
-    recoverMission();
-  }, [user?.id]);
-
-  const handlePrestige = async (skillName) => {
+  const handlePrestige = useCallback(async (skillName) => {
     playHaptic("PRESTIGE_ASCENT");
-
     try {
-      const res = await axios.post("http://localhost:5000/skills/prestige", {
-        skillName: skillName,
-      });
-
-      if (res.data.success) {
-        addNotification({
-          type: "PRESTIGE",
-          message: `${skillName} prestiged! Fresh start 🌟`,
+      const prestigeRes = await apiPrestigeSkill(skillName);
+      if (prestigeRes.data.success) {
+        const skill   = prestigeRes.data.skill;
+        const drop    = prestigeRes.data.drop;
+        setPrestigeData({
+          skillName,
+          prestigeLevel: skill?.prestige_level ?? 1,
+          creditReward:  drop?.credits_earned ?? 3500,
+          drop,
         });
-
-        if (res.data.newItem) {
-          setInventory((prev) => [...prev, res.data.newItem]);
-        }
-
-        addNotification({
-          type: "LOOT",
-          message: `Prestige reward unlocked: ${res.data.reward}`,
-        });
-
         fetchUser();
       }
     } catch (err) {
-      addNotification({
-        type: "ERROR",
-        message: err.response?.data?.error || "Prestige failed — try again",
-      });
+      addNotification({ type: "ERROR", message: err.response?.data?.error || "Prestige failed, try again" });
     }
+  }, [addNotification, fetchUser]);
+
+  const handlePrestigeDismiss = useCallback(() => {
+    const drop = prestigeData?.drop;
+    setPrestigeData(null);
+    if (drop) setLoot(drop);
+  }, [prestigeData, setLoot]);
+
+  // ── First-session screen handlers ─────────────────────────────────────────
+
+  const handleFirstSessionStart = async (name, durationMins) => {
+    if (!clerkUser?.id) return;
+    localStorage.setItem(`zenith_first_session_${clerkUser.id}`, "1");
+    setShowFirstSession(false);
+    playHaptic("DEPLOY");
+    const currentStake = getMissionStakes(durationMins);
+    await startMission({
+      taskName: name,
+      duration: durationMins,
+      stakeAmount: currentStake,
+      skillName: null,
+      intention: null,
+    }, []);
+    // Show tour now that their first session is live — it can point to real UI
+    const onboardedKey = `zenith_onboarded_${clerkUser.id}`;
+    if (!localStorage.getItem(onboardedKey)) setShowOnboarding(true);
   };
+
+  const handleFirstSessionSkip = () => {
+    if (!clerkUser?.id) return;
+    localStorage.setItem(`zenith_first_session_${clerkUser.id}`, "1");
+    setShowFirstSession(false);
+    // Show the onboarding tour if they haven't seen it
+    const onboardedKey = `zenith_onboarded_${clerkUser.id}`;
+    if (!localStorage.getItem(onboardedKey)) setShowOnboarding(true);
+  };
+
+  const handleDailyBonus = useCallback(async () => {
+    playHaptic("DEPLOY");
+    try {
+      const res = await claimDailyBonus();
+      if (res.data.already_used) {
+        addNotification({ type: "INFO", message: "Daily bonus already claimed — resets in 24h." });
+      } else {
+        playHaptic("CREDIT");
+        addNotification({ type: "SUCCESS", message: `+${res.data.credits_earned} credits! Daily bonus claimed.` });
+        fetchUser();
+      }
+    } catch {
+      addNotification({ type: "ERROR", message: "Couldn't claim bonus, try again." });
+    }
+  }, [addNotification, fetchUser]);
+
+  const handleSummaryDismiss = useCallback(() => {
+    setEarningSummary(null);
+    setLevelUpData(null);
+    if (pendingLoot) {
+      setLoot(pendingLoot);
+      setPendingLoot(null);
+    }
+  }, [pendingLoot]);
 
   const handleDrop = async () => {
     if (!clerkUser?.id) return;
     setIsOpening(true);
     setLoot(null);
-
     try {
-      const response = await fetch("http://localhost:5000/api/v1/loot/roll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ externalId: clerkUser.id }),
-      });
-
-      const data = await response.json();
-
-      setTimeout(() => {
-        setLoot(data.item);
-        setIsOpening(false);
-      }, 2000);
-    } catch (err) {
-      console.error("Drop failed!", err);
+      const dropRes = await rollLoot();
+      setTimeout(() => { setLoot(dropRes.data); setIsOpening(false); }, 2000);
+    } catch {
       setIsOpening(false);
     }
   };
 
-  const handleScrap = async (instanceId) => {
-    if (!user || isOpening) return;
-    playHaptic("SCRAP");
-
+  const handleInventoryEquip = useCallback(async (itemOrId) => {
+    const targetId = typeof itemOrId === "string"
+      ? itemOrId
+      : (itemOrId?.instanceId || itemOrId?.id);
+    if (!targetId) return;
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/inventory/scrap",
-        {
-          userId: user.id,
-          instanceId: instanceId,
-        },
-      );
-
-      if (res.data.success) {
-        setUser((prev) => ({
-          ...prev,
-          ...res.data.user,
-        }));
-
-        setInventory((prev) =>
-          prev.filter((item) => item.instanceId !== instanceId),
-        );
-
-        addNotification({
-          type: "SUCCESS",
-          message: `Recycled for +${res.data.reward} XP!`,
-        });
-      }
-    } catch (err) {
-      console.error("SCRAP ISSUE:", err);
-      addNotification({ type: "ERROR", message: "Couldn't recycle right now! Try again later!" });
-    }
-  };
-
-  const handleTick = (contract, time) => {
-    setTimeout(() => {
-      setFocusedContract(contract);
-      setLiveTime(time);
-    }, 0);
-  };
-
-  useEffect(() => {
-    fetch("http://localhost:5000/modules")
-      .then((res) => res.json())
-      .then((data) => {
-        setModules(data);
-        if (data.length > 0) setSelectedModule(data[0]);
-      })
-      .catch((err) => console.error("INTEL FETCH FAILED!!", err));
-  }, []);
-
-  const handleInventoryEquip = async (itemOrId) => {
-    // 1. Extract the ID based on your table headers
-    const targetId =
-      typeof itemOrId === "string"
+      const equipRes = await equipItem(targetId);
+      const toggling = typeof itemOrId === "object"
         ? itemOrId
-        : itemOrId?.instanceId || itemOrId?.id;
-
-    const targetUserId = clerkUser?.id;
-
-    if (!targetId) {
-      console.error("FAILURE: No ID detected. Looking for 'instanceId'.");
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/inventory/equip",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: targetUserId,
-            instanceId: targetId,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setInventory((prev) =>
-          prev.map((item) => ({
-            ...item,
-            is_equipped: data.equipped_ids.includes(String(item.instanceId)),
-          }))
-        );
-      } else {
-        const err = await response.json().catch(() => ({}));
-        if (response.status === 403) {
-          addNotification({ type: "ERROR", message: err.message || "Perk slots full — unequip something first!" });
+        : inventoryRef.current.find(i => String(i.instanceId) === String(targetId));
+      setInventory(prev => prev.map(item => ({ ...item, is_equipped: equipRes.data.equipped_ids.includes(String(item.instanceId)) })));
+      if (toggling) {
+        if (!toggling.is_equipped) {
+          const hint = PERK_EFFECT_HINTS[toggling.name] || toggling.effect_value || "Active";
+          addNotification({ type: "SUCCESS", message: `${toggling.name} equipped! ${hint}` });
         } else {
-          addNotification({ type: "ERROR", message: "Couldn't equip — try again." });
+          addNotification({ type: "SUCCESS", message: `${toggling.name} unequipped` });
         }
       }
     } catch (err) {
-      console.error("FATAL NETWORK ERROR:", err);
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.message;
+      const equipErrorMsg =
+        status === 400 ? (serverMsg || "Can't equip that right now.") :
+        status === 403 ? (serverMsg || "Perk slots full — unequip one first.") :
+        "Couldn't equip, try again.";
+      addNotification({ type: "ERROR", message: equipErrorMsg });
     }
-  };
+  }, [addNotification]);
+
+  // ── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const fetchInventory = async () => {
-      if (!isLoaded || !clerkUser?.id) return;
-
-      try {
-        const res = await axios.get(
-          `http://localhost:5000/api/inventory/${clerkUser.id}`,
-        );
-
-        console.log("VAULT_SYNCED:", res.data.length, "items found.");
-        setInventory(res.data);
-      } catch (err) {
-        console.error(
-          "FAILED_TO_SYNC_VAULT",
-          err.response?.data || err.message,
-        );
-      }
-    };
-
-    fetchInventory();
-  }, [isLoaded, clerkUser?.id]);
-
-  const getRank = (lvl) => {
-    if (lvl < 10) return "DRIFTER";
-    if (lvl < 20) return "OBSERVER";
-    if (lvl < 40) return "ARCHITECT";
-    if (lvl < 60) return "CATALYST";
-    if (lvl < 80) return "OVERSEER";
-    if (lvl < 99) return "SOVEREIGN";
-    return "ZENITH";
-  };
-
-  const CONTRACT_TIERS = [
-    { mins: 5, xp: 250, req: 1 },
-    { mins: 15, xp: 1200, req: 1 },
-    { mins: 30, xp: 4000, req: 1 },
-    { mins: 60, xp: 10000, req: 20 },
-    { mins: 90, xp: 15800, req: 30 },
-    { mins: 120, xp: 30000, req: 40 },
-  ];
-
-  const getSolarPhase = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 8) return "morning";
-    if (hour >= 8 && hour < 12) return "day";
-    if (hour >= 12 && hour < 14) return "noon";
-    if (hour >= 14 && hour < 18) return "evening";
-    if (hour >= 18 && hour < 21) return "sunset";
-    return "night";
-  };
-
-  const [solarPhase, setSolarPhase] = useState(getSolarPhase());
-
-  useEffect(() => {
-    let timerId;
-
-    const tick = () => {
-      setSolarPhase(getSolarPhase());
-      timerId = setTimeout(tick, 60000);
-    };
-
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        clearTimeout(timerId);
-      } else {
-        setSolarPhase(getSolarPhase());
-        timerId = setTimeout(tick, 60000);
-      }
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    timerId = setTimeout(tick, 60000);
-
-    return () => {
-      clearTimeout(timerId);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+    fetchModules()
+      .then(res => { setModules(res.data); if (res.data.length > 0) setSelectedModule(res.data[0]); })
+      .catch(() => {});
   }, []);
 
-  useEffect(() => { prime(); }, []);
+  useEffect(() => {
+    const loadInventory = async () => {
+      if (!isLoaded || !clerkUser?.id) return;
+      try {
+        const invRes = await apiFetchInventory(clerkUser.id);
+        setInventory(invRes.data);
+      } catch (err) { console.error("FAILED_TO_SYNC_VAULT", err.message); }
+    };
+    loadInventory();
+  }, [isLoaded, clerkUser?.id]);
+
+
+  useEffect(() => {
+    let solarTimer;
+    const solarTick = () => { setSolarPhase(getSolarPhase()); solarTimer = setTimeout(solarTick, 60000); };
+    const onVisibilityChange = () => {
+      if (document.hidden) { clearTimeout(solarTimer); }
+      else { setSolarPhase(getSolarPhase()); solarTimer = setTimeout(solarTick, 60000); }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    solarTimer = setTimeout(solarTick, 60000);
+    return () => { clearTimeout(solarTimer); document.removeEventListener("visibilitychange", onVisibilityChange); };
+  }, []);
+
+  useEffect(() => {
+    const update = () => {
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+      document.documentElement.classList.toggle('device-small', window.innerHeight < 700);
+    };
+    update();
+    let rafId = null;
+    const onResize = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(update);
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', onResize, { passive: true });
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -935,236 +983,180 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    document.body.className = `phase-${solarPhase}`;
+    if (paymentView !== "success") return;
+    const paymentPollInterval = setInterval(fetchUser, 2000);
+    return () => clearInterval(paymentPollInterval);
+  }, [paymentView]);
+
+
+  useEffect(() => {
+    document.body.className = `phase-${solarPhase} theme-${activeTheme}`;
+    document.body.setAttribute("data-solar", solarPhase);
     setPhase(solarPhase);
-  }, [solarPhase]);
+  }, [solarPhase, activeTheme]);
 
-  const THEME_ACCENT = { cobalt: "#3b82f6", amber: "#f59e0b", crimson: "#ef4444" };
-  const themeAccentOverride = THEME_ACCENT[activeTheme] ?? null;
+  // Theme accent is now fully handled by CSS via body.theme-X rules in App.css
+  const currentAppHour = new Date().getHours();
+  const isRedzone      = currentAppHour >= 0 && currentAppHour < 5;
 
-  useEffect(() => { setProtocol(isKineticMode); }, [isKineticMode]);
+  // ── Split context values ───────────────────────────────────────────────────
+  const userValue = useMemo(() => ({
+    user, clerkUser, inventory,
+    fetchUser, fetchInventory, handleInventoryEquip, handlePrestige, handleDailyBonus,
+    notifications, addNotification,
+    getRank, isRedzone,
+  }), [user, clerkUser, inventory, fetchUser, fetchInventory, handleInventoryEquip, handlePrestige, handleDailyBonus, notifications, addNotification, isRedzone]);
 
-  const showClouds = solarPhase === "morning" || solarPhase === "day";
-  const showNight = solarPhase === "night";
-  const showSun = solarPhase !== "night";
+  const taskValue = useMemo(() => ({
+    contracts,
+    modules, selectedModule, setSelectedModule,
+    isOpening, loot, setLoot,
+    previewXP, setPreviewXP,
+    previewSkill, setPreviewSkill,
+    levelUpSkill, activeSkillName,
+    elevationKey, completionTick, chartPending,
+    xpGain, xpBurstKey,
+    fetchContracts,
+    handleComplete, handleAbort, handleInitiate, handleDrop, handleContractCreated,
+    getMissionStakes,
+    SUBJECT_TO_SKILL_MAP, CONTRACT_TIERS,
+  }), [
+    contracts,
+    modules, selectedModule,
+    isOpening, loot,
+    previewXP, previewSkill, levelUpSkill, activeSkillName,
+    elevationKey, completionTick, chartPending, xpGain, xpBurstKey,
+    fetchContracts, handleComplete, handleAbort, handleInitiate, handleDrop, handleContractCreated,
+  ]);
 
-  const stars = React.useMemo(() => {
-    if (!showNight) return [];
-    return Array.from({ length: 60 }, (_, i) => ({
-      x: (i * 37) % 100,
-      y: (i * 53) % 90,
-      delay: (i * 0.37) % 4,
-      size: 1 + ((i * 7) % 3),
-    }));
-  }, [showNight]);
+  const uiValue = useMemo(() => ({
+    solarPhase,
+    activeTheme, setActiveTheme,
+    activeAmbientTrack, setActiveAmbientTrack,
+    atmosphereVolume, handleAtmosphereVolumeChange,
+    isInventoryOpen, setIsInventoryOpen,
+    playHaptic, navigate,
+  }), [solarPhase, activeTheme, activeAmbientTrack, atmosphereVolume, handleAtmosphereVolumeChange, isInventoryOpen, navigate]);
 
-  if (!isLoaded)
-    return <div className="loading-screen">Loading Zenith Engine...</div>;
+  // ─────────────────────────────────────────────────────────────────────────
+  if (!isLoaded) return <div className="loading-screen">Loading...</div>;
 
   return (
-    <div
-      className={`dashboard-layout phase-${solarPhase}`}
-      style={themeAccentOverride ? { "--ui-accent": themeAccentOverride } : undefined}
-    >
-      <div className="solar-backdrop" aria-hidden="true">
-        {showSun && <div className={`sun sun-${solarPhase}`} />}
-        {showClouds && (
-          <div className="backdrop-clouds">
-            <div className="cloud cloud-1" /><div className="cloud cloud-2" />
-            <div className="cloud cloud-3" /><div className="cloud cloud-4" />
-          </div>
-        )}
-        {showNight && (
-          <div className="backdrop-night">
-            <div className="moon"><div className="moon-glow" /></div>
-            <div className="stars">
-              {stars.map((s, i) => (
-                <span key={i} className="star" style={{
-                  left: `${s.x}%`, top: `${s.y}%`,
-                  width: `${s.size}px`, height: `${s.size}px`,
-                  animationDelay: `${s.delay}s`,
-                }} />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+    <>
+      {/* ── Solar backdrop ── */}
+      <SolarBackdrop solarPhase={solarPhase} activeTheme={activeTheme} />
+
+      {/* ── Dynamic weather overlay (rain / snow / storm / clouds) ── */}
 
       <SignedOut>
-        <div className="auth-hero">
-          <div className="auth-card">
-            <div className="auth-brand">
-              <span className="auth-brand-name">ZENITH</span>
-              <span className="auth-brand-tagline">Neural Productivity System</span>
-            </div>
-            <div className="auth-divider" />
-            <p className="auth-status">Neural Link Disconnected</p>
-            <p className="auth-body">
-              Sign in to access your operator profile, active missions, and system resources.
-            </p>
-            <SignInButton mode="modal">
-              <button className="btn-initiate">Establish Connection</button>
-            </SignInButton>
-            <p className="auth-footnote">Secure · Encrypted · Persistent</p>
-          </div>
-        </div>
+        <AuthScreen />
       </SignedOut>
 
       <SignedIn>
-        {!user ? (
-          <div className="loading-screen">SYNCING BIOMETRICS...</div>
+        <ErrorBoundary>
+        {banReason ? (
+          <div className="loading-screen ban-screen">
+            <div className="ban-icon">⚠</div>
+            <p className="ban-title">Account Banned!</p>
+            <p className="ban-message">{banReason}</p>
+            <button className="ban-signout-btn" onClick={() => signOut()}>Sign Out</button>
+          </div>
+        ) : !user ? (
+          <div className="loading-screen">Loading your profile...</div>
         ) : (
-          <>
-            {paymentView === "success" && (
-              <PaymentSuccess
-                onContinue={() => { setPaymentView(null); fetchUser(); }}
+          <NavContextProvider>
+          <UserContext.Provider value={userValue}>
+          <TaskContext.Provider value={taskValue}>
+          <UIContext.Provider value={uiValue}>
+
+            {/* ── First-session screen (new users only) ── */}
+            {showFirstSession && (
+              <FirstSessionScreen
+                onStart={handleFirstSessionStart}
+                onSkip={handleFirstSessionSkip}
+                solarPhase={solarPhase}
+                activeTheme={activeTheme}
               />
+            )}
+
+            {/* ── Onboarding tour ── */}
+            {showOnboarding && (
+              <OnboardingModal
+                userId={clerkUser.id}
+                onClose={() => setShowOnboarding(false)}
+                onNavigate={navigate}
+              />
+            )}
+
+            {/* ── Global overlays (portals) ── */}
+            {paymentView === "success" && (
+              <PaymentSuccess onContinue={() => { setPaymentView(null); fetchUser(); navigate("/dashboard"); }} />
             )}
             {paymentView === "cancelled" && (
               <PaymentCancel
-                onRetry={() => { setPaymentView(null); setCurrentView("upgrade"); }}
+                onRetry={() => { setPaymentView(null); navigate("/shop"); }}
                 onDismiss={() => setPaymentView(null)}
               />
             )}
-
-            {activeMission?.isKinetic &&
-              createPortal(
-                <KineticOverlay
-                  activeMission={activeMission}
-                  timeLeft={timeLeft}
-                  handleComplete={handleComplete}
-                  handleAbort={handleAbort}
-                />,
-                document.body,
-              )}
-
-            {currentView === "upgrade" && (
-              <UpgradePage
-                accountTier={user.role === "ADMIN" ? 2 : (user.account_tier ?? 0)}
-                clerkId={clerkUser?.id}
-                onBack={() => setCurrentView("dashboard")}
-                addNotification={addNotification}
-                onUpgradeSuccess={() => { fetchUser(); setCurrentView("dashboard"); }}
+            {isShatterModalOpen && pendingTask && (
+              <ShatterModal
+                baseTask={{ title: pendingTask.taskName }}
+                onDeploy={subTasks => startShatteredMission(pendingTask, subTasks)}
+                onCancel={() => { setIsShatterModalOpen(false); setPendingTask(null); }}
               />
             )}
-
-            {currentView === "dashboard" && <>
-              <NotificationCenter notifications={notifications} />
-
-              <ShopModal
-                clerkId={clerkUser?.id}
-                isOpen={isShopOpen}
-                onClose={() => setIsShopOpen(false)}
-                onPurchaseComplete={() => setSysRefreshKey((k) => k + 1)}
-                playHaptic={playHaptic}
-              />
-
-              <div className="mission-control-column">
-                <InventoryItem
-                  inventory={inventory}
-                  onScrap={handleScrap}
-                  onEquip={handleInventoryEquip}
-                  playHaptic={playHaptic}
-                  onShopOpen={() => setIsShopOpen(true)}
-                  isOpen={isInventoryOpen}
-                  onToggle={() => setIsInventoryOpen((v) => !v)}
-                  accountTier={user.role === "ADMIN" ? 2 : (user.account_tier ?? 0)}
-                  onUpgrade={() => setCurrentView("upgrade")}
-                />
-
-                {(() => {
-                  const lvl = user.level || 1;
-                  const nextLvlXP = Math.floor(Math.pow(lvl, 2) * 500 + 1000);
-                  const withinLvlXP = Math.min(user.xp || 0, nextLvlXP);
-                  return (
-                    <StatHUD
-                      currentLevel={lvl}
-                      totalXP={user.total_xp || 0}
-                      currentLevelXP={withinLvlXP}
-                      nextLevelXP={nextLvlXP}
-                      progressPercent={(withinLvlXP / nextLvlXP) * 100}
-                      previewXP={previewXP}
-                      streak={user.streak || 0}
-                      xpRemaining={nextLvlXP - withinLvlXP}
-                      getRank={getRank}
-                      onLogout={() => signOut()}
-                      clerkId={clerkUser?.id}
-                      refreshKey={sysRefreshKey}
-                    />
-                  );
-                })()}
-
-                <MissionForm
-                  isKineticMode={isKineticMode}
-                  setIsKineticMode={setIsKineticMode}
-                  selectedModule={selectedModule}
-                  setSelectedModule={setSelectedModule}
-                  taskName={taskName}
-                  setTaskName={setTaskName}
-                  duration={duration}
-                  setDuration={setDuration}
-                  modules={modules}
-                  currentLevel={user.level || 1}
-                  getMissionStakes={getMissionStakes}
-                  setPreviewXP={setPreviewXP}
-                  setPreviewSkill={setPreviewSkill}
-                  SUBJECT_TO_SKILL_MAP={SUBJECT_TO_SKILL_MAP}
-                  handleInitiate={handleInitiate}
-                  handleDrop={handleDrop}
-                  playHaptic={playHaptic}
-                  onContractCreated={handleContractCreated}
-                  clerkUser={clerkUser}
-                  accountTier={user.role === "ADMIN" ? 2 : (user.account_tier ?? 0)}
-                  activeAmbientTrack={activeAmbientTrack}
-                  onTrackChange={setActiveAmbientTrack}
-                  activeTheme={activeTheme}
-                  onThemeChange={setActiveTheme}
-                  addNotification={addNotification}
-                />
-
-                <div className="logs-section">
-                  <h3 className="section-title">ACTIVE MISSIONS</h3>
-                  {contracts && contracts.length > 0 ? (
-                    contracts.map((c) => (
-                      <ContractCard
-                        key={c.id}
-                        contract={c}
-                        onComplete={handleComplete}
-                        onAbort={handleAbort}
-                        onHover={setPreviewSkill}
-                        onLeave={() => setPreviewSkill(null)}
-                        onTick={handleTick}
-                      />
-                    ))
-                  ) : (
-                    <div className="empty-state">NO ACTIVE MISSIONS.</div>
-                  )}
-                </div>
-              </div>
-
-              <SkillSidebar
-                skills={user.mastery || []}
-                previewSkill={previewSkill}
-                previewXP={previewXP}
-                handlePrestige={handlePrestige}
-                solarPhase={solarPhase}
-                isProtocolActive={isKineticMode}
-                playHaptic={playHaptic}
-              />
-            </>}
-
-            {(isOpening || loot) && (
-              <LootDisplay
-                loot={loot}
-                isOpening={isOpening}
-                onDismiss={() => setLoot(null)}
-                userId={clerkUser?.id}
+            {earningSummary && createPortal(
+              <EarningSummary data={earningSummary} onDismiss={handleSummaryDismiss} />,
+              document.body,
+            )}
+            {(isOpening || loot) && createPortal(
+              <LootDisplay loot={loot} isOpening={isOpening} onDismiss={() => setLoot(null)} />,
+              document.body,
+            )}
+            {prestigeData && (
+              <PrestigeCinematic
+                skillName={prestigeData.skillName}
+                prestigeLevel={prestigeData.prestigeLevel}
+                creditReward={prestigeData.creditReward}
+                onDismiss={handlePrestigeDismiss}
               />
             )}
-          </>
+            {createPortal(<NotificationCenter notifications={notifications} />, document.body)}
+
+            {/* ── Main OS shell ── */}
+            <div
+              className={`zenith-os-shell phase-${solarPhase} theme-${activeTheme}${activeSkillName ? " has-aura" : ""}${isRedzone ? " redzone-mode" : ""}`}
+              style={{
+                "--aura-color": activeSkillName ? (SKILL_COLORS[activeSkillName] ?? "transparent") : "transparent",
+              }}
+            >
+              <NavDrawer />
+
+<main className="zenith-main-content">
+                <NavTrigger />
+                <Routes>
+                    <Route path="/"          element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<div className="page-enter"><DashboardView /></div>} />
+                    <Route path="/inventory" element={<div className="page-enter"><VaultPage /></div>} />
+                    <Route path="/history"   element={<div className="page-enter"><ArchivesPage /></div>} />
+                    <Route path="/shop"      element={<div className="page-enter"><ExchangePage /></div>} />
+                    <Route path="/settings"  element={<div className="page-enter"><SettingsPage /></div>} />
+                    <Route path="/updates"   element={<div className="page-enter"><ReleaseNotesPage /></div>} />
+                    <Route path="/privacy"   element={<div className="page-enter"><PrivacyPage /></div>} />
+                    <Route path="/terms"     element={<div className="page-enter"><TermsPage /></div>} />
+                    <Route path="*"          element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+              </main>
+            </div>
+
+          </UIContext.Provider>
+          </TaskContext.Provider>
+          </UserContext.Provider>
+          </NavContextProvider>
         )}
+        </ErrorBoundary>
       </SignedIn>
-    </div>
+    </>
   );
 };
 

@@ -1,114 +1,27 @@
-const lootTable = [
-  {
-    id: "wardens_silence",
-    name: "Flow State Crystal",
-    rarity: "Mythic",
-    chance: 0.001,
-    type: "Perk",
-    description: "Incredibly rare. Locks you into pure, effortless deep focus — the kind where hours feel like minutes.",
-    color_hex: "#FF00FF",
-    effect_value: "Deep Focus Mode",
-  },
-  {
-    id: "zeniths_eye",
-    name: "Clarity Prism",
-    rarity: "Legendary",
-    chance: 0.005,
-    type: "Artifact",
-    description: "See everything clearly. All XP earned in your next session is amplified. You earned this.",
-    color_hex: "#FFAE00",
-    effect_value: "+50% XP",
-  },
-  {
-    id: "reapers_hourglass",
-    name: "Second Wind",
-    rarity: "Epic",
-    chance: 0.01,
-    type: "Powerup",
-    description: "You came back — that's what matters. Refreshes your session cooldown so you can go again right away.",
-    color_hex: "#A335EE",
-    effect_value: "Refresh Cooldown",
-  },
-  {
-    id: "vitality_ruby",
-    name: "Spark Stone",
-    rarity: "Rare",
-    chance: 0.03,
-    type: "Socket",
-    description: "A warm gem that quietly fuels your energy reserves. You have more in you than you think.",
-    color_hex: "#0070DD",
-    effect_value: "+10% Energy",
-  },
-  {
-    id: "resolve_emerald",
-    name: "Streak Guard",
-    rarity: "Rare",
-    chance: 0.03,
-    type: "Socket",
-    description: "Protects your streak on a tough day. One stumble doesn't erase your progress — this makes it official.",
-    color_hex: "#0070DD",
-    effect_value: "Streak Shield",
-  },
-  {
-    id: "focus_sapphire",
-    name: "Calm Stone",
-    rarity: "Rare",
-    chance: 0.05,
-    type: "Socket",
-    description: "A soothing blue gem. Steadies your mind when it wants to wander, gently and without judgment.",
-    color_hex: "#0070DD",
-    effect_value: "+10% Focus",
-  },
-  {
-    id: "wardens_key",
-    name: "Progress Lens",
-    rarity: "Uncommon",
-    chance: 0.10,
-    type: "Utility",
-    description: "Reveals hidden efficiency stats in your HUD. Small details, big picture — knowing is half the battle.",
-    color_hex: "#1EFF00",
-    effect_value: "Show Stats",
-  },
-  {
-    id: "quicksilver_oil",
-    name: "Quick Start",
-    rarity: "Common",
-    chance: 0.15,
-    type: "Consumable",
-    description: "Skips the warm-up phase entirely. Sometimes the hardest part is just beginning — this handles that.",
-    color_hex: "#FFFFFF",
-    effect_value: "-2m Startup",
-  },
-  {
-    id: "broken_shackle",
-    name: "Old Habit",
-    rarity: "Junk",
-    chance: 0.30,
-    type: "Material",
-    description: "A habit you've already outgrown. Not useful on its own, but worth recycling for a small XP boost.",
-    color_hex: "#9D9D9D",
-    effect_value: "+1% XP",
-  },
-  {
-    id: "void_dust",
-    name: "Distraction Dust",
-    rarity: "Junk",
-    chance: 0.40,
-    type: "Material",
-    description: "What's left after a wandering mind finds its way back. Happens to everyone. Recycle and move on.",
-    color_hex: "#9D9D9D",
-    effect_value: "Recycle Me",
-  },
-  {
-    id: "obsidian_shard",
-    name: "Mirror Shard",
-    rarity: "Junk",
-    chance: 0.50,
-    type: "Cosmetic",
-    description: "Reflects a small version of your progress. Not powerful, but a real reminder that you showed up.",
-    color_hex: "#9D9D9D",
-    effect_value: "Cosmetic",
-  },
+const CREDIT_BY_RARITY = {
+  Junk:      50,
+  Uncommon:  150,
+  Rare:      350,
+  Epic:      700,
+  Legendary: 1500,
+  Mythic:    3500,
+};
+
+// Cumulative weights — roll 0-100, pick first bucket that fits
+const RARITY_TABLE = [
+  { rarity: "Junk",      threshold: 40   },
+  { rarity: "Uncommon",  threshold: 75   },
+  { rarity: "Rare",      threshold: 90   },
+  { rarity: "Epic",      threshold: 97   },
+  { rarity: "Legendary", threshold: 99.5 },
+  { rarity: "Mythic",    threshold: 100  },
 ];
 
-module.exports = { lootTable };
+function rollRarity(rand100) {
+  for (const { rarity, threshold } of RARITY_TABLE) {
+    if (rand100 < threshold) return rarity;
+  }
+  return "Junk";
+}
+
+module.exports = { CREDIT_BY_RARITY, rollRarity };

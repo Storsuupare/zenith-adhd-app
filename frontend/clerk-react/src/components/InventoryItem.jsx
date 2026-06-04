@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpen, isOpen, onToggle, accountTier = 0, onUpgrade }) => {
+const InventoryItem = ({ inventory = [], onEquip, playHaptic, onShopOpen, isOpen, onToggle, accountTier = 0, onUpgrade }) => {
   const [expandedItemId, setExpandedItemId] = useState(null);
 
   const toggleDetails = (id) => {
@@ -39,7 +39,7 @@ const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpe
           }}>
           <span className="btn-content">
             <span className="shop-nav-icon">{isOpen ? "▣" : "▤"}</span>
-            <span className="btn-label">{isOpen ? "Close Bag" : "Open Bag"}</span>
+            <span className="btn-label">{isOpen ? "CLOSE VAULT" : "OPEN VAULT"}</span>
             <span className="item-count">({inventory.length})</span>
           </span>
         </button>
@@ -91,26 +91,18 @@ const InventoryItem = ({ inventory = [], onScrap, onEquip, playHaptic, onShopOpe
                     )}
 
                     <div className="item-actions">
-                      {item.rarity.toLowerCase() === "junk" ? (
-                        <button
-                          onClick={() => onScrap(item.instanceId)}
-                          className="scrap-btn">
-                          Recycle (+90 XP)
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => onEquip(item)}
-                          className={`equip-btn ${item.is_equipped ? "active" : ""}`}>
-                          {item.is_equipped ? "Equipped ✓" : "Equip"}
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onEquip(item)}
+                        className={`equip-btn ${item.is_equipped ? "active" : ""}`}>
+                        {item.is_equipped ? "Equipped ✓" : "Equip"}
+                      </button>
                     </div>
                   </div>
                 );
               })
             ) : (
               <div className="empty-vault-notice">
-                <p>Your bag is empty! Finish a session to earn drops!</p>
+                <p>Vault empty. Complete a session to earn your first perk.</p>
               </div>
             )}
           </div>

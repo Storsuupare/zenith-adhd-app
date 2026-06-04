@@ -1,164 +1,205 @@
 /* ============================================================
-   SYSTEM RESOURCE HUD
-   Matches the glassmorphism design system from StatHUD.css
+   SYSTEM RESOURCE HUD — Resource Capsule Design
    ============================================================ */
 
 .sysres-hud {
-  
-  border-radius: 18px;
-  padding: 18px 22px;
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  padding: 0 0 12px;
   flex-shrink: 0;
 }
 
-/* ── Header ── */
-.sysres-header {
+/* ── Two capsules side by side ── */
+.sysres-capsule-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-}
-
-.sysres-title-group {
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-.sysres-dim-label {
-  font-family: "Inter", sans-serif;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.38);
-  text-transform: uppercase;
+.sysres-capsule {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(20, 20, 25, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  isolation: isolate;
 }
 
-.sysres-version-badge {
-  font-family: "Inter", sans-serif;
-  font-size: 0.53rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ui-accent);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 2px 7px;
-  line-height: 1.6;
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .sysres-capsule {
+    background: rgba(255, 255, 255, 0.04);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
 }
 
-.sysres-credits-group {
+/* ── Credits capsule ── */
+.credits-capsule {
+  border-color: rgba(253, 186, 116, 0.2);
+}
+
+.credits-capsule .capsule-icon {
+  color: #fdba74;
+  text-shadow: 0 0 10px rgba(253, 186, 116, 0.5);
+}
+
+/* ── Bandwidth capsule — shifts with status ── */
+.bw-capsule.nominal  { border-color: var(--accent-a22, rgba(34, 211, 238, 0.22)); }
+.bw-capsule.low      { border-color: rgba(245, 158, 11, 0.28); }
+.bw-capsule.critical {
+  border-color: rgba(251, 113, 133, 0.3);
+  animation: bw-danger 1.4s ease-in-out infinite;
+}
+
+@keyframes bw-danger {
+  0%, 100% { border-color: rgba(251, 113, 133, 0.3); }
+  50%       { border-color: rgba(251, 113, 133, 0.65); }
+}
+
+/* ── Icon ── */
+.capsule-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.bw-capsule .capsule-icon { color: var(--ui-accent); }
+
+/* ── Text body ── */
+.capsule-body {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   gap: 1px;
+  min-width: 0;
+  flex: 1;
 }
 
-.sysres-credits-value {
+.capsule-value {
   font-family: "Inter", sans-serif;
-  font-size: 1.0rem;
+  font-size: 0.92rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
-  color: #ffffff;
+  letter-spacing: -0.02em;
   line-height: 1;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
-.sysres-accent-label {
-  font-family: "Inter", sans-serif;
-  font-size: 0.55rem;
-  font-weight: 700;
+.capsule-max {
+  font-size: 0.62em;
+  font-weight: 500;
+  opacity: 0.38;
+}
+
+.capsule-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ui-accent);
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.32);
+  margin-top: 2px;
 }
 
-.sysres-bar-section {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.bw-eta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.60rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.28);
+  white-space: nowrap;
 }
 
-.sysres-bar-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+/* ── Bandwidth value status colors ── */
+.bw-val.nominal  { color: var(--ui-accent); }
+.bw-val.low      { color: #f59e0b; }
+.bw-val.critical { color: #fb7185; }
 
-.sysres-bar-readout {
-  font-family: "Inter", sans-serif;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1;
-}
-
-.sysres-bar-readout.nominal  { color: var(--ui-accent); }
-.sysres-bar-readout.low      { color: #f59e0b; }
-.sysres-bar-readout.critical { color: #fb7185; }
-.sysres-bar-readout.dim      { color: rgba(255, 255, 255, 0.45); }
-
-.sysres-bar-max {
-  font-size: 0.62rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.25);
-}
-
-.sysres-track {
-  position: relative;
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 50px;
-  overflow: hidden;
-}
-
-.sysres-fill {
+/* ── Capsule progress bar stripe (bandwidth bottom edge) ── */
+.capsule-bar-wrap {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.capsule-bar-fill {
   height: 100%;
-  border-radius: 50px;
+  border-radius: 0 2px 2px 0;
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.sysres-fill.bw-fill.nominal {
-  background: linear-gradient(90deg, var(--ui-accent), rgba(255, 255, 255, 0.85));
-}
-.sysres-fill.bw-fill.low {
-  background: linear-gradient(90deg, #f59e0b, #fcd34d);
-}
-.sysres-fill.bw-fill.critical {
-  background: linear-gradient(90deg, #fb7185, #fca5a5);
-}
+.capsule-bar-fill.nominal  { background: linear-gradient(90deg, var(--ui-accent), rgba(255,255,255,0.7)); }
+.capsule-bar-fill.low      { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
+.capsule-bar-fill.critical { background: linear-gradient(90deg, #fb7185, #fca5a5); }
 
-.sysres-fill.xp-fill {
-  background: linear-gradient(90deg, rgba(139, 92, 246, 0.75), rgba(196, 149, 253, 0.9));
-}
-
-.sysres-modules-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.sysres-modules-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* ── BW daily pulse button ── */
+.bw-pulse-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 3px 7px;
+  background: rgba(251, 113, 133, 0.15);
+  border: 1px solid rgba(251, 113, 133, 0.4);
+  border-radius: 6px;
+  color: #fb7185;
   font-family: "Inter", sans-serif;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.bw-pulse-btn:hover {
+  background: rgba(251, 113, 133, 0.28);
+  border-color: rgba(251, 113, 133, 0.65);
 }
 
-.mod-installed { color: var(--ui-accent); }
-.mod-sep       { color: rgba(255, 255, 255, 0.18); }
-.mod-owned     { color: rgba(255, 255, 255, 0.32); }
+/* ── Daily credit bonus button ── */
+.daily-bonus-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 3px 7px;
+  background: rgba(253, 186, 116, 0.12);
+  border: 1px solid rgba(253, 186, 116, 0.35);
+  border-radius: 6px;
+  color: #fdba74;
+  font-family: "Inter", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.daily-bonus-btn:hover {
+  background: rgba(253, 186, 116, 0.24);
+  border-color: rgba(253, 186, 116, 0.6);
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .sysres-hud {
+    padding-bottom: 10px;
+  }
+
+  .sysres-capsule {
+    padding: 9px 12px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+
+  .capsule-value {
+    font-size: 0.85rem;
+  }
+
+  .capsule-icon {
+    font-size: 0.82rem;
+  }
+}

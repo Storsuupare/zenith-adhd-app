@@ -1,22 +1,30 @@
+@keyframes card-enter {
+  from { opacity: 0; transform: scale(0.96) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
 .contract-card {
+  position: relative;
   display: flex;
-  background: var(--ui-glass);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--ui-border);
-  margin-bottom: 15px;
-  border-radius: 4px;
-  transition: border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  background: rgba(15, 15, 20, 0.95);
+  border: 1px solid var(--ui-border, rgba(255, 255, 255, 0.08));
+  margin-bottom: 12px;
+  border-radius: 12px;
+  isolation: isolate;
+  animation: card-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: border-color 0.3s ease;
+  overflow: hidden;
 }
 
-.contract-card:hover {
-  border-color: var(--ui-accent);
-  background: rgba(255, 255, 255, 0.05);
-  transform: translateX(5px);
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .contract-card {
+    background: var(--ui-glass, rgba(15, 15, 20, 0.75));
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
 }
 
-/* THE LEFT ACCENT STRIP */
+/* Left accent strip uses skill color while running */
 .contract-card::before {
   content: "";
   position: absolute;
@@ -24,73 +32,95 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--ui-accent); /* The dynamic accent line */
-  box-shadow: 0 0 15px var(--ui-accent);
+  background: var(--skill-color, var(--ui-accent, #22d3ee));
+  box-shadow: 0 0 12px var(--skill-color, var(--ui-accent, #22d3ee));
 }
 
+@keyframes opt-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.8; }
+}
+
+.contract-card.optimistic-pending {
+  opacity: 0.6;
+  pointer-events: none;
+  animation: card-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both,
+             opt-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Card body ─────────────────────────────────────────────── */
 .card-main-content {
   flex: 1;
-  padding: 20px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  min-width: 0;
 }
 
 .mission-title {
-  color: var(--ui-text-main);
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.90rem;
   font-weight: 800;
   color: #fff;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin: 0;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
-/* THE DATA GRID - THIS IS THE KEY TO THE "MODERN" LOOK */
+/* ── Data grid ─────────────────────────────────────────────── */
 .mission-data-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: nowrap;
   gap: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
-  padding-top: 15px;
+  align-items: flex-start;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 10px;
 }
 
 .data-node {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .data-node .label {
- color: var(--ui-text-dim);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.28);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .data-node .value {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
+  white-space: nowrap;
   color: #fff;
 }
 
-/* SPECIFIC VALUE COLORS */
-.timer .value {
-  color: var(--zenith-cyan);
-  text-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
-}
-.reward .value {
-  color: var(--zenith-green);
-}
-.risk .value {
-  color: var(--zenith-red);
-}
+.reward .value { color: #00ffa3; }
 
+/* ── Action column ─────────────────────────────────────────── */
 .card-actions-vertical {
   display: flex;
   flex-direction: column;
-  width: 90px;
+  width: 88px;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.02);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.lock-indicator {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  opacity: 0.22;
 }
 
 .btn-action {
@@ -98,116 +128,320 @@
   border: none;
   background: transparent;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 900;
-  color: var(--text-dim);
+  color: var(--text-dim, rgba(255, 255, 255, 0.35));
   cursor: pointer;
   text-transform: uppercase;
   transition: background 0.2s ease, color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: manipulation;
+  letter-spacing: 0.06em;
 }
 
-.btn-action.primary {
-  color: var(--zenith-green);
+.btn-action.abort { color: rgba(255, 68, 68, 0.55); }
+
+@media (hover: hover) {
+  .btn-action.abort:hover {
+    background: rgba(255, 68, 68, 0.08);
+    color: #ff4444;
+  }
 }
 
-.btn-action.primary:hover {
-  background: rgba(0, 255, 136, 0.1);
-  color: #fff;
+/* ── Mission header ────────────────────────────────────────── */
+.mission-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-.btn-action.abort {
-  color: rgba(255, 68, 68, 0.5);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+.mission-id {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
 }
 
-.btn-action.abort:hover {
-  background: rgba(255, 68, 68, 0.1);
-  color: var(--zenith-red);
+.skill-tag {
+  flex: 1;
+  text-align: center;
+  font-family: "Inter", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--skill-color, var(--ui-accent, #22d3ee));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.contract-card::after {
-  content: "";
+.xp-unit {
+  font-size: 0.7em;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+/* ── Countdown progress bar ────────────────────────────────── */
+.contract-progress-bar {
+  margin-top: 12px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.contract-progress-fill {
+  height: 100%;
+  background: var(--skill-color, var(--ui-accent, #22d3ee));
+  border-radius: 4px;
+  transition: width 1s linear;
+  box-shadow: 0 0 8px var(--skill-color, var(--ui-accent, #22d3ee));
+}
+
+.contract-progress-fill.critical {
+  background: #ff4444;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.7);
+  animation: progress-critical-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes progress-critical-pulse {
+  from { opacity: 0.7; }
+  to   { opacity: 1.0; }
+}
+
+/* ============================================================
+   FINISH LINE — timer reached zero, reward waiting
+   ============================================================ */
+
+@keyframes ready-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.contract-card.session-ready {
+  flex-direction: column;
+  border-color: var(--skill-color, #00ffa3);
+  box-shadow:
+    0 0 0 1px var(--skill-color, #00ffa3),
+    0 16px 56px rgba(0, 0, 0, 0.55),
+    0 0 80px rgba(0, 255, 163, 0.06);
+  animation: ready-enter 0.50s cubic-bezier(0.22, 1, 0.36, 1) both;
+  cursor: default;
+  overflow: hidden;
+}
+
+.contract-card.session-ready::before {
+  background: var(--skill-color, #00ffa3);
+  box-shadow: 0 0 24px var(--skill-color, #00ffa3);
+  width: 4px;
+}
+
+/* Subtle skill-color radial bleed from the top of the card */
+.ready-bg-glow {
   position: absolute;
   top: 0;
-  left: -100%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.03),
-    transparent
-  );
-  transition: 0.5s;
+  left: 0;
+  right: 0;
+  height: 160px;
+  background: radial-gradient(ellipse at 50% -20%, var(--skill-color, #00ffa3) 0%, transparent 70%);
+  opacity: 0.10;
+  pointer-events: none;
 }
 
-.contract-card:hover::after {
-  left: 100%;
-}
-.card-main-content {
-  flex: 1;
-  padding: 15px 20px;
+.ready-inner {
+  padding: 26px 24px 18px;
   display: flex;
   flex-direction: column;
-}
-.mission-title {
-  font-size: 1.1rem;
-  font-weight: 900;
-  color: #fff;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+  gap: 12px;
+  position: relative;
 }
 
-.mission-data-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
+/* ── Header row — skill · DONE badge · duration ── */
+.ready-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.data-node .label {
-  font-size: 0.5rem;
+
+.ready-skill-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  color: var(--skill-color, #00ffa3);
 }
-.data-node .value {
+
+.ready-done-badge {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.85rem;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--skill-color, #00ffa3);
+  border: 1px solid var(--skill-color, #00ffa3);
+  padding: 2px 7px;
+  border-radius: 3px;
+  opacity: 0.75;
+}
+
+.ready-duration {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 1);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+/* ── Task title — the headline ── */
+.ready-title {
+  font-family: "Inter", sans-serif;
+  font-size: clamp(1.45rem, 5vw, 1.9rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #ffffff;
+  word-break: break-word;
+  margin: 0;
+  text-align: center;
+}
+
+/* ── XP reward block ── */
+.ready-reward-block {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.ready-xp {
+  font-family: "Inter", sans-serif;
+  font-size: clamp(2.8rem, 10vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--skill-color, #00ffa3);
+  text-shadow:
+    0 0 40px var(--skill-color, rgba(0, 255, 163, 0.55)),
+    0 0 80px var(--skill-color, rgba(0, 255, 163, 0.20));
+}
+
+.ready-xp-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 1.1rem;
   font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.30);
+  padding-bottom: 4px;
 }
 
-.reward .value {
-  color: #00ffa3;
-}
-.risk .value {
-  color: #ff4444;
+/* ── Collect button ── */
+.session-collect-btn {
+  width: 100%;
+  padding: 20px;
+  background: var(--skill-color, #00ffa3);
+  border: none;
+  color: #000;
+  font-family: "Inter", sans-serif;
+  font-size: 1.0rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.08s ease, opacity 0.15s ease;
 }
 
-.card-actions-vertical {
+.session-collect-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  will-change: opacity;
+  animation: collect-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes collect-glow {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
+}
+
+.session-collect-btn:active {
+  transform: scale(0.99);
+}
+
+.session-collect-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Drop confirmation ─────────────────────────────────────── */
+.drop-confirm {
   display: flex;
   flex-direction: column;
-  width: 100px;
-  background: rgba(255, 255, 255, 0.03);
-  border-left: 2px solid rgba(255, 255, 255, 0.07);
+  width: 100%;
+  height: 100%;
 }
 
-.btn-action {
+.drop-warn {
   flex: 1;
-  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 6px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
-  font-weight: 900;
-  cursor: pointer;
-  text-transform: uppercase;
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  color: rgba(255, 180, 0, 0.85);
 }
 
-.btn-action.primary {
-  color: #00ffa3;
-  background: rgba(0, 255, 163, 0.05);
+/* ── Tablet ─────────────────────────────────────────────────── */
+@media screen and (max-width: 768px) {
+  .card-main-content  { padding: 12px 14px; }
+  .card-actions-vertical { width: 72px; }
+  .btn-action         { font-size: 0.65rem; }
+  .mission-title      { font-size: 0.84rem; }
+  .ready-xp           { font-size: 2.0rem; }
+  .session-collect-btn { padding: 16px; font-size: 0.84rem; }
 }
-.btn-action.abort {
-  color: rgba(255, 68, 68, 0.6);
-  background: rgba(255, 68, 68, 0.02);
+
+/* ── Mobile ─────────────────────────────────────────────────── */
+@media screen and (max-width: 480px) {
+  .mission-data-grid  { flex-wrap: wrap; gap: 8px 14px; }
+  .card-actions-vertical { width: 60px; }
+}
+
+/* ── Device-small ───────────────────────────────────────────── */
+.device-small .contract-card  { border-radius: 8px; margin-bottom: 6px; }
+.device-small .card-main-content { padding: 8px 10px; }
+.device-small .mission-title  { font-size: 0.78rem; }
+.device-small .skill-tag      { font-size: 0.62rem; }
+.device-small .card-actions-vertical { width: 56px; }
+.device-small .btn-action     { font-size: 0.62rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .contract-card                    { animation: none; }
+  .contract-card.optimistic-pending { animation: none; opacity: 0.6; }
+  .contract-progress-fill.critical  { animation: none; }
+  .contract-card.session-ready      { animation: none; }
+  .session-collect-btn::after       { animation: none; }
 }

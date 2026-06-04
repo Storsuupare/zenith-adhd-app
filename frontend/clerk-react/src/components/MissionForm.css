@@ -1,10 +1,9 @@
 /* ============================================================
-   MISSION FORM 
+   MISSION FORM
    ============================================================ */
 
 .input-section {
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(6px);
+  background: rgba(10, 10, 15, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   padding: 22px;
@@ -13,6 +12,15 @@
   flex-direction: column;
   gap: 14px;
   flex-shrink: 0;
+  isolation: isolate;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .input-section {
+    background: rgba(0, 0, 0, 0.25);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
 }
 
 /* ---- KINETIC TOGGLE ---- */
@@ -65,12 +73,12 @@
 
 input:checked + .slider {
   background: rgba(255, 255, 255, 0.08);
-  border-color: var(--ui-accent);
+  border-color: var(--ui-accent, #22d3ee);
 }
 
 input:checked + .slider::before {
   transform: translateX(22px);
-  background: var(--ui-accent);
+  background: var(--ui-accent, #22d3ee);
 }
 
 .toggle-label {
@@ -84,17 +92,20 @@ input:checked + .slider::before {
 }
 
 input:checked ~ .toggle-label {
-  color: var(--ui-accent);
+  color: var(--ui-accent, #22d3ee);
 }
 
 .selector-label {
-  font-family: "Inter", sans-serif;
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.2em;
+  color: var(--ui-accent, #22d3ee);
   text-align: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--accent-a22, rgba(34, 211, 238, 0.22));
+  text-shadow: 0 0 12px var(--accent-a35, rgba(34, 211, 238, 0.35));
 }
 
 .input-field {
@@ -123,13 +134,20 @@ input:checked ~ .toggle-label {
 
 .input-field:focus {
   outline: none;
-  border-color: var(--ui-accent);
+  border-color: var(--ui-accent, #22d3ee);
+  box-shadow: 0 0 0 3px var(--accent-a12, rgba(34, 211, 238, 0.12));
 }
 
 .duration-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .duration-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .duration-btn {
@@ -149,21 +167,42 @@ input:checked ~ .toggle-label {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  transition: background 0.25s ease,
-              border-color 0.25s ease,
-              color 0.25s ease;
+  touch-action: manipulation;
+  contain: layout style paint;
+  transition: transform 0.08s ease;
 }
 
-.duration-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
+/* Active background as opacity-only pseudo-element — runs on compositor, no paint per frame */
+.duration-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--ui-accent, #22d3ee);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.duration-btn.active::before {
+  opacity: 0.12;
+}
+
+.duration-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  .duration-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+  }
 }
 
 .duration-btn.active {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(--ui-accent);
-  color: var(--ui-accent);
+  border-color: var(--ui-accent, #22d3ee);
+  color: var(--ui-accent, #22d3ee);
 }
 
 .duration-btn.locked-tier {
@@ -174,15 +213,76 @@ input:checked ~ .toggle-label {
   opacity: 0.6;
 }
 
-.duration-btn.locked-tier:hover {
-  border-color: rgba(255, 68, 68, 0.4) !important;
+@media (hover: hover) {
+  .duration-btn.locked-tier:hover {
+    border-color: rgba(255, 68, 68, 0.4) !important;
+  }
 }
 
 .btn-xp-tag {
-  font-size: 0.62rem;
-  color: var(--ui-accent);
+  font-size: 0.68rem;
+  color: var(--ui-accent, #22d3ee);
   font-weight: 900;
   text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+}
+
+.btn-duration-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.btn-cr-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: rgba(253, 186, 116, 0.9);
+  letter-spacing: 0.04em;
+}
+
+.btn-neural-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.btn-neural-badge.penalty {
+  color: rgba(251, 113, 133, 1);
+  background: rgba(251, 113, 133, 0.12);
+}
+
+.btn-neural-badge.bonus {
+  color: rgba(52, 211, 153, 1);
+  background: rgba(52, 211, 153, 0.12);
+}
+
+.btn-legendary-badge {
+  font-size: 0.68rem;
+  font-weight: bold;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(253, 186, 116, 0.6);
+}
+
+.duration-btn.legendary {
+  border-color: rgba(253, 186, 116, 0.25);
+}
+
+.duration-btn.legendary.active {
+  border-color: rgba(253, 186, 116, 0.75);
+  color: rgba(253, 186, 116, 0.9);
+}
+
+.duration-btn.legendary.active::before {
+  background: rgba(253, 186, 116, 1);
+}
+
+@media (hover: hover) {
+  .duration-btn.legendary:hover:not(:disabled) {
+    border-color: rgba(253, 186, 116, 0.5);
+  }
 }
 
 .lock-label {
@@ -192,10 +292,11 @@ input:checked ~ .toggle-label {
 }
 
 .btn-primary {
+  position: relative;
   width: 100%;
   padding: 16px;
   background: rgba(255, 255, 255, 0.12);
-  border: 1px solid var(--ui-accent);
+  border: 1px solid var(--ui-accent, #22d3ee);
   border-radius: 10px;
   color: #fff;
   font-family: "Inter", sans-serif;
@@ -204,12 +305,63 @@ input:checked ~ .toggle-label {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.25s ease, color 0.25s ease;
+  touch-action: manipulation;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.1s ease;
 }
 
-.btn-primary:hover {
-  background: var(--ui-accent);
-  color: #000;
+.btn-primary.btn-ready::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 11px;
+  border: 1px solid var(--ui-accent, #22d3ee);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+  animation: btn-ready-pulse 2s ease-in-out infinite;
+}
+
+@keyframes btn-ready-pulse {
+  0%, 100% { opacity: 0;    }
+  50%       { opacity: 0.55; }
+}
+
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--ui-accent, #22d3ee);
+    color: #000;
+    box-shadow: 0 0 22px var(--accent-a38, rgba(34, 211, 238, 0.38));
+  }
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-debug {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 100, 0.3);
+  border-radius: 8px;
+  color: rgba(255, 255, 100, 0.5);
+  font-family: "Inter", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.2s, color 0.2s;
+}
+@media (hover: hover) {
+  .btn-debug:hover:not(:disabled) {
+    border-color: rgba(255, 255, 100, 0.6);
+    color: rgba(255, 255, 100, 0.8);
+  }
+}
+.btn-debug:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .logs-section {
@@ -266,22 +418,12 @@ input:checked ~ .toggle-label {
 }
 
 .btn-action.primary {
-  color: var(--zenith-green);
+  color: var(--zenith-green, #34d399);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.btn-action.primary:hover {
-  background: rgba(52, 211, 153, 0.12);
-  color: #fff;
 }
 
 .btn-action.abort {
   color: rgba(251, 113, 133, 0.7);
-}
-
-.btn-action.abort:hover {
-  background: rgba(251, 113, 133, 0.12);
-  color: var(--zenith-red);
 }
 
 .btn-action::before {
@@ -293,14 +435,26 @@ input:checked ~ .toggle-label {
   transition: height 0.25s ease;
 }
 
-.btn-action.primary:hover::before {
-  background: var(--zenith-green);
-  height: 55%;
-}
+@media (hover: hover) {
+  .btn-action.primary:hover {
+    background: rgba(52, 211, 153, 0.12);
+    color: #fff;
+  }
 
-.btn-action.abort:hover::before {
-  background: var(--zenith-red);
-  height: 55%;
+  .btn-action.abort:hover {
+    background: rgba(251, 113, 133, 0.12);
+    color: var(--zenith-red, #ff4444);
+  }
+
+  .btn-action.primary:hover::before {
+    background: var(--zenith-green, #34d399);
+    height: 55%;
+  }
+
+  .btn-action.abort:hover::before {
+    background: var(--zenith-red, #ff4444);
+    height: 55%;
+  }
 }
 
 .critical-pulse {
@@ -308,14 +462,36 @@ input:checked ~ .toggle-label {
 }
 
 .empty-state {
-  font-family: "Inter", sans-serif;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.28);
   text-align: center;
   padding: 24px 0;
   text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-state-icon {
+  font-size: 1.4rem;
+  opacity: 0.35;
+  line-height: 1;
+}
+
+.empty-state-text::after {
+  content: "_";
+  animation: cursor-blink 1.2s step-end infinite;
+  color: var(--ui-accent, #22d3ee);
+  opacity: 0.6;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 0;   }
 }
 
 /* ---- TELEMETRY CARD ---- */
@@ -325,8 +501,8 @@ input:checked ~ .toggle-label {
   gap: 14px;
   padding: 12px 16px;
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid color-mix(in srgb, var(--ui-accent) 18%, transparent);
-  border-left: 3px solid var(--ui-accent);
+  border: 1px solid var(--accent-a18, rgba(34, 211, 238, 0.18));
+  border-left: 3px solid var(--ui-accent, #22d3ee);
   border-radius: 4px;
   animation: telemetry-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -338,8 +514,8 @@ input:checked ~ .toggle-label {
 
 .telemetry-icon {
   font-size: 1.5rem;
-  color: var(--ui-accent);
-  text-shadow: 0 0 14px color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  color: var(--ui-accent, #22d3ee);
+  text-shadow: 0 0 14px var(--accent-a55, rgba(34, 211, 238, 0.55));
   flex-shrink: 0;
   line-height: 1;
   width: 28px;
@@ -354,12 +530,12 @@ input:checked ~ .toggle-label {
 
 .telemetry-skill {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--ui-accent);
-  text-shadow: 0 0 8px color-mix(in srgb, var(--ui-accent) 35%, transparent);
+  color: var(--ui-accent, #22d3ee);
+  text-shadow: 0 0 8px var(--accent-a35, rgba(34, 211, 238, 0.35));
 }
 
 .telemetry-benefit {
@@ -369,4 +545,295 @@ input:checked ~ .toggle-label {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.72);
   margin: 0;
+}
+
+/* ============================================================
+   DEVICE-SMALL — Collapse vertical padding, legacy screens
+   ============================================================ */
+.device-small .input-section {
+  padding: 10px 12px;
+  gap: 8px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+}
+
+/* Kinetic toggle: tighter */
+.device-small .toggle-container {
+  padding: 6px 12px;
+  gap: 10px;
+}
+
+.device-small .toggle-label {
+  font-size: 0.65rem;
+}
+
+/* Duration grid: tighter buttons */
+.device-small .duration-btn {
+  padding: 6px 0;
+}
+
+.device-small .btn-duration-label {
+  font-size: 0.68rem;
+}
+
+.device-small .btn-xp-tag,
+.device-small .btn-cr-tag {
+  font-size: 0.65rem;
+}
+
+/* Deploy button: shorter */
+.device-small .btn-primary {
+  padding: 11px 16px;
+  font-size: 0.82rem;
+}
+
+/* Input field: less padding */
+.device-small .input-field {
+  padding: 10px 12px;
+  font-size: 0.8rem;
+}
+
+/* Telemetry card: tighter */
+.device-small .telemetry-card {
+  padding: 8px 12px;
+  gap: 10px;
+}
+
+.device-small .telemetry-benefit {
+  font-size: 0.65rem;
+}
+
+/* Pre-JS fallback */
+@media (max-height: 700px) {
+  .input-section {
+    padding: 10px 12px;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .duration-btn {
+    padding: 6px 0;
+  }
+  .btn-primary {
+    padding: 11px 16px;
+  }
+  .input-field {
+    padding: 10px 12px;
+  }
+}
+
+/* ============================================================
+   VERY SMALL DEVICES — legacy phones, narrow viewports
+   ============================================================ */
+@media (max-width: 360px) {
+  .input-section {
+    padding: 8px 10px;
+    gap: 6px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+  }
+
+  .toggle-container {
+    padding: 5px 10px;
+    gap: 8px;
+  }
+
+  .zenith-switch {
+    width: 40px;
+    height: 22px;
+  }
+
+  .slider::before {
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+  }
+
+  input:checked + .slider::before {
+    transform: translateX(16px);
+  }
+
+  .toggle-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+  }
+
+  .selector-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+  }
+
+  .input-field {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    border-radius: 8px;
+  }
+
+  .duration-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .duration-btn {
+    padding: 5px 0;
+    gap: 2px;
+    border-radius: 6px;
+  }
+
+  .btn-duration-label {
+    font-size: 0.68rem;
+  }
+
+  .btn-cr-tag {
+    font-size: 0.65rem;
+  }
+
+  .btn-neural-badge {
+    font-size: 0.65rem;
+    padding: 1px 3px;
+  }
+
+  .btn-legendary-badge {
+    font-size: 0.65rem;
+  }
+
+  .lock-label {
+    font-size: 0.68rem;
+  }
+
+  .btn-primary {
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    border-radius: 8px;
+  }
+
+  .telemetry-card {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .telemetry-icon {
+    font-size: 1.2rem;
+    width: 22px;
+  }
+
+  .telemetry-skill {
+    font-size: 0.65rem;
+  }
+
+  .telemetry-benefit {
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+}
+
+/* ── Red Zone Warning ────────────────────────────────────────── */
+.redzone-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(251, 113, 133, 0.07);
+  border: 1px solid rgba(251, 113, 133, 0.22);
+  border-radius: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(251, 113, 133, 0.85);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.redzone-warning-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Duration info line (shows XP/BW/CR for the selected button) ── */
+.duration-info-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0 2px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.70rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.30);
+}
+
+.dil-xp  { color: var(--ui-accent, #22d3ee); font-weight: 800; }
+.dil-cr  { color: rgba(253, 186, 116, 0.80); }
+.dil-sep { opacity: 0.30; }
+
+.dil-badge {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+.dil-badge.penalty { color: rgba(251, 113, 133, 1); background: rgba(251, 113, 133, 0.12); }
+.dil-badge.bonus   { color: rgba(52, 211, 153, 1);  background: rgba(52, 211, 153, 0.12);  }
+
+/* ── Skill Picker ──────────────────────────────────────────── */
+
+.skill-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-picker-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.skill-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skill-chip {
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.45);
+  font-family: "Inter", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.16s ease, border-color 0.16s ease,
+              color 0.16s ease, transform 0.08s ease;
+}
+
+@media (hover: hover) {
+  .skill-chip:hover {
+    border-color: var(--chip-color, rgba(255, 255, 255, 0.3));
+    color: var(--chip-color, rgba(255, 255, 255, 0.8));
+    background: rgba(255, 255, 255, 0.10);
+  }
+}
+
+.skill-chip:active {
+  transform: scale(0.96);
+}
+
+.skill-chip.active {
+  border-color: var(--chip-color, rgba(255, 255, 255, 0.6));
+  color: var(--chip-color, #fff);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.22);
 }

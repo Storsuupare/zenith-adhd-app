@@ -12,11 +12,15 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@clerk/backend": "^3.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
+    "node-cron": "^4.2.1",
     "pg": "^8.20.0",
     "sqlite3": "^6.0.1",
-    "stripe": "^22.0.2"
+    "stripe": "^22.0.2",
+    "web-push": "^3.6.7"
   }
 }

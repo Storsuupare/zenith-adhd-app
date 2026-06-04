@@ -1,7 +1,6 @@
 import os
 import time
 import psycopg2
-from datetime import datetime, timezone 
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,49 +10,74 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT")
+    "port": os.getenv("DB_PORT"),
 }
 
-def audit_focus():
+# Kinetic Mode: tasks are only reaped if still ACTIVE this many minutes past
+# their deadline (user never completed or aborted — true abandonment).
+MAX_BUFFER_MINUTES = int(os.getenv("MAX_BUFFER_MINUTES", 120))
+
+
+def run_reaper_check() -> None:
+    """
+    Reaps ACTIVE tasks that have been running more than MAX_BUFFER_MINUTES
+    past their deadline — meaning the user never completed or aborted.
+
+    Kinetic Mode allows tab-switching freely; strikes are only applied when
+    a task is truly abandoned (deadline + buffer exceeded).
+
+    For each abandoned task:
+      - Task → FAILED
+      - User strikes +1 (soft counter, no lockout)
+    """
     conn = None
     try:
         conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT t.id, t.user_id
+                FROM tasks t
+                WHERE t.status = 'ACTIVE'
+                  AND t.deadline IS NOT NULL
+                  AND t.deadline < NOW() - (%s * INTERVAL '1 minute')
+                """,
+                (MAX_BUFFER_MINUTES,),
+            )
+            abandoned = cur.fetchall()
 
-        cur.execute("""
-            SELECT id, user_id, stake_amount 
-            FROM contracts 
-            WHERE status = 'ACTIVE' 
-            AND deadline < (NOW() AT TIME ZONE 'UTC' - INTERVAL  '5 seconds')
-        """)
-        
-        lapsed = cur.fetchall()
+            for task_id, user_id in abandoned:
+                cur.execute(
+                    "UPDATE tasks SET status = 'FAILED' WHERE id = %s",
+                    (task_id,),
+                )
+                cur.execute(
+                    "UPDATE users SET strikes = strikes + 1 WHERE id = %s",
+                    (user_id,),
+                )
+                print(
+                    f"REAPER: Task {task_id} abandoned | User {user_id} | strike recorded"
+                )
 
-        if lapsed:
-            for row in lapsed:
-                s_id, u_id, stake = row
-                
-                cur.execute("UPDATE contracts SET status = 'FAILED' WHERE id = %s", (s_id,))
-                
-                cur.execute("""
-                    UPDATE users 
-                    SET xp = GREATEST(0, xp - %s), streak = 0 
-                    WHERE id = %s
-                """, (stake, u_id))
-                
-                print(f"REAPER STRIKE: User {u_id} | Mission {s_id} | -{stake} XP")
+            if abandoned:
+                conn.commit()
 
-            conn.commit()
-        
-    except Exception as e:
-        print(f"CRITICAL SYSTEM FAILURE: {e}")
+    except Exception as exc:
+        print(f"REAPER ERROR: {exc}")
+        if conn:
+            conn.rollback()
     finally:
         if conn:
-            cur.close()
             conn.close()
 
-if __name__ == "__main__":
-    print(f"ZENITH WARDEN ONLINE. WATCHING: {DB_CONFIG['dbname']}")
+
+def start() -> None:
+    print(f"ZENITH WARDEN ONLINE — DB: {DB_CONFIG['dbname']}")
+    print(f"Reaper config: max buffer={MAX_BUFFER_MINUTES}m, no lockout penalty")
     while True:
-        audit_focus()
-        time.sleep(5)
+        run_reaper_check()
+        time.sleep(30)
+
+
+if __name__ == "__main__":
+    start()

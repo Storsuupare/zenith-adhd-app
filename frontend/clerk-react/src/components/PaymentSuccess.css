@@ -11,9 +11,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.85);
   font-family: "Inter", sans-serif;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .payment-success-screen {
+    background: rgba(0, 0, 0, 0.75);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
 }
 
 .payment-success-card {
@@ -21,12 +28,19 @@
   max-width: 420px;
   margin: 20px;
   padding: 48px 40px;
-  background: rgba(8, 8, 15, 0.92);
+  background: rgba(8, 8, 15, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
-  backdrop-filter: blur(20px);
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition: border-color 0.6s ease;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .payment-success-card {
+    background: rgba(8, 8, 15, 0.92);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
 }
 
 .payment-success-card.revealed {
@@ -107,7 +121,6 @@
 
 .recal-step.active .step-dot {
   animation: dot-pulse 0.9s ease-in-out infinite;
-  will-change: opacity;
 }
 
 @keyframes dot-pulse {
@@ -135,7 +148,7 @@
   color: #34d399;
   text-shadow: 0 0 30px rgba(52, 211, 153, 0.45);
   animation: icon-glow 2.5s ease-in-out infinite;
-  will-change: text-shadow;
+  will-change: opacity;
 }
 
 @keyframes icon-glow {
@@ -176,14 +189,16 @@
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.success-cta:hover {
-  background: rgba(52, 211, 153, 0.18);
-  border-color: rgba(52, 211, 153, 0.6);
-  box-shadow: 0 0 24px rgba(52, 211, 153, 0.18);
+@media (hover: hover) {
+  .success-cta:hover {
+    background: rgba(52, 211, 153, 0.18);
+    border-color: rgba(52, 211, 153, 0.6);
+    box-shadow: 0 0 24px rgba(52, 211, 153, 0.18);
+  }
 }
 
 .success-footnote {
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.18);
   letter-spacing: 0.04em;
