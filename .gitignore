@@ -5,9 +5,10 @@
 .env.local
 .env.*.local
 .claude/
+.vscode/
 dist/
 **/dist/
-frontend/.vite/
+frontend/
 backend/generated/
 *.db
 .DS_Store
