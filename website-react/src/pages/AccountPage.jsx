@@ -36,7 +36,7 @@ export default function AccountPage() {
         if (!res.ok) throw new Error('Failed to load profile')
         setProfile(await res.json())
       } catch (e) {
-        setError('Could not load your profile. Make sure the app backend is running.')
+        setError('Could not load your profile. Please refresh the page or try again later.')
       } finally {
         setLoading(false)
       }
@@ -127,7 +127,7 @@ export default function AccountPage() {
           {/* ── Actions ── */}
           <div className="acc-actions">
             <a
-              href={import.meta.env.VITE_APP_URL || '#'}
+              href={import.meta.env.VITE_APP_URL || 'https://zenithapp.org'}
               className="acc-btn acc-btn--primary"
             >
               Open App ↗

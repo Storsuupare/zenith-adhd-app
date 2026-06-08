@@ -1665,16 +1665,18 @@ app.post("/payments/create-session", requireAuth, async (req, res) => {
   const reqTier = Number(targetTier);
   const PLANS = {
     1: {
-      name: "Zenith Pro",
+      name: "Zenith PRO",
       description:
-        "1.5× XP · 2 perk slots · Rain & Cyberpunk ambience · Better item drops",
-      amount: 999,
+        "1.5× XP + credits · 15 task slots · 120 min sessions · 2× loot drop rate · Cobalt & Amber themes",
+      amount: 499,
+      currency: "eur",
     },
     2: {
-      name: "Zenith Elite",
+      name: "Zenith ELITE",
       description:
-        "2× XP · 4 perk slots · All themes & audio · Legendary drops · No task cap",
-      amount: 2499,
+        "2× XP + credits · Unlimited task slots · 120 min sessions · 3× loot drop rate · All themes unlocked",
+      amount: 999,
+      currency: "eur",
     },
   };
   const plan = PLANS[reqTier];
@@ -1685,7 +1687,7 @@ app.post("/payments/create-session", requireAuth, async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: plan.currency,
             product_data: { name: plan.name, description: plan.description },
             unit_amount: plan.amount,
             recurring: { interval: "month" },
@@ -1697,8 +1699,8 @@ app.post("/payments/create-session", requireAuth, async (req, res) => {
         metadata: { userId, targetTier: String(reqTier) },
       },
       metadata: { userId, targetTier: String(reqTier) },
-      success_url: `${process.env.FRONTEND_URL}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/?payment=cancelled`,
+      success_url: `${process.env.FRONTEND_URL}/payment/success`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
     });
 
     res.json({ url: stripeSess.url });

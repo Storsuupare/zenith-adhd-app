@@ -19,7 +19,9 @@ export default function App() {
       <Route path="/privacy"         element={<PrivacyPage />} />
       <Route path="/terms"           element={<TermsPage />} />
       <Route path="/login"           element={<LoginPage />} />
+      <Route path="/login/*"         element={<LoginPage />} />
       <Route path="/signup"          element={<SignupPage />} />
+      <Route path="/signup/*"        element={<SignupPage />} />
       <Route path="/payment/success" element={<PaymentSuccessPage />} />
       <Route path="/payment/cancel"  element={<PaymentCancelPage />} />
       <Route path="/release-notes"   element={<ReleaseNotesPage />} />

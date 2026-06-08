@@ -457,6 +457,51 @@ body::after {
   }
 }
 
+/* ── Google Play Badge (Nav) ── */
+.nav-play-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.nav-play-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 5px 12px;
+  color: #fff;
+  text-decoration: none;
+}
+.nav-play-badge--disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+.nav-play-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.nav-play-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+}
+.nav-play-main {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.nav-play-soon {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
 /* ── Sections ── */
 .section {
   position: relative;
@@ -870,6 +915,10 @@ body::after {
 .pricing-btn:active {
   transform: scale(0.98);
 }
+.pricing-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .pricing-btn--free {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -913,17 +962,27 @@ body::after {
   border-color: rgba(245, 158, 11, 0.18);
 }
 .pricing-badge {
-  display: inline-block;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.52rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #000;
-  background: var(--ui-accent, #22d3ee);
-  border-radius: 4px;
-  padding: 3px 8px;
-  margin-bottom: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #22d3ee 0%, #0ea5e9 100%);
+  border-radius: 999px;
+  padding: 5px 14px;
+  margin-bottom: 18px;
+  white-space: nowrap;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.pricing-badge::before {
+  content: "✦";
+  font-size: 0.5rem;
+  opacity: 0.85;
 }
 .pricing-trust {
   font-size: 0.72rem;
@@ -931,6 +990,12 @@ body::after {
   text-align: center;
   letter-spacing: 0.04em;
   line-height: 1.6;
+}
+.pricing-error {
+  font-size: 0.82rem;
+  color: #f87171;
+  text-align: center;
+  margin-top: 12px;
 }
 
 /* ── Beta ── */
@@ -1093,6 +1158,7 @@ body::after {
   border-left: 2px solid rgba(255, 255, 255, 0.08);
   padding: 0 0 36px 24px;
   position: relative;
+  height: 100dvh;
 }
 .rn-block::before {
   content: "";
@@ -1593,7 +1659,7 @@ body::after {
     gap: 10px;
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 600px) and (max-height: 950px) {
   .section {
     padding: 90px 0 60px;
   }
@@ -1610,10 +1676,17 @@ body::after {
   .beta-form {
     flex-direction: column;
   }
+  
   .footer-inner {
     flex-direction: column;
     text-align: center;
+    
   }
+
+  .site-footer {
+    height: 17dvh;
+  }
+  
   .nav-link:not(.nav-link--always) {
     display: none;
   }
@@ -1685,7 +1758,7 @@ body::after {
   }
 }
 
-/* ── 480px – 599px — large phones / phablets ── */
+
 @media (min-width: 480px) and (max-width: 599px) {
   .section {
     padding: 92px 0 64px;
@@ -1715,7 +1788,6 @@ body::after {
   }
 }
 
-/* ── 600px – 767px — small tablets / large phablets ── */
 @media (min-width: 600px) and (max-width: 767px) {
   .section {
     padding: 96px 0 68px;
@@ -1808,6 +1880,9 @@ body::after {
     height: 32vh;
   }
 }
+
+
+
 
 /* ── 900px – 1023px — tablet landscape / small laptop ── */
 @media (min-width: 900px) and (max-width: 1023px) {

@@ -31,8 +31,7 @@ const TIER_PERKS = [
     "1.5× XP and credits every session",
     "50% loot drop rate",
     "120 CR daily bonus",
-    "Split 120-min tasks into 4×30-min",
-    "Neon, Arctic, Solar themes",
+    "Neon, Arctic + Solar unlocked in shop",
   ]},
   { tier: 2, label: "ELITE", color: "#fbbf24", price: "€9.99/mo", perks: [
     "2× XP and credits every session",
@@ -155,7 +154,7 @@ export default function ShopScreen() {
     previewTimer.current = setTimeout(() => {
       setPreviewId(null);
       setActiveTheme(realThemeRef.current); // re-saves real theme to AsyncStorage
-    }, 8000);
+    }, 10000);
   };
 
   if (loading) {

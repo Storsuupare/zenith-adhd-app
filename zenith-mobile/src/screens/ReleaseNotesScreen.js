@@ -23,7 +23,6 @@ const CHANGELOG = [
       { tag: "NEW", text: "Solar backdrop — live sky based on time of day" },
       { tag: "NEW", text: "PRO and ELITE subscription tiers" },
       { tag: "NEW", text: "Themes and ambient audio in the shop" },
-      { tag: "NEW", text: "Vault — inventory and perk equipping" },
       { tag: "NEW", text: "History — session history and skill XP breakdown" },
     ],
   },

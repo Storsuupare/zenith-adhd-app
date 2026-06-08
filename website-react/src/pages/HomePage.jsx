@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
@@ -26,7 +27,7 @@ const FAQ = [
   },
   {
     q: 'What does PRO actually unlock?',
-    a: '120-minute sessions with Split (breaks big tasks into 4×30 min sessions), more active task slots, 1.5× XP and credits on everything, and access to additional themes.',
+    a: '120-minute sessions, more active task slots, 1.5× XP and credits on everything, and access to additional themes.',
   },
   {
     q: 'What happens if I quit a session early?',
@@ -43,7 +44,7 @@ const PRICING = [
     tier: 'FREE',
     price: '€0',
     period: '/mo',
-    perks: ['5 active task slots', 'Sessions up to 60 min', 'Standard XP + credit rewards', '1-in-4 loot drop rate', 'All rarities — Junk to Mythic', 'Classic theme'],
+    perks: ['5 active task slots', 'Sessions up to 60 min', '1× XP + credit earn rate', 'Base loot drop rate', 'Full rarity access — Junk to Mythic', 'Classic theme + Cobalt–Jade purchasable'],
     cta: 'Get Started Free',
     ctaClass: 'pricing-btn--free',
     href: '/signup',
@@ -52,8 +53,8 @@ const PRICING = [
     tier: 'PRO',
     price: '€4.99',
     period: '/mo',
-    badge: 'BEST VALUE · WEB DISCOUNT',
-    perks: ['15 active task slots', 'Sessions up to 120 min', '1.5× XP + credits per session', '2× loot drop rate', 'Split — break 120 min into 4×30 min', 'Cobalt + Amber themes'],
+    badge: 'BEST VALUE',
+    perks: ['15 active task slots', 'Sessions up to 120 min', '1.5× XP + credits per session', '2× loot drop rate', 'Neon, Arctic + Solar themes unlocked in shop'],
     cta: 'Upgrade to Pro',
     ctaClass: 'pricing-btn--pro',
     href: null,
@@ -63,7 +64,7 @@ const PRICING = [
     tier: 'ELITE',
     price: '€9.99',
     period: '/mo',
-    perks: ['Unlimited active task slots', 'Sessions up to 120 min', '2× XP + credits per session', '3× loot drop rate', 'Best Legendary + Mythic odds', 'All themes unlocked', 'Priority beta access'],
+    perks: ['Unlimited active task slots', 'Sessions up to 120 min', '2× XP + credits per session', '3× loot drop rate', 'Full theme shop access'],
     cta: 'Go Elite',
     ctaClass: 'pricing-btn--elite',
     href: null,
@@ -92,24 +93,45 @@ function useScrollReveal() {
   return ref
 }
 
-async function handleCheckout(tier) {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL
-  if (!backendUrl) return
-  try {
-    const res = await fetch(`${backendUrl}/create-checkout-session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tier }),
-    })
-    const data = await res.json()
-    if (data.url) window.location.href = data.url
-  } catch {
-    // backend not live yet — no-op
-  }
-}
-
 export default function HomePage() {
+  const { isSignedIn, getToken } = useAuth()
+  const navigate = useNavigate()
+  const [checkoutLoading, setCheckoutLoading] = useState(null)
+  const [checkoutError, setCheckoutError]     = useState(null)
+
   useScrollReveal()
+
+  const handleCheckout = useCallback(async (tier) => {
+    if (!isSignedIn) {
+      navigate('/signup')
+      return
+    }
+    const backendUrl = import.meta.env.VITE_BACKEND_URL
+    if (!backendUrl) return
+    setCheckoutLoading(tier)
+    setCheckoutError(null)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${backendUrl}/payments/create-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetTier: tier }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setCheckoutError('Could not start checkout. Please try again.')
+      }
+    } catch {
+      setCheckoutError('Something went wrong. Please try again.')
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }, [isSignedIn, getToken, navigate])
 
   return (
     <>
@@ -129,7 +151,7 @@ export default function HomePage() {
           </div>
           <div className="hero-mockup hero-anim hero-anim--3" aria-hidden="true">
             <div className="mockup-frame">
-              <img src="/Screenshot 2026-05-24 184756.webp" alt="Zenith app — mission creation screen" className="phone-screenshot" loading="lazy" decoding="async" />
+              <img src="/image22.webp" alt="Zenith app — mission creation screen" className="phone-screenshot" loading="lazy" decoding="async" />
             </div>
           </div>
         </div>
@@ -178,13 +200,15 @@ export default function HomePage() {
                   <button
                     className={`pricing-btn ${p.ctaClass}`}
                     onClick={() => handleCheckout(p.stripeKey)}
+                    disabled={checkoutLoading !== null}
                   >
-                    {p.cta}
+                    {checkoutLoading === p.stripeKey ? 'Starting…' : p.cta}
                   </button>
                 )}
               </div>
             ))}
           </div>
+          {checkoutError && <p className="pricing-error">{checkoutError}</p>}
           <p className="pricing-trust" data-reveal>◈ Securely processed via Stripe · Subscription syncs instantly to your mobile account on login</p>
         </div>
       </section>
@@ -194,16 +218,16 @@ export default function HomePage() {
         <div className="section-inner beta-inner">
           <span className="eyebrow" data-reveal>◉ COMMUNITY</span>
           <h2 className="section-headline" data-reveal data-delay="1">Shape What<br />Comes Next.</h2>
-          <p className="section-sub" data-reveal data-delay="2">Got a feature idea, a bug report, or just want to share how Zenith fits into your routine? Drop it in the community thread — every post gets read.</p>
+          <p className="section-sub" data-reveal data-delay="2">Got a feature idea, a bug report, or just want to share how Zenith fits into your routine? Send us a message — every submission gets read.</p>
           <a
             className="btn btn--primary"
-            href="https://zenithapp.org/discussion"
+            href="https://discord.gg/Ur75YjyN"
             target="_blank"
             rel="noopener noreferrer"
             data-reveal
             data-delay="3"
           >
-            Join the Discussion ↗
+            Join the Community
           </a>
         </div>
       </section>

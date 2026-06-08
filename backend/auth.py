@@ -17,13 +17,13 @@ def _get_jwks() -> list:
     if _jwks_cache["keys"] and (now - _jwks_cache["fetched_at"]) < _JWKS_TTL:
         return _jwks_cache["keys"]
     try:
-        r = requests.get(
+        jwksResponse = requests.get(
             "https://api.clerk.com/v1/jwks",
             headers={"Authorization": f"Bearer {os.getenv('CLERK_SECRET_KEY', '')}"},
             timeout=5,
         )
-        r.raise_for_status()
-        _jwks_cache["keys"] = r.json().get("keys", [])
+        jwksResponse.raise_for_status()
+        _jwks_cache["keys"] = jwksResponse.json().get("keys", [])
         _jwks_cache["fetched_at"] = now
     except Exception:
         pass  # On network failure, return stale keys rather than crashing

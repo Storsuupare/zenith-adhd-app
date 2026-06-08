@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
@@ -69,7 +70,7 @@ export default function TermsPage() {
 
             <hr className="legal-divider" />
 
-            <p>Questions about these terms? <a href="mailto:contact@zenithapp.org">contact@zenithapp.org</a></p>
+            <p>Questions about these terms? <Link to="/contact">Contact us</Link></p>
 
           </div>
         </div>
