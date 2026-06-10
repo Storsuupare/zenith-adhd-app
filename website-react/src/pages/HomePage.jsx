@@ -6,7 +6,7 @@ import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
 
 const FEATURES = [
-  { icon: '⬡', title: 'Mission System',      desc: 'Every task is a timed contract. Complete it, earn XP and real loot drops.' },
+  { icon: '⬡', title: 'Session System',      desc: 'Every task is a timed contract. Complete it, earn XP and real loot drops.' },
   { icon: '◎', title: 'Skill Mastery',       desc: '12 skills that level up as you work. Prestige when you reach the ceiling.' },
   { icon: '◈', title: 'Loot Drops',          desc: 'Finish a session and roll for a credit drop. Rare, Epic, Legendary — real randomness.' },
   { icon: '▲', title: 'Neural Clock',        desc: 'Time-based multipliers that reward your natural focus rhythm and punish late nights.' },
@@ -144,9 +144,8 @@ export default function HomePage() {
           <div className="hero-content">
             <span className="eyebrow hero-anim hero-anim--1">◈ GAMIFIED PRODUCTIVITY</span>
             <h1 className="hero-headline hero-anim hero-anim--2">Your Brain Has<br />a Skill Tree.</h1>
-            <p className="hero-sub hero-anim hero-anim--3">Turn daily tasks into XP, loot drops, and real momentum — built for the way your brain actually works.</p>
+            <p className="hero-sub hero-anim hero-anim--3">Turn daily tasks into XP, loot drops, and real momentum! Built for the way your brain actually works.</p>
             <div className="hero-cta-row hero-anim hero-anim--4">
-              <Link to="/signup" className="btn btn--primary">Download Beta</Link>
             </div>
           </div>
           <div className="hero-mockup hero-anim hero-anim--3" aria-hidden="true">

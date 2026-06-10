@@ -4,12 +4,15 @@
     "slug": "zenith-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo2.png",
     "userInterfaceStyle": "dark",
     "scheme": "zenith",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "org.zenithapp.mobile"
+      "bundleIdentifier": "org.zenithapp.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "org.zenithapp.mobile",

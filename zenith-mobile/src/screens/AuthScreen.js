@@ -16,6 +16,7 @@ export default function AuthScreen() {
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
 
   const [mode,     setMode]     = useState("signin"); // "signin" | "signup" | "verify"
+  const [verifyFlow, setVerifyFlow] = useState("signin"); // tracks whether verify came from signin or signup
   const [email,    setEmail]    = useState("");
   const [username, setUsername] = useState("");
   const [code,     setCode]     = useState("");
@@ -35,6 +36,7 @@ export default function AuthScreen() {
         identifier: email.trim().toLowerCase(),
       });
       if (result.status === "needs_first_factor") {
+        setVerifyFlow("signin");
         setMode("verify");
       }
     } catch (err) {
@@ -55,6 +57,7 @@ export default function AuthScreen() {
         username: username.trim(),
       });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setVerifyFlow("signup");
       setMode("verify");
     } catch (err) {
       setError(err.errors?.[0]?.message || "Sign up failed. Try again.");
@@ -69,14 +72,12 @@ export default function AuthScreen() {
     setLoading(true);
     setError(null);
     try {
-      if (mode === "verify" && signUp?.status === "missing_requirements") {
-        // came from sign-up
+      if (verifyFlow === "signup") {
         const result = await signUp.attemptEmailAddressVerification({ code });
         if (result.status === "complete") {
           await setSignUpActive({ session: result.createdSessionId });
         }
       } else {
-        // came from sign-in
         const result = await signIn.attemptFirstFactor({
           strategy: "email_code",
           code,
