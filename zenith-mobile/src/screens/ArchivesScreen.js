@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
-  SafeAreaView, ActivityIndicator,
+  SafeAreaView, ActivityIndicator, RefreshControl,
 } from "react-native";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
@@ -27,15 +27,23 @@ const SKILL_ICONS = {
 export default function ArchivesScreen() {
   const { user } = useUser();
   const { accentColor } = useTheme();
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [sessions,   setSessions]  = useState([]);
+  const [loading,    setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const loadSessions = () =>
     fetchSummitHistory(20)
       .then(res => setSessions(Array.isArray(res.data) ? res.data : []))
       .catch(() => setSessions([]))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+
+  useEffect(() => { loadSessions(); }, [user?.id]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadSessions();
+    setRefreshing(false);
+  };
 
   const skills        = user?.mastery ?? [];
   const totalXP       = user?.total_xp ?? 0;
@@ -55,7 +63,7 @@ export default function ArchivesScreen() {
         <Text style={styles.pageTitle}>History</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}>
 
         {/* ── Personal Records ────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Personal Records</Text>
@@ -111,7 +119,7 @@ export default function ArchivesScreen() {
             <Text style={styles.emptyText}>No completed sessions yet.</Text>
           </View>
         ) : (() => {
-          const maxMinutes = Math.max(...sessions.map(s => Number(s.minutes) || 0), 1);
+          const maxMinutes = Math.max(...sessions.map(session => Number(session.minutes) || 0), 1);
           return (
             <View style={styles.sessionList}>
               {sessions.slice(0, 20).map((session, index) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert,
+  StyleSheet, SafeAreaView, Alert, RefreshControl,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -22,11 +22,11 @@ import { FONTS } from "../constants/fonts";
 function getContextHint(user) {
   const hour   = new Date().getHours();
   const streak = user?.streak ?? 0;
-  if (hour >= 0  && hour < 5)  return { icon: "⚠", text: "Red Zone active — rewards halved." };
-  if (hour >= 8  && hour < 11) return { icon: "◎", text: "Peak window. Best XP until 11am." };
-  if (hour >= 22)               return { icon: "◑", text: "Hyperfocus window. Best XP of the day." };
-  if (streak >= 7)              return { icon: "▲", text: `${streak}-day streak. Don't break it.` };
-  if (streak >= 3)              return { icon: "▲", text: `${streak}-day streak. Keep it going.` };
+  if (hour >= 0  && hour < 5)  return { icon: "⚠", text: "Red Zone active — rewards halved.",      color: "#ff3b3b" };
+  if (hour >= 8  && hour < 11) return { icon: "◎", text: "Peak window. Best XP until 11am.",        color: "#f5c518" };
+  if (hour >= 22)               return { icon: "◑", text: "Hyperfocus window. Best XP of the day.", color: "#a855f7" };
+  if (streak >= 7)              return { icon: "▲", text: `${streak}-day streak. Don't break it.`,  color: null };
+  if (streak >= 3)              return { icon: "▲", text: `${streak}-day streak. Keep it going.`,   color: null };
   return null;
 }
 
@@ -172,6 +172,13 @@ const sk = StyleSheet.create({
 export default function DashboardScreen({ navigation }) {
   const { user, fetchUser, refreshToken } = useUser();
   const { accentColor } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUser();
+    setRefreshing(false);
+  };
   const {
     contracts, handleCreateTask, handleComplete, handleAbort,
     notifications, addNotification, setPrestigeData,
@@ -186,7 +193,7 @@ export default function DashboardScreen({ navigation }) {
     try {
       await claimDailyChallenge();
       addNotification({ type: "success", message: "+50 CR — challenge complete!" });
-      fetchUser();
+      await fetchUser();
     } catch (err) {
       if (err.response?.status === 409) {
         addNotification({ type: "info", message: "Already claimed today." });
@@ -258,10 +265,10 @@ export default function DashboardScreen({ navigation }) {
   const [elapsedFraction, setElapsedFraction] = useState(0);
   useEffect(() => {
     if (contracts.length === 0) { setElapsedFraction(0); return; }
-    const c = contracts[0];
-    const deadline = c.deadline ? Date.parse(c.deadline) : null;
+    const activeContract = contracts[0];
+    const deadline = activeContract.deadline ? Date.parse(activeContract.deadline) : null;
     if (!deadline) return;
-    const totalMs = (Number(c.duration_minutes) || 30) * 60 * 1000;
+    const totalMs = (Number(activeContract.duration_minutes) || 30) * 60 * 1000;
     const tick = () => {
       const elapsed = Math.max(0, totalMs - (deadline - Date.now()));
       setElapsedFraction(Math.min(elapsed / totalMs, 1));
@@ -282,16 +289,17 @@ export default function DashboardScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
       >
-        <View ref={statHudRef} onLayout={e => { const y = e.nativeEvent.layout.y; setSectionYs(p => ({ ...p, statHud: y })); }}>
+        <View ref={statHudRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, statHud: y })); }}>
           <StatHUD user={user} accentColor={accentColor} />
         </View>
 
         {/* Context hint — only shown during notable windows or active streaks */}
         {hint && (
           <View style={styles.hint}>
-            <Text style={[styles.hintIcon, { color: accentColor }]}>{hint.icon}</Text>
-            <Text style={styles.hintText}>{hint.text}</Text>
+            <Text style={[styles.hintIcon, { color: hint.color ?? accentColor }]}>{hint.icon}</Text>
+            <Text style={[styles.hintText, { color: hint.color ?? COLORS.textMuted }]}>{hint.text}</Text>
           </View>
         )}
 
@@ -320,19 +328,19 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Mission form (only when no active tasks) */}
         {activeCount === 0 && (
-          <View ref={missionRef} onLayout={e => { const y = e.nativeEvent.layout.y; setSectionYs(p => ({ ...p, mission: y })); }}>
+          <View ref={missionRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, mission: y })); }}>
             <MissionForm onStart={handleCreateTask} accentColor={accentColor} />
           </View>
         )}
 
         {/* Active contracts */}
         {activeCount > 0 && (
-          <View ref={contractsRef} onLayout={e => { const y = e.nativeEvent.layout.y; setSectionYs(p => ({ ...p, contracts: y })); }}>
+          <View ref={contractsRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, contracts: y })); }}>
             <Text style={styles.sectionLabel}>ACTIVE TASKS</Text>
-            {contracts.map(c => (
+            {contracts.map(contract => (
               <ContractCard
-                key={c.id}
-                contract={c}
+                key={contract.id}
+                contract={contract}
                 onComplete={handleComplete}
                 onAbort={handleAbort}
               />
@@ -342,7 +350,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Skills grid */}
         {skills.length > 0 && (
-          <View ref={skillsRef} onLayout={e => { const y = e.nativeEvent.layout.y; setSectionYs(p => ({ ...p, skills: y })); }}>
+          <View ref={skillsRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, skills: y })); }}>
             <Text style={styles.sectionLabel}>SKILLS</Text>
             <View style={styles.skillGrid}>
               {skills.map(skill => (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Linking, ActivityIndicator,
+  StyleSheet, SafeAreaView, Linking, ActivityIndicator, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useUser } from "../context/UserContext";
@@ -10,7 +10,7 @@ import { fetchShopState, purchaseCosmetic } from "../services/api";
 import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
 
-// ── Exact cosmetics catalog from web constants.js ──────────────────────────
+// ── Exact cosmetics catalog from web constantstyles.js ──────────────────────────
 const THEMES = [
   { id: "default",  label: "Classic",  color: "#22d3ee", type: "free"                    },
   { id: "cobalt",   label: "Cobalt",   color: "#3b82f6", type: "credits", price: 1500    },
@@ -68,6 +68,15 @@ export default function ShopScreen() {
   const [fetchError, setFetchError] = useState(false);
   const [retryKey,   setRetryKey]  = useState(0);
   const [previewId,  setPreviewId] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchUser(), fetchShopState().then(res => {
+      setOwned(res.data?.owned ?? []);
+    }).catch(() => {})]);
+    setRefreshing(false);
+  };
 
   // Tracks the real applied theme so previews can revert correctly
   const realThemeRef   = useRef(activeTheme);
@@ -100,8 +109,8 @@ export default function ShopScreen() {
 
   useEffect(() => {
     if (!feedback) return;
-    const t = setTimeout(() => setFeedback(null), 2500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFeedback(null), 2500);
+    return () => clearTimeout(timer);
   }, [feedback]);
 
   const handleBuyTheme = async (item) => {
@@ -140,26 +149,36 @@ export default function ShopScreen() {
     setFeedback({ ok: true, msg: "Theme applied" });
   };
 
+  const previewLocked = useRef(false);
+
   const handlePreview = (item) => {
+    if (previewLocked.current) return;
+    previewLocked.current = true;
+    setTimeout(() => { previewLocked.current = false; }, 600);
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (previewTimer.current) clearTimeout(previewTimer.current);
+
     // Tapping the active preview cancels it
     if (previewId === item.id) {
       setPreviewId(null);
-      setActiveTheme(realThemeRef.current); // re-saves real theme to AsyncStorage
+      previewTheme(realThemeRef.current);
       return;
     }
+
+    // Capture real theme now before anything changes
+    const realTheme = realThemeRef.current;
     setPreviewId(item.id);
-    previewTheme(item.id); // visual only — never writes to AsyncStorage
+    previewTheme(item.id);
     previewTimer.current = setTimeout(() => {
       setPreviewId(null);
-      setActiveTheme(realThemeRef.current); // re-saves real theme to AsyncStorage
+      previewTheme(realTheme);
     }, 10000);
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={s.root}>
+      <SafeAreaView style={styles.root}>
         <ActivityIndicator color={accentColor} style={{ marginTop: 40 }} />
       </SafeAreaView>
     );
@@ -167,16 +186,16 @@ export default function ShopScreen() {
 
   if (fetchError) {
     return (
-      <SafeAreaView style={s.root}>
-        <View style={s.errorState}>
-          <Text style={s.errorIcon}>◈</Text>
-          <Text style={s.errorText}>Couldn't load the shop</Text>
-          <Text style={s.errorSub}>Check your connection and try again</Text>
+      <SafeAreaView style={styles.root}>
+        <View style={styles.errorState}>
+          <Text style={styles.errorIcon}>◈</Text>
+          <Text style={styles.errorText}>Couldn't load the shop</Text>
+          <Text style={styles.errorSub}>Check your connection and try again</Text>
           <TouchableOpacity
-            style={[s.retryBtn, { borderColor: accentColor + "55" }]}
+            style={[styles.retryBtn, { borderColor: accentColor + "55" }]}
             onPress={() => setRetryKey(k => k + 1)}
           >
-            <Text style={[s.retryTxt, { color: accentColor }]}>Try again</Text>
+            <Text style={[styles.retryTxt, { color: accentColor }]}>Try again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -184,18 +203,18 @@ export default function ShopScreen() {
   }
 
   return (
-    <SafeAreaView style={s.root}>
+    <SafeAreaView style={styles.root}>
 
       {/* Header */}
-      <View style={s.header}>
-        <Text style={s.title}>Shop</Text>
-        <Text style={[s.credits, { color: "#fbbf24" }]}>◈ {credits.toLocaleString()} CR</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Shop</Text>
+        <Text style={[styles.credits, { color: "#fbbf24" }]}>◈ {credits.toLocaleString()} CR</Text>
       </View>
 
       {/* Preview banner */}
       {previewId && (
-        <View style={s.previewBanner}>
-          <Text style={[s.previewBannerText, { color: accentColor }]}>
+        <View style={styles.previewBanner}>
+          <Text style={[styles.previewBannerText, { color: accentColor }]}>
             Previewing — tap again to exit
           </Text>
         </View>
@@ -203,35 +222,36 @@ export default function ShopScreen() {
 
       {/* Feedback toast */}
       {feedback && !previewId && (
-        <View style={[s.toast, { borderColor: feedback.ok ? accentColor + "66" : "#ef444466" }]}>
-          <Text style={[s.toastTxt, { color: feedback.ok ? accentColor : "#ef4444" }]}>
+        <View style={[styles.toast, { borderColor: feedback.ok ? accentColor + "66" : "#ef444466" }]}>
+          <Text style={[styles.toastTxt, { color: feedback.ok ? accentColor : "#ef4444" }]}>
             {feedback.msg}
           </Text>
         </View>
       )}
 
       {/* Tabs */}
-      <View style={s.tabs}>
+      <View style={styles.tabs}>
         {TABS.map(t => (
           <TouchableOpacity
             key={t}
-            style={[s.tab, tab === t && { borderBottomColor: accentColor, borderBottomWidth: 2 }]}
+            style={[styles.tab, tab === t && { borderBottomColor: accentColor, borderBottomWidth: 2 }]}
             onPress={() => setTab(t)}
           >
-            <Text style={[s.tabTxt, tab === t && { color: accentColor }]}>{t}</Text>
+            <Text style={[styles.tabTxt, tab === t && { color: accentColor }]}>{t}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <ScrollView
         ref={onboardingRefs.shopContent}
-        contentContainerStyle={s.content}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
       >
 
         {/* ── THEMES ──────────────────────────────────────────────────────── */}
         {tab === "Themes" && (
-          <View style={s.themeGrid}>
+          <View style={styles.themeGrid}>
             {THEMES.map(item => {
               const unlocked    = isUnlocked(item, tier, owned);
               const active      = activeTheme === item.id;
@@ -243,10 +263,10 @@ export default function ShopScreen() {
                 <TouchableOpacity
                   key={item.id}
                   style={[
-                    s.themeCard,
+                    styles.themeCard,
                     (active && !previewId) && { borderColor: item.color, borderWidth: 2 },
                     previewId === item.id && { borderColor: item.color, borderWidth: 2 },
-                    !unlocked && s.locked,
+                    !unlocked && styles.locked,
                   ]}
                   onPress={() => {
                     if (unlocked) handleApplyTheme(item.id);
@@ -256,12 +276,12 @@ export default function ShopScreen() {
                   activeOpacity={0.75}
                 >
                   {/* Color swatch */}
-                  <View style={[s.swatch, { backgroundColor: item.color }]}>
-                    {active && !previewId && <Text style={s.activeCheck}>✓</Text>}
-                    {previewId === item.id && <Text style={s.activeCheck}>◉</Text>}
+                  <View style={[styles.swatch, { backgroundColor: item.color }]}>
+                    {active && !previewId && <Text style={styles.activeCheck}>✓</Text>}
+                    {previewId === item.id && <Text style={styles.activeCheck}>◉</Text>}
                     {!unlocked && !tierUnlocked && previewId !== item.id && (
-                      <View style={s.lockOverlay}>
-                        <Text style={s.lockIcon}>
+                      <View style={styles.lockOverlay}>
+                        <Text style={styles.lockIcon}>
                           {item.type === "pro" ? "PRO" : "ELITE"}
                         </Text>
                       </View>
@@ -269,25 +289,25 @@ export default function ShopScreen() {
                   </View>
 
                   {/* Label */}
-                  <Text style={[s.themeLabel, active && { color: item.color }]} numberOfLines={1}>
+                  <Text style={[styles.themeLabel, active && { color: item.color }]} numberOfLines={1}>
                     {item.label}
                   </Text>
 
                   {/* Price or status */}
                   {previewId === item.id ? (
-                    <Text style={[s.themePrice, { color: item.color }]}>Preview</Text>
+                    <Text style={[styles.themePrice, { color: item.color }]}>Preview</Text>
                   ) : !unlocked && !tierUnlocked ? (
-                    <Text style={[s.themePrice, { color: item.type === "pro" ? "#22d3ee" : "#fbbf24" }]}>
+                    <Text style={[styles.themePrice, { color: item.type === "pro" ? "#22d3ee" : "#fbbf24" }]}>
                       {item.type.toUpperCase()} · Preview
                     </Text>
                   ) : !unlocked && tierUnlocked && item.price ? (
-                    <Text style={[s.themePrice, canBuy && { color: item.color }]}>
+                    <Text style={[styles.themePrice, canBuy && { color: item.color }]}>
                       {isBuying ? "···" : `${item.price} CR`}
                     </Text>
                   ) : unlocked && active ? (
-                    <Text style={[s.themePrice, { color: item.color }]}>Active</Text>
+                    <Text style={[styles.themePrice, { color: item.color }]}>Active</Text>
                   ) : (
-                    <Text style={s.themePrice}>Apply</Text>
+                    <Text style={styles.themePrice}>Apply</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -299,29 +319,29 @@ export default function ShopScreen() {
         {tab === "Upgrade" && (
           <>
             {tier >= 2 ? (
-              <View style={s.maxed}>
-                <Text style={[s.maxedIcon, { color: "#fbbf24" }]}>◆</Text>
-                <Text style={s.maxedTitle}>You're on Elite</Text>
-                <Text style={s.maxedSub}>Every feature is unlocked.</Text>
+              <View style={styles.maxed}>
+                <Text style={[styles.maxedIcon, { color: "#fbbf24" }]}>◆</Text>
+                <Text style={styles.maxedTitle}>You're on Elite</Text>
+                <Text style={styles.maxedSub}>Every feature is unlocked.</Text>
               </View>
             ) : (
               TIER_PERKS.filter(t => t.tier > tier).map(tp => (
-                <View key={tp.tier} style={[s.upgradeCard, { borderColor: tp.color + "33" }]}>
-                  <View style={s.upgradeHeader}>
-                    <Text style={[s.upgradeTier, { color: tp.color }]}>{tp.label}</Text>
-                    <Text style={[s.upgradePrice, { color: tp.color }]}>{tp.price}</Text>
+                <View key={tp.tier} style={[styles.upgradeCard, { borderColor: tp.color + "33" }]}>
+                  <View style={styles.upgradeHeader}>
+                    <Text style={[styles.upgradeTier, { color: tp.color }]}>{tp.label}</Text>
+                    <Text style={[styles.upgradePrice, { color: tp.color }]}>{tp.price}</Text>
                   </View>
                   {tp.perks.map((p, i) => (
-                    <View key={i} style={s.perkRow}>
-                      <Text style={[s.perkDot, { color: tp.color }]}>◆</Text>
-                      <Text style={s.perkTxt}>{p}</Text>
+                    <View key={i} style={styles.perkRow}>
+                      <Text style={[styles.perkDot, { color: tp.color }]}>◆</Text>
+                      <Text style={styles.perkTxt}>{p}</Text>
                     </View>
                   ))}
                   <TouchableOpacity
-                    style={[s.upgradeBtn, { backgroundColor: tp.color }]}
+                    style={[styles.upgradeBtn, { backgroundColor: tp.color }]}
                     onPress={() => Linking.openURL("https://zenithapp.org")}
                   >
-                    <Text style={s.upgradeBtnTxt}>Subscribe at zenithapp.org ↗</Text>
+                    <Text style={styles.upgradeBtnTxt}>Subscribe at zenithapp.org ↗</Text>
                   </TouchableOpacity>
                 </View>
               ))
@@ -334,7 +354,7 @@ export default function ShopScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: "transparent" },
   header: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",

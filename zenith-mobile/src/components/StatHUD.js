@@ -30,44 +30,44 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
 
   return (
     <View style={[
-      s.container,
+      styles.container,
       isElite && { borderColor: "rgba(251,191,36,0.26)" },
       !isElite && tierNum === 1 && { borderColor: "rgba(34,211,238,0.22)" },
     ]}>
 
       {/* ── Top row: rank name/level · total XP ── */}
-      <View style={s.topRow}>
-        <View style={s.rankGroup}>
+      <View style={styles.topRow}>
+        <View style={styles.rankGroup}>
           {/* RANK label + tier badge */}
-          <View style={s.rankLabelRow}>
-            <Text style={s.rankLabel}>RANK</Text>
+          <View style={styles.rankLabelRow}>
+            <Text style={styles.rankLabel}>RANK</Text>
             {tierNum > 0 && (
               <View style={[
-                s.tierBadge,
+                styles.tierBadge,
                 tierNum === 1
                   ? { backgroundColor: "rgba(34,211,238,0.08)", borderColor: "rgba(34,211,238,0.28)" }
                   : { backgroundColor: "rgba(251,191,36,0.10)",  borderColor: "rgba(251,191,36,0.35)" },
               ]}>
-                <Text style={[s.tierBadgeText, { color: tierColor }]}>{role}</Text>
+                <Text style={[styles.tierBadgeText, { color: tierColor }]}>{role}</Text>
               </View>
             )}
           </View>
           {/* Rank name + LVL */}
-          <View style={s.rankNameRow}>
-            <Text style={s.rankText}>{rankName}</Text>
-            <Text style={[s.lvlTag, { color: accentColor }]}> LVL {level}</Text>
+          <View style={styles.rankNameRow}>
+            <Text style={styles.rankText}>{rankName}</Text>
+            <Text style={[styles.lvlTag, { color: accentColor }]}> LVL {level}</Text>
           </View>
         </View>
 
         {/* Total XP */}
-        <View style={s.xpGroup}>
-          <Text style={s.totalXP}>{totalXP.toLocaleString()}</Text>
-          <Text style={[s.xpSuffix, { color: accentColor }]}>TOTAL XP</Text>
+        <View style={styles.xpGroup}>
+          <Text style={styles.totalXP}>{totalXP.toLocaleString()}</Text>
+          <Text style={[styles.xpSuffix, { color: accentColor }]}>TOTAL XP</Text>
         </View>
       </View>
 
       {/* ── XP progress bar: accent → white (matches web gradient) ── */}
-      <View style={s.progressTrack}>
+      <View style={styles.progressTrack}>
         <LinearGradient
           colors={[accentColor, "rgba(255,255,255,0.85)"]}
           start={{ x: 0, y: 0 }}
@@ -77,17 +77,17 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
       </View>
 
       {/* ── Bottom row: XP remaining · streak ── */}
-      <View style={s.bottomRow}>
-        <Text style={s.xpRemaining}>{xpToNext.toLocaleString()} XP TO NEXT LEVEL</Text>
+      <View style={styles.bottomRow}>
+        <Text style={styles.xpRemaining}>{xpToNext.toLocaleString()} XP TO NEXT LEVEL</Text>
 
         {streak > 0 && (
-          <View style={s.streakDisplay}>
-            <Text style={[s.streakText, s.momentumActive]}>
+          <View style={styles.streakDisplay}>
+            <Text style={[styles.streakText, styles.momentumActive]}>
               🔥 {streak} DAY STREAK
             </Text>
             {multi && (
-              <View style={s.multBadge}>
-                <Text style={[s.multText, s.momentumActive]}>×{multi} XP</Text>
+              <View style={styles.multBadge}>
+                <Text style={[styles.multText, styles.momentumActive]}>×{multi} XP</Text>
               </View>
             )}
           </View>
@@ -95,17 +95,17 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
       </View>
 
       {/* ── Credits row ── */}
-      <View style={s.creditsRow}>
-        <Text style={[s.creditsDiamond, { color: accentColor }]}>◈</Text>
-        <Text style={s.creditsValue}>{credits.toLocaleString()}</Text>
-        <Text style={s.creditsLabel}>CR</Text>
+      <View style={styles.creditsRow}>
+        <Text style={[styles.creditsDiamond, { color: accentColor }]}>◈</Text>
+        <Text style={styles.creditsValue}>{credits.toLocaleString()}</Text>
+        <Text style={styles.creditsLabel}>CR</Text>
       </View>
 
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     backgroundColor: "rgba(0,0,0,0.22)",
     borderWidth:     1,

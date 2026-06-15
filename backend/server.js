@@ -33,7 +33,8 @@ const rateLimit = require("express-rate-limit");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const webpush = require("web-push");
 const cron = require("node-cron");
-const { verifyToken } = require("@clerk/backend");
+const { verifyToken, createClerkClient } = require("@clerk/backend");
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL,
@@ -92,7 +93,6 @@ const requireAdmin = async (req, res, next) => {
 };
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
-// Three tiers: global (all routes), mutations (task/loot/prestige), shop
 const _rl = (windowMin, max) => rateLimit({
   windowMs: windowMin * 60 * 1000,
   max,
@@ -101,10 +101,11 @@ const _rl = (windowMin, max) => rateLimit({
   message: { error: "TOO_MANY_REQUESTS" },
 });
 const globalLimiter   = _rl(15, 300);  // 300 req per 15 min — general abuse guard
-const mutationLimiter = _rl(60, 60);   // 60 mutations per hour — task/loot/prestige
+const mutationLimiter = _rl(60, 60);   // 60 mutations per hour — task/loot/prestige/inventory
 const shopLimiter     = _rl(15, 10);   // 10 purchases per 15 min — shop anti-spam
 const bonusLimiter    = _rl(60, 5);    // 5 attempts per hour — daily bonus anti-spam
 const adminLimiter    = _rl(15, 20);   // 20 req per 15 min — admin panel
+const paymentLimiter  = _rl(60, 5);    // 5 Stripe session creations per hour — prevents API abuse
 
 const app = express();
 
@@ -296,6 +297,17 @@ function calculateStake(durationMinutes) {
   return (hour >= 0 && hour < 5) ? Math.floor(base / 2) : base;
 }
 
+// Returns the XP multiplier for the current time window.
+// Applied at session COMPLETION to skill XP.
+// stakeXp is already REDZONE-adjusted at creation via calculateStake — this covers the skill XP side.
+function getNeuralMult() {
+  const hour = new Date().getHours();
+  if (hour >= 0  && hour < 5)  return 0.5;  // REDZONE — halves skill XP to match halved stake
+  if (hour >= 8  && hour < 11) return 1.25; // Peak window
+  if (hour >= 22)              return 1.5;  // Hyperfocus window — best XP of the day
+  return 1.0;
+}
+
 function broadcastPresence() {
   const sessions = [...presenceMap.values()];
   const payload = `data: ${JSON.stringify({ type: "presence", data: sessions })}\n\n`;
@@ -354,11 +366,6 @@ const TIER_DROP_CHANCE    = { 0: 0.25, 1: 0.50, 2: 0.75   };
 // How many items the vault can hold before scrapping extras.
 const TIER_VAULT_CAP      = { 0: 10,   1: 20,  2: 40       };
 
-// Credit reward tables — base is guaranteed (2 CR/min), bonus is a chance roll.
-// Tier multiplier (1×/1.5×/2×) is applied on top after these values are calculated.
-const BASE_CR         = { 5: 10,  15: 30,  30: 60,   60: 120, 90: 180, 120: 240 };
-const BONUS_CR        = { 5: 20,  15: 50,  30: 100,  60: 200, 90: 300, 120: 500 };
-const BONUS_CR_CHANCE = { 5: 0.05, 15: 0.10, 30: 0.20, 60: 0.30, 90: 0.40, 120: 0.50 };
 
 // Per-tier rarity thresholds — all tiers can roll any rarity.
 // Higher tiers just have better odds (lower cutoffs), not exclusive access.
@@ -382,40 +389,6 @@ function getTierRarity(roll, accountTier) {
   return "Junk";
 }
 
-// Maps every item name to its server-side effect.
-// XP_GAIN and MARATHON_BONUS are both multipliers — MARATHON_BONUS only fires
-// on sessions that are 60+ minutes long (rewarding deep work).
-// BW_COST multipliers below 1 reduce the BW deducted at task start.
-const PERK_EFFECTS = {
-  // Mythic
-  "Flow State Crystal": { effect_type: "XP_GAIN",       effect_value: 2.0  },
-  "Neural Overdrive":   { effect_type: "MARATHON_BONUS", effect_value: 1.5  },
-  // Legendary
-  "Clarity Prism":      { effect_type: "XP_GAIN",       effect_value: 1.5  },
-  "Grand Architect":    { effect_type: "MARATHON_BONUS", effect_value: 1.3  },
-  "Credit Magnet":      { effect_type: "CREDIT_BOOST",  effect_value: 1.5  },
-  // Epic
-  "Second Wind":        { effect_type: "BW_COST",        effect_value: 0.5  },
-  "Scholar's Mark":     { effect_type: "XP_GAIN",       effect_value: 1.3  },
-  "Lucky Break":        { effect_type: "CREDIT_BOOST",  effect_value: 1.35 },
-  "Phantom Step":       { effect_type: "BW_COST",        effect_value: 0.6  },
-  // Rare
-  "Spark Stone":        { effect_type: "CREDIT_BOOST",  effect_value: 1.25 },
-  "Streak Guard":       { effect_type: "STREAK_SHIELD", effect_value: 1    },
-  "Mnemonic Lens":      { effect_type: "XP_GAIN",       effect_value: 1.2  },
-  "Momentum Chip":      { effect_type: "MARATHON_BONUS", effect_value: 1.2  },
-  "Efficiency Core":    { effect_type: "BW_COST",        effect_value: 0.75 },
-  // Uncommon
-  "Calm Stone":         { effect_type: "BW_COST",        effect_value: 0.8  },
-  "Focus Elixir":       { effect_type: "XP_GAIN",       effect_value: 1.15 },
-  "Data Shard":         { effect_type: "CREDIT_BOOST",  effect_value: 1.15 },
-  "Study Talisman":     { effect_type: "XP_GAIN",       effect_value: 1.15 },
-  "Signal Boost":       { effect_type: "MARATHON_BONUS", effect_value: 1.1  },
-  // Junk
-  "Quick Start":        { effect_type: "XP_GAIN",       effect_value: 1.1  },
-  "Scrap Battery":      { effect_type: "CREDIT_BOOST",  effect_value: 1.05 },
-  "Worn Band":          { effect_type: "BW_COST",        effect_value: 0.95 },
-};
 
 // Server-side cosmetic prices for purchase validation.
 // null = tier-only (subscription required, not purchaseable with credits).
@@ -442,99 +415,6 @@ const CONSUMABLE_PRICES = {
   extra_loot_pull: 250,
 };
 
-// RETIRED — perk shop replaced with cosmetics shop.
-// Kept as empty array so any stale references fail gracefully.
-const PERK_SHOP_ITEMS = [
-  // ── Junk ────────────────────────────────────────────────────────────────
-  {
-    id: "quick_start", name: "Quick Start", cost: 200, rarity: "Junk",
-    description: "A small but real edge. Every completed session earns 10% more XP than it would bare-handed.",
-    color_hex: "#9CA3AF", effect_value: "+10% XP",
-  },
-  {
-    id: "scrap_battery", name: "Scrap Battery", cost: 200, rarity: "Junk",
-    description: "Worn down but still ticking. Adds 5% to credit payouts. Equip it until something better drops.",
-    color_hex: "#6B7280", effect_value: "+5% Credits",
-  },
-  {
-    id: "worn_band", name: "Worn Band", cost: 200, rarity: "Junk",
-    description: "Fraying at the edges. Cuts Bandwidth task cost by 5%. Better than nothing when starting out.",
-    color_hex: "#4B5563", effect_value: "-5% BW Cost",
-  },
-  // ── Uncommon ────────────────────────────────────────────────────────────
-  {
-    id: "study_talisman", name: "Study Talisman", cost: 500, rarity: "Uncommon",
-    description: "An old favourite. Adds a quiet 15% to every XP payout while it stays in your loadout.",
-    color_hex: "#60A5FA", effect_value: "+15% XP",
-  },
-  {
-    id: "data_shard", name: "Data Shard", cost: 500, rarity: "Uncommon",
-    description: "Salvages extra value from every session. Credit payouts are bumped up by 15%.",
-    color_hex: "#22D3EE", effect_value: "+15% Credits",
-  },
-  {
-    id: "signal_boost", name: "Signal Boost", cost: 600, rarity: "Uncommon",
-    description: "Amplifies the output of long sessions. Tasks 60 minutes and above get a 10% XP bonus.",
-    color_hex: "#38BDF8", effect_value: "+10% XP (60min+)",
-  },
-  {
-    id: "focus_elixir", name: "Focus Elixir", cost: 650, rarity: "Uncommon",
-    description: "Amplifies XP earned on every completed task by 15% while equipped.",
-    color_hex: "#34D399", effect_value: "+15% XP",
-  },
-  {
-    id: "calm_stone", name: "Calm Stone", cost: 800, rarity: "Uncommon",
-    description: "Reduces Bandwidth drain on every task start by 20%. Keeps you in the game longer on tough days.",
-    color_hex: "#1EFF00", effect_value: "-20% BW Cost",
-  },
-  // ── Rare ────────────────────────────────────────────────────────────────
-  {
-    id: "mnemonic_lens", name: "Mnemonic Lens", cost: 1000, rarity: "Rare",
-    description: "Sharpens how much you retain from every session. XP gains are boosted by 20% across all skills.",
-    color_hex: "#4169E1", effect_value: "+20% XP",
-  },
-  {
-    id: "efficiency_core", name: "Efficiency Core", cost: 1100, rarity: "Rare",
-    description: "Cuts the overhead. Task startup costs 25% less Bandwidth so you stay in flow longer.",
-    color_hex: "#6A0DAD", effect_value: "-25% BW Cost",
-  },
-  {
-    id: "momentum_chip", name: "Momentum Chip", cost: 1200, rarity: "Rare",
-    description: "Rewards commitment. Any session you push past 60 minutes earns an additional 20% XP.",
-    color_hex: "#1C86EE", effect_value: "+20% XP (60min+)",
-  },
-  {
-    id: "spark_stone", name: "Spark Stone", cost: 1300, rarity: "Rare",
-    description: "Quietly multiplies your credit haul on every completed session. Small advantage, consistent return.",
-    color_hex: "#0070DD", effect_value: "+25% Credits",
-  },
-  {
-    id: "streak_guard", name: "Streak Guard", cost: 800, rarity: "Rare",
-    description: "One miss won't break you. Keeps your streak alive through your next missed day, then self-destructs.",
-    color_hex: "#00C2FF", effect_value: "Streak Shield",
-  },
-  // ── Epic ────────────────────────────────────────────────────────────────
-  {
-    id: "phantom_step", name: "Phantom Step", cost: 2200, rarity: "Epic",
-    description: "Lighter footprint. Task startup costs 40% less Bandwidth, letting you run more sessions before needing to rest.",
-    color_hex: "#9B30FF", effect_value: "-40% BW Cost",
-  },
-  {
-    id: "scholars_mark", name: "Scholar's Mark", cost: 2800, rarity: "Epic",
-    description: "The mark of someone who shows up every day. Every completed session awards 30% more XP.",
-    color_hex: "#7B68EE", effect_value: "+30% XP",
-  },
-  {
-    id: "lucky_break", name: "Lucky Break", cost: 2800, rarity: "Epic",
-    description: "Fortune favours the consistent. Adds 35% to every credit payout when equipped.",
-    color_hex: "#BA8F00", effect_value: "+35% Credits",
-  },
-  {
-    id: "second_wind", name: "Second Wind", cost: 3500, rarity: "Epic",
-    description: "Push harder for less. Every task you start consumes half the Bandwidth it normally would.",
-    color_hex: "#A335EE", effect_value: "-50% BW Cost",
-  },
-];
 
 async function calculateNeuralCost(baseLoad, userId, client) {
   const neuralHour = new Date().getHours();
@@ -781,6 +661,11 @@ app.delete("/user/account", requireAuth, mutationLimiter, async (req, res) => {
     await client.query("DELETE FROM users              WHERE id      = $1", [userId]);
 
     await client.query("COMMIT");
+
+    // Delete from Clerk after DB succeeds — if this fails the account is
+    // already gone from our DB so the user effectively can't log in anyway.
+    await clerkClient.users.deleteUser(clerkId);
+
     res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -1159,52 +1044,13 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     );
     const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed } = userRow.rows[0];
 
-    const perkRow = await completeClient.query(
-      `SELECT name FROM inventory WHERE user_id = $1 AND is_equipped = true`,
-      [task.userId],
-    );
-    const activePerks   = perkRow.rows.map(r => PERK_EFFECTS[r.name]).filter(Boolean);
-    const equippedName  = perkRow.rows.map(r => r.name).join(", ") || null;
-
-    // XP perks work for every tier — more perk slots (PRO/ELITE) means more XP perks can stack
-    const xpBonus      = activePerks
-      .filter(p => p.effect_type === "XP_GAIN")
-      .reduce((sum, p) => sum + (p.effect_value - 1), 0);
-    const xpMultiplier = 1 + xpBonus;
-
-    // Credit boosts stack additively — same pattern as XP_GAIN perks.
-    // Spark Stone (+25%) + Credit Magnet (+50%) = 1.75× total, not 1.25× + ignored.
-    const creditBonus = activePerks
-      .filter(p => p.effect_type === "CREDIT_BOOST")
-      .reduce((sum, p) => sum + (p.effect_value - 1), 0);
-    const creditMult  = 1 + creditBonus;
-
     const durationMins = Math.min(parseInt(task.durationMinutes) || 0, 180);
-    // XP needed to advance from `lvl` to `lvl + 1`
     const osrsXpRequired = (lvl) => Math.max(1, Math.floor(100 * Math.pow(lvl, 1.8)));
 
-    // ── Credit rewards — guaranteed base + streak-scaled bonus roll ───────
-    // Tier multiplier: FREE 1×, PRO 1.5×, ELITE 2× — compounds with streak and perk bonuses.
-    const TIER_CREDIT_MULT = { 0: 1.0, 1: 1.5, 2: 2.0 };
-    const tierCreditMult   = TIER_CREDIT_MULT[account_tier] ?? 1.0;
     const streakCount  = parseInt(streak || 0);
-    const streakMult   = 1 + Math.min(streakCount, 20) * 0.05; // caps at 2.0× at streak 20
-    const baseCr       = BASE_CR[durationMins]         ?? Math.floor(durationMins * 2.0);
-    const bonusCr      = BONUS_CR[durationMins]        ?? Math.floor(durationMins * 3);
-    const bonusChance  = BONUS_CR_CHANCE[durationMins] ?? 0.15;
-    let finalCredits   = Math.round((baseCr + (Math.random() < bonusChance ? bonusCr : 0)) * streakMult * creditMult * tierCreditMult);
+    const streakMult   = 1 + Math.min(streakCount, 20) * 0.05;
 
-    // ── OSRS-style XP ────────────────────────────────────────────────────
-    // MARATHON_BONUS perks only fire on sessions of 60+ minutes.
-    // They stack additively with XP_GAIN perks — equipping both gives you both benefits.
-    const marathonBonus = durationMins >= 60
-      ? activePerks
-          .filter(p => p.effect_type === "MARATHON_BONUS")
-          .reduce((sum, p) => sum + (p.effect_value - 1), 0)
-      : 0;
-    const marathonMult  = 1 + marathonBonus;
-
-    const stakeXp     = Math.floor(parseInt(task.stakeAmount || 0) * 1.5 * xpMultiplier * marathonMult * streakMult);
+    const stakeXp     = Math.floor(parseInt(task.stakeAmount || 0) * 1.5 * streakMult);
     let totalXpGained = stakeXp;
 
     let completedSkillName = null;
@@ -1227,7 +1073,8 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
         // 24h post-prestige boost: doubles skill XP for the first day of the new grind
         const boostActive  = skillData.prestige_boost_until && new Date(skillData.prestige_boost_until) > new Date();
         const boostMult    = boostActive ? 2.0 : 1.0;
-        const finalSkillXp = Math.round(baseSkillXp * xpMultiplier * marathonMult * streakMult * prestigeMult * boostMult);
+        const neuralMult   = getNeuralMult();
+        const finalSkillXp = Math.round(baseSkillXp * streakMult * prestigeMult * boostMult * neuralMult);
         totalXpGained += finalSkillXp;
         let skillXp    = parseInt(skillData.xp) + finalSkillXp;
         let newSkillLevel = skillLevel;
@@ -1247,9 +1094,6 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     let leveledUp = false;
     while (globalXp >= nextGlobalLevelXpRequired) { globalXp -= nextGlobalLevelXpRequired; globalLevel++; nextGlobalLevelXpRequired = osrsXpRequired(globalLevel); leveledUp = true; }
 
-    const newCredits = parseInt(credits) + finalCredits;
-
-    // BW is NOT refunded on completion — the stake was real.
     // last_reboot = NOW() starts the regen clock fresh from the moment the task ends.
     const updatedUser = await completeClient.query(
       `UPDATE users
@@ -1260,12 +1104,11 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
              THEN streak + 1
              ELSE streak
            END,
-           system_credits = $4,
            strikes = 0,
            streak_last_updated = NOW(),
            last_reboot = NOW()
-       WHERE id::text = $5 RETURNING *`,
-      [globalXp, globalLevel, globalTotalXp, newCredits, String(task.userId)],
+       WHERE id::text = $4 RETURNING *`,
+      [globalXp, globalLevel, globalTotalXp, String(task.userId)],
     );
 
     // Loot drop: guaranteed Epic on first ever session, normal RNG after that.
@@ -1312,18 +1155,13 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     res.json({
       success:        true,
       reward:         totalXpGained,
-      credits_earned: finalCredits,
+      credits_earned: 0,
       xp_earned:      totalXpGained,
-      xp_multiplier:  xpMultiplier,
-      perk_active:    equippedName,
       skill_name:     completedSkillName,
       user:           updatedUser.rows[0],
       drop,
       leveledUp,
       newLevel:      globalLevel,
-      system_state: {
-        system_credits: newCredits,
-      },
     });
   } catch (err) {
     await completeClient.query("ROLLBACK");
@@ -1374,30 +1212,20 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
       return res.json({ streak_shield_used: false, grace_period: true });
     }
 
-    // Streak Guard: if equipped, consume it and spare the streak
-    const shieldRow = await client.query(
-      `SELECT id FROM inventory WHERE user_id = $1 AND is_equipped = true AND name = 'Streak Guard' LIMIT 1`,
-      [user_id],
-    );
-    const hasShield = shieldRow.rows.length > 0;
-    if (hasShield) {
-      await client.query(`DELETE FROM inventory WHERE id = $1`, [shieldRow.rows[0].id]);
-    }
-
     const userUpdate = await client.query(
       `UPDATE users
-       SET streak  = CASE WHEN $2 THEN streak ELSE 0 END,
+       SET streak  = 0,
            strikes = COALESCE(strikes, 0) + 1
        WHERE id = $1
        RETURNING *`,
-      [user_id, hasShield],
+      [user_id],
     );
 
     await client.query("COMMIT");
     pushUserPatch(externalId).catch(() => {});
     presenceMap.delete(externalId);
     broadcastPresence();
-    res.json({ ...userUpdate.rows[0], streak_shield_used: hasShield });
+    res.json({ ...userUpdate.rows[0], streak_shield_used: false });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("ABORT_SEQUENCE_FAILED:", err);
@@ -1482,7 +1310,7 @@ app.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) => {
 // A standalone roll endpoint with no task gate allowed unlimited free credit farming.
 
 
-app.post("/api/inventory/equip", requireAuth, async (req, res) => {
+app.post("/api/inventory/equip", requireAuth, mutationLimiter, async (req, res) => {
   const { instanceId } = req.body;
   const externalId = req.auth.userId;
 
@@ -1609,7 +1437,7 @@ app.get("/api/inventory/:externalId", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/inventory/claim", requireAuth, async (req, res) => {
+app.post("/api/inventory/claim", requireAuth, mutationLimiter, async (req, res) => {
   const { item, equipNow } = req.body;
   const externalId = req.auth.userId;
 
@@ -1650,7 +1478,7 @@ app.post("/api/inventory/claim", requireAuth, async (req, res) => {
 });
 
 // ── Stripe: create checkout session ────────────────────────────────────────
-app.post("/payments/create-session", requireAuth, async (req, res) => {
+app.post("/payments/create-session", requireAuth, paymentLimiter, async (req, res) => {
   const { targetTier } = req.body;
   const userId = req.auth.userId;
 
@@ -2270,3 +2098,4 @@ app.post("/contact", rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), async (req
 // ─────────────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`ZENITH ENGINE ONLINE ON PORT ${PORT}`));
+module.exports = { getNeuralMult, calculateStake };

@@ -5,10 +5,10 @@ import { useTheme } from "../context/ThemeContext";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
-function formatTime(s) {
-  const m   = Math.floor(s / 60);
-  const sec = String(s % 60).padStart(2, "0");
-  return `${m}:${sec}`;
+function formatTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 // ── Done state — suspense reveal then collect ────────────────────────────────
@@ -38,11 +38,11 @@ function DoneCard({ contract, onComplete, skillColor }) {
       const target = contract.stake_amount || 0;
       const steps  = 24;
       const stepMs = 800 / steps;
-      let i = 0;
+      let step = 0;
       const id = setInterval(() => {
-        i++;
-        setDisplayXP(Math.round((target / steps) * i));
-        if (i >= steps) { setDisplayXP(target); clearInterval(id); }
+        step++;
+        setDisplayXP(Math.round((target / steps) * step));
+        if (step >= steps) { setDisplayXP(target); clearInterval(id); }
       }, stepMs);
     }, 2000);
 
@@ -61,52 +61,52 @@ function DoneCard({ contract, onComplete, skillColor }) {
   };
 
   return (
-    <View style={[d.card, { borderColor: skillColor, borderWidth: 1.5 }]}>
-      <View style={[d.strip, { backgroundColor: skillColor, shadowColor: skillColor }]} />
+    <View style={[doneStyles.card, { borderColor: skillColor, borderWidth: 1.5 }]}>
+      <View style={[doneStyles.strip, { backgroundColor: skillColor, shadowColor: skillColor }]} />
 
-      <View style={d.inner}>
+      <View style={doneStyles.inner}>
         {/* Header */}
-        <View style={d.header}>
-          <Text style={[d.skillTag, { color: skillColor }]}>
+        <View style={doneStyles.header}>
+          <Text style={[doneStyles.skillTag, { color: skillColor }]}>
             {(contract.skill_name || "GENERAL").toUpperCase()}
           </Text>
-          <View style={[d.doneBadge, { borderColor: skillColor }]}>
-            <Text style={[d.doneBadgeText, { color: skillColor }]}>DONE</Text>
+          <View style={[doneStyles.doneBadge, { borderColor: skillColor }]}>
+            <Text style={[doneStyles.doneBadgeText, { color: skillColor }]}>DONE</Text>
           </View>
-          <Text style={d.duration}>{contract.duration_minutes}M</Text>
+          <Text style={doneStyles.duration}>{contract.duration_minutes}M</Text>
         </View>
 
         {/* Title */}
-        <Text style={d.title}>{(contract.title || "").toUpperCase()}</Text>
+        <Text style={doneStyles.title}>{(contract.title || "").toUpperCase()}</Text>
 
         {/* XP reward — ??? while calculating, counts up when revealing */}
-        <View style={d.rewardBlock}>
+        <View style={doneStyles.rewardBlock}>
           {phase === "calculating" ? (
-            <Animated.Text style={[d.xpNum, { color: skillColor, opacity: pulse }]}>
+            <Animated.Text style={[doneStyles.xpNum, { color: skillColor, opacity: pulse }]}>
               ???
             </Animated.Text>
           ) : (
-            <Text style={[d.xpNum, { color: skillColor }]}>+{displayXP}</Text>
+            <Text style={[doneStyles.xpNum, { color: skillColor }]}>+{displayXP}</Text>
           )}
-          <Text style={d.xpLabel}>XP</Text>
+          <Text style={doneStyles.xpLabel}>XP</Text>
         </View>
 
         {/* Status during calculating */}
         {phase === "calculating" && (
-          <Text style={d.calcLabel}>CALCULATING REWARDS...</Text>
+          <Text style={doneStyles.calcLabel}>CALCULATING REWARDS...</Text>
         )}
 
         {/* Collect button — appears only when ready */}
         {phase === "ready" && (
           <TouchableOpacity
-            style={[d.collectBtn, { backgroundColor: skillColor }]}
+            style={[doneStyles.collectBtn, { backgroundColor: skillColor }]}
             onPress={handleCollect}
             disabled={isPending}
             activeOpacity={0.85}
           >
             {isPending
               ? <ActivityIndicator color="#000" />
-              : <Text style={d.collectText}>COLLECT REWARD →</Text>
+              : <Text style={doneStyles.collectText}>COLLECT REWARD →</Text>
             }
           </TouchableOpacity>
         )}
@@ -177,47 +177,41 @@ export default function ContractCard({ contract, onComplete, onAbort }) {
   }
 
   return (
-    <View style={[s.card, { borderColor: isCritical ? "rgba(255,68,68,0.4)" : "rgba(255,255,255,0.08)" }]}>
-      {/* Left 3px accent strip — matches web ::before pseudo-element */}
-      <View style={[s.strip, { backgroundColor: skillColor, shadowColor: skillColor }]} />
+    <View style={[styles.card, { borderColor: isCritical ? "rgba(255,68,68,0.4)" : "rgba(255,255,255,0.08)" }]}>
+      <View style={[styles.strip, { backgroundColor: skillColor, shadowColor: skillColor }]} />
 
-      {/* Card body */}
-      <View style={s.main}>
-        {/* Mission header: ID + skill tag */}
-        <View style={s.missionHeader}>
-          <Text style={s.missionId}>[{contract.id}]</Text>
-          <View style={s.skillTag}>
-            <Text style={[s.skillTagText, { color: skillColor }]}>
+      <View style={styles.main}>
+        <View style={styles.missionHeader}>
+          <Text style={styles.missionId}>[{contract.id}]</Text>
+          <View style={styles.skillTag}>
+            <Text style={[styles.skillTagText, { color: skillColor }]}>
               {(contract.skill_name || "GENERAL").toUpperCase()}
             </Text>
           </View>
         </View>
 
-        {/* Title */}
-        <Text style={s.missionTitle}>{(contract.title || "").toUpperCase()}</Text>
+        <Text style={styles.missionTitle}>{(contract.title || "").toUpperCase()}</Text>
 
-        {/* Data grid */}
-        <View style={s.dataGrid}>
-          <View style={s.dataNode}>
-            <Text style={s.dataLabel}>TIME LEFT</Text>
-            <Text style={[s.dataValue, isCritical && { color: "#ff4444" }]}>
+        <View style={styles.dataGrid}>
+          <View style={styles.dataNode}>
+            <Text style={styles.dataLabel}>TIME LEFT</Text>
+            <Text style={[styles.dataValue, isCritical && { color: "#ff4444" }]}>
               {formatTime(timeLeft)}
             </Text>
           </View>
-          <View style={s.dataNode}>
-            <Text style={s.dataLabel}>DURATION</Text>
-            <Text style={s.dataValue}>{duration}m</Text>
+          <View style={styles.dataNode}>
+            <Text style={styles.dataLabel}>DURATION</Text>
+            <Text style={styles.dataValue}>{duration}m</Text>
           </View>
-          <View style={s.dataNode}>
-            <Text style={s.dataLabel}>REWARD</Text>
-            <Text style={[s.dataValue, s.rewardValue]}>+{contract.stake_amount} XP</Text>
+          <View style={styles.dataNode}>
+            <Text style={styles.dataLabel}>REWARD</Text>
+            <Text style={[styles.dataValue, styles.rewardValue]}>+{contract.stake_amount} XP</Text>
           </View>
         </View>
 
-        {/* Progress bar */}
-        <View style={s.progressBar}>
+        <View style={styles.progressBar}>
           <View style={[
-            s.progressFill,
+            styles.progressFill,
             {
               width:           `${remaining}%`,
               backgroundColor: isCritical ? "#ff4444" : skillColor,
@@ -228,25 +222,23 @@ export default function ContractCard({ contract, onComplete, onAbort }) {
       </View>
 
       {/* Action column */}
-      <View style={s.actions}>
-        {/* Lock indicator while running */}
-        <View style={s.lockIndicator}>
-          <Text style={s.lockIcon}>⏸</Text>
+      <View style={styles.actions}>
+        <View style={styles.lockIndicator}>
+          <Text style={styles.lockIcon}>⏸</Text>
         </View>
 
-        {/* Abort / confirm */}
         {confirmDrop ? (
-          <View style={s.confirmGroup}>
-            <TouchableOpacity style={s.abortConfirm} onPress={handleAbort}>
-              <Text style={s.abortConfirmText}>DROP</Text>
+          <View style={styles.confirmGroup}>
+            <TouchableOpacity style={styles.abortConfirm} onPress={handleAbort}>
+              <Text style={styles.abortConfirmText}>DROP</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setConfirmDrop(false)}>
-              <Text style={s.cancelText}>KEEP</Text>
+              <Text style={styles.cancelText}>KEEP</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={s.abortBtn} onPress={() => setConfirmDrop(true)}>
-            <Text style={s.abortText}>DROP</Text>
+          <TouchableOpacity style={styles.abortBtn} onPress={() => setConfirmDrop(true)}>
+            <Text style={styles.abortText}>DROP</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -255,7 +247,7 @@ export default function ContractCard({ contract, onComplete, onAbort }) {
 }
 
 // ── Running card styles ─────────────────────────────────────────────────────
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   card: {
     position:        "relative",
     flexDirection:   "row",
@@ -421,7 +413,7 @@ const s = StyleSheet.create({
 });
 
 // ── Done card styles ────────────────────────────────────────────────────────
-const d = StyleSheet.create({
+const doneStyles = StyleSheet.create({
   card: {
     flexDirection:   "row",
     backgroundColor: "rgba(0,0,0,0.30)",

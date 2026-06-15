@@ -25,66 +25,156 @@ const SKY_DEFAULT = {
   night:   ["#03060b", "#0f172a"],
 };
 
-// ── PRO+ theme sky overrides — each phase pair is [top, bottom] ───────────────
+// ── Theme sky overrides — each phase pair is [top, bottom] ───────────────────
 const THEME_SKY_OVERRIDES = {
-  // ── Neon (hot pink #f72585) — cyberpunk noir ──────────────────────────────
+  // ── Cobalt — subtle blue tint (credits theme) ────────────────────────────
+  cobalt: {
+    morning: ["#0d1e30", "#2a4870"],
+    day:     ["#0e2240", "#305888"],
+    noon:    ["#102848", "#3a6898"],
+    evening: ["#0a1828", "#203858"],
+    sunset:  ["#060e1c", "#142440"],
+    night:   ["#020810", "#061830"],
+  },
+  // ── Amber — subtle warm tint (credits theme) ──────────────────────────────
+  amber: {
+    morning: ["#1c0e00", "#784010"],
+    day:     ["#221000", "#885018"],
+    noon:    ["#281200", "#986020"],
+    evening: ["#180a00", "#602800"],
+    sunset:  ["#100800", "#401800"],
+    night:   ["#0a0600", "#1c0e00"],
+  },
+  // ── Crimson — subtle red tint (credits theme) ─────────────────────────────
+  crimson: {
+    morning: ["#160005", "#601020"],
+    day:     ["#1a0008", "#701828"],
+    noon:    ["#200008", "#802030"],
+    evening: ["#120005", "#50080c"],
+    sunset:  ["#0e0003", "#380408"],
+    night:   ["#080003", "#180508"],
+  },
+  // ── Violet — subtle purple tint (credits theme) ───────────────────────────
+  violet: {
+    morning: ["#0e0018", "#401868"],
+    day:     ["#100020", "#502078"],
+    noon:    ["#140025", "#602888"],
+    evening: ["#0c0018", "#381060"],
+    sunset:  ["#080010", "#240840"],
+    night:   ["#050008", "#100018"],
+  },
+  // ── Jade — subtle green tint (credits theme) ──────────────────────────────
+  jade: {
+    morning: ["#001408", "#185838"],
+    day:     ["#001808", "#206840"],
+    noon:    ["#001e0a", "#287848"],
+    evening: ["#001005", "#104828"],
+    sunset:  ["#000c04", "#083018"],
+    night:   ["#000804", "#021408"],
+  },
+  // ── Neon — cyberpunk sky, blazing pink at noon ────────────────────────────
   neon: {
-    morning: ["#1a0018", "#ff3fa0"],
-    day:     ["#160020", "#580050"],
-    noon:    ["#120018", "#460040"],
-    evening: ["#1a0028", "#7a0060"],
-    sunset:  ["#2a0035", "#6b0050"],
-    night:   ["#050108", "#1d0015"],
+    morning: ["#200018", "#c02880"],  // dark pink dawn
+    day:     ["#280020", "#d83090"],  // rising neon
+    noon:    ["#340028", "#ff40a8"],  // peak — vivid hot pink
+    evening: ["#1e0020", "#8a1068"],  // dimming
+    sunset:  ["#160018", "#6a0850"],  // deep magenta
+    night:   ["#050108", "#1d0015"],  // near black
   },
-  // ── Arctic (ice blue #67e8f9) — polar atmosphere ─────────────────────────
+  // ── Arctic — polar sky, brightest ice blue at noon ────────────────────────
   arctic: {
-    morning: ["#0d2040", "#7ac8e0"],
-    day:     ["#0a2850", "#1a8aaa"],
-    noon:    ["#082040", "#1a7090"],
-    evening: ["#0d1830", "#1a4060"],
-    sunset:  ["#0d1a40", "#1a2860"],
-    night:   ["#060e1e", "#0a1a3d"],
+    morning: ["#0a2038", "#60c8e8"],  // cold blue dawn
+    day:     ["#0c2c50", "#70d8f8"],  // brightening
+    noon:    ["#104070", "#90eeff"],  // peak — vivid polar blue
+    evening: ["#082040", "#2888a8"],  // dimming
+    sunset:  ["#061830", "#185878"],  // deep arctic blue
+    night:   ["#060e1e", "#0a1a3d"],  // near black
   },
-  // ── Solar (orange #fb8500) — scorching desert ─────────────────────────────
+  // ── Solar — scorched desert, peak blaze at noon ───────────────────────────
   solar: {
-    morning: ["#2a1000", "#ff7800"],
-    day:     ["#2e1500", "#d46000"],
-    noon:    ["#281800", "#c05800"],
-    evening: ["#2c1500", "#c06000"],
-    sunset:  ["#3d1500", "#8b3000"],
-    night:   ["#1a0900", "#2a1400"],
+    morning: ["#301000", "#e07000"],  // orange dawn
+    day:     ["#3c1400", "#f08000"],  // heating
+    noon:    ["#501800", "#ff9a00"],  // peak — scorching orange
+    evening: ["#2c1000", "#b04800"],  // cooling
+    sunset:  ["#200c00", "#803000"],  // deep ember
+    night:   ["#1a0900", "#2a1400"],  // near black
   },
-  // ── Nebula (deep purple #7209b7) — cosmic deep space ─────────────────────
+  // ── Nebula — cosmic sky, deep space purple at noon ────────────────────────
   nebula: {
-    morning: ["#0a0025", "#7209b7"],
-    day:     ["#0d0030", "#4a0090"],
-    noon:    ["#0a0025", "#3a0070"],
-    evening: ["#0a0025", "#500090"],
-    sunset:  ["#0d0030", "#6000a0"],
-    night:   ["#04000e", "#0d0030"],
+    morning: ["#0c0028", "#7808b8"],  // purple space dawn
+    day:     ["#100030", "#9010d0"],  // brightening
+    noon:    ["#160040", "#b018f0"],  // peak — vivid cosmic purple
+    evening: ["#0c0028", "#500090"],  // dimming
+    sunset:  ["#080018", "#380070"],  // deep space
+    night:   ["#04000e", "#0d0030"],  // near black
   },
-  // ── Obsidian (dark purple #6d28d9) — shadow realm ────────────────────────
+  // ── Obsidian — shadow realm, dark violet peak ─────────────────────────────
   obsidian: {
-    morning: ["#080015", "#4d1aa0"],
-    day:     ["#0e0025", "#471090"],
-    noon:    ["#0a001e", "#380f80"],
-    evening: ["#0a001a", "#4a0a90"],
-    sunset:  ["#0d0025", "#5a0aa0"],
-    night:   ["#000000", "#0a0020"],
+    morning: ["#0a0018", "#5020a8"],  // shadow dawn
+    day:     ["#0e0020", "#6028c0"],  // rising
+    noon:    ["#140028", "#7838e0"],  // peak — vivid shadow violet
+    evening: ["#0a0018", "#3c1088"],  // dimming
+    sunset:  ["#070012", "#2a0870"],  // deep shadow
+    night:   ["#000000", "#0a0020"],  // near black
   },
-  // ── Ghost (silver white #e2e8f0) — ethereal mist ─────────────────────────
+  // ── Ghost — ethereal mist, silver peak at noon ────────────────────────────
   ghost: {
-    morning: ["#1a2030", "#b0c4d8"],
-    day:     ["#1a2540", "#3a6090"],
-    noon:    ["#121e38", "#2a5070"],
-    evening: ["#141830", "#2a3060"],
-    sunset:  ["#1a1a30", "#2a2850"],
-    night:   ["#0d0d12", "#1a1a2e"],
+    morning: ["#182030", "#a8bcd0"],  // grey-blue mist dawn
+    day:     ["#1c2838", "#b8cce0"],  // brightening
+    noon:    ["#202e40", "#d0e4f4"],  // peak — pale silver-blue
+    evening: ["#141e30", "#607898"],  // dimming
+    sunset:  ["#101828", "#405068"],  // deep grey-blue
+    night:   ["#0d0d12", "#1a1a2e"],  // near black
   },
 };
 
-// PRO+ theme IDs that get sky overrides
-const PRO_THEMES = new Set(["neon", "arctic", "solar", "nebula", "obsidian", "ghost"]);
+// Moon color per theme at night — [disc color, halo color, outer halo color]
+const THEME_MOON = {
+  cobalt:   ["#a0c8ff", "rgba(100,160,255,0.35)", "rgba(80,130,220,0.15)"],
+  amber:    ["#ffd580", "rgba(220,160,60,0.35)",  "rgba(180,120,40,0.15)"],
+  crimson:  ["#ff9090", "rgba(220,60,60,0.35)",   "rgba(180,40,40,0.15)"],
+  violet:   ["#d0a0ff", "rgba(160,80,240,0.35)",  "rgba(120,60,200,0.15)"],
+  jade:     ["#80ffb0", "rgba(40,180,100,0.35)",  "rgba(20,140,80,0.15)"],
+  neon:     ["#ff70d0", "rgba(240,40,160,0.35)",  "rgba(200,20,120,0.15)"],
+  arctic:   ["#c0f0ff", "rgba(80,200,240,0.35)",  "rgba(60,160,210,0.15)"],
+  solar:    ["#ffb060", "rgba(240,120,20,0.35)",  "rgba(200,80,10,0.15)"],
+  nebula:   ["#c080ff", "rgba(140,20,200,0.35)",  "rgba(100,10,160,0.15)"],
+  obsidian: ["#b090e0", "rgba(100,40,200,0.35)",  "rgba(80,20,160,0.15)"],
+  ghost:    ["#e8eef4", "rgba(180,200,220,0.35)", "rgba(140,160,190,0.15)"],
+};
+
+// All non-default themes get sky overrides
+const THEMED_SKIES = new Set(Object.keys(THEME_SKY_OVERRIDES));
+
+// Sun disc + corona tint per theme — [disc, shadowColor, corona1, corona2]
+const THEME_SUN = {
+  cobalt:   ["#c0e0ff", "rgba(80,160,255,1.0)",  "rgba(80,150,255,0.50)",  "rgba(60,120,220,0.22)"],
+  amber:    ["#ffdd00", "rgba(255,180,0,1.0)",   "rgba(255,160,0,0.52)",   "rgba(220,120,0,0.24)"],
+  crimson:  ["#ff7070", "rgba(220,30,30,1.0)",   "rgba(220,40,40,0.50)",   "rgba(180,20,20,0.22)"],
+  violet:   ["#e0b0ff", "rgba(160,80,255,1.0)",  "rgba(160,80,240,0.50)",  "rgba(120,40,200,0.22)"],
+  jade:     ["#b0ffd0", "rgba(20,200,100,1.0)",  "rgba(20,180,100,0.50)",  "rgba(10,140,70,0.22)"],
+  neon:     ["#ff80e0", "rgba(240,20,160,1.0)",  "rgba(240,30,160,0.52)",  "rgba(200,10,120,0.24)"],
+  arctic:   ["#e8f8ff", "rgba(100,220,255,1.0)", "rgba(80,200,240,0.52)",  "rgba(60,160,220,0.24)"],
+  solar:    ["#fff060", "rgba(255,140,0,1.0)",   "rgba(255,130,0,0.55)",   "rgba(220,90,0,0.26)"],
+  nebula:   ["#e0b0ff", "rgba(180,20,240,1.0)",  "rgba(160,20,220,0.52)",  "rgba(120,10,180,0.24)"],
+  obsidian: ["#c0a0f0", "rgba(120,40,220,1.0)",  "rgba(110,40,200,0.50)",  "rgba(80,20,160,0.22)"],
+  ghost:    ["#f0f4f8", "rgba(180,200,220,1.0)", "rgba(160,185,210,0.50)", "rgba(130,155,185,0.22)"],
+};
+
+// Star color per theme
+const THEME_STAR = {
+  cobalt:   "#a0c8ff",
+  amber:    "#ffd880",
+  crimson:  "#ffaaaa",
+  violet:   "#d0a0ff",
+  jade:     "#80ffb0",
+  neon:     "#ff80e0",
+  arctic:   "#c0f0ff",
+  solar:    "#ffcc80",
+  nebula:   "#c080ff",
+  obsidian: "#b090e0",
+  ghost:    "#e8eef4",
+};
 
 // ── Sun config per phase ──────────────────────────────────────────────────────
 // corona1/corona2: concentric glow rings rendered behind the disc (cross-platform glow)
@@ -170,7 +260,7 @@ const Cloud = React.memo(function Cloud({ w, h, topF, leftF, opacity, duration }
 });
 
 // ── Twinkling star ────────────────────────────────────────────────────────────
-const Star = React.memo(function Star({ x, y, size, delay }) {
+const Star = React.memo(function Star({ x, y, size, delay, color }) {
   const twinkle = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
@@ -193,7 +283,7 @@ const Star = React.memo(function Star({ x, y, size, delay }) {
         width:           size,
         height:          size,
         borderRadius:    size / 2,
-        backgroundColor: "#ffffff",
+        backgroundColor: color || "#ffffff",
         opacity:         twinkle,
       }}
     />
@@ -226,15 +316,26 @@ export default function SolarBackdrop({ children }) {
     []
   );
   const starElements = useMemo(
-    () => isNight ? STARS.map(s => <Star key={s.id} {...s} />) : null,
-    [isNight]
+    () => isNight ? STARS.map(star => <Star key={star.id} {...star} color={starColor} />) : null,
+    [isNight, starColor]
   );
 
-  // Pick sky palette: PRO+ theme override or default
-  const skyPalette = (activeTheme && PRO_THEMES.has(activeTheme))
+  // Pick sky palette: themed override or default
+  const skyPalette = (activeTheme && THEMED_SKIES.has(activeTheme))
     ? THEME_SKY_OVERRIDES[activeTheme]
     : SKY_DEFAULT;
   const sky = skyPalette[phase];
+
+  // Moon colors for current theme
+  const moonColors = (activeTheme && THEME_MOON[activeTheme])
+    ? THEME_MOON[activeTheme]
+    : ["#ffffff", "rgba(220,220,160,0.38)", "rgba(200,200,140,0.16)"];
+
+  // Sun tint for current theme
+  const sunTint = activeTheme ? THEME_SUN[activeTheme] : null;
+
+  // Star color for current theme
+  const starColor = (activeTheme && THEME_STAR[activeTheme]) ? THEME_STAR[activeTheme] : "#ffffff";
 
   // Smooth sky transition on phase change
   const skyOpacity = useRef(new Animated.Value(1)).current;
@@ -283,8 +384,8 @@ export default function SolarBackdrop({ children }) {
               width:           sunCfg.size,
               height:          sunCfg.size,
               borderRadius:    sunCfg.size / 2,
-              backgroundColor: sunCfg.color,
-              shadowColor:     sunCfg.shadow,
+              backgroundColor: sunTint ? sunTint[0] : sunCfg.color,
+              shadowColor:     sunTint ? sunTint[1] : sunCfg.shadow,
               shadowOffset:    { width: 0, height: 0 },
               shadowOpacity:   1,
               shadowRadius:    sunCfg.sr,
@@ -294,12 +395,12 @@ export default function SolarBackdrop({ children }) {
         );
       })()}
 
-      {/* Moon — outer halo + inner glow + disc */}
+      {/* Moon — outer halo + inner glow + disc, tinted by active theme */}
       {isNight && (
         <>
-          <View style={styles.moonHalo2} />
-          <View style={styles.moonHalo1} />
-          <View style={styles.moon} />
+          <View style={[styles.moonHalo2, { backgroundColor: moonColors[2] }]} />
+          <View style={[styles.moonHalo1, { backgroundColor: moonColors[1] }]} />
+          <View style={[styles.moon, { backgroundColor: moonColors[0], shadowColor: moonColors[0] }]} />
         </>
       )}
 

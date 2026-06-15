@@ -13,7 +13,7 @@ export default function ShatterModal({ baseTask, onDeploy, onCancel }) {
   const [steps, setSteps] = useState(["", "", "", ""]);
   const refs = [useRef(), useRef(), useRef(), useRef()];
 
-  const allFilled = steps.every(s => s.trim().length > 0);
+  const allFilled = steps.every(step => step.trim().length > 0);
 
   const update = (i, val) => {
     const next = [...steps];

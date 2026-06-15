@@ -25,11 +25,11 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
   };
 
   return (
-    <View style={s.container}>
+    <View style={styles.container}>
 
       {/* Task name input */}
       <TextInput
-        style={[s.input, { borderColor: skill ? SKILL_COLORS[skill.toUpperCase()] + "55" : "rgba(255,255,255,0.1)" }]}
+        style={[styles.input, { borderColor: skill ? SKILL_COLORS[skill.toUpperCase()] + "55" : "rgba(255,255,255,0.1)" }]}
         placeholder="What are you working on?"
         placeholderTextColor="rgba(255,255,255,0.3)"
         value={taskName}
@@ -40,24 +40,24 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       />
 
       {/* Skill picker — all chips visible, no scroll */}
-      <Text style={[s.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>CHOOSE SKILL</Text>
-      <View style={s.skillGrid}>
-        {SKILLS.map(sk => {
-          const c      = SKILL_COLORS[sk.toUpperCase()];
-          const active = skill === sk;
+      <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>CHOOSE SKILL</Text>
+      <View style={styles.skillGrid}>
+        {SKILLS.map(skillName => {
+          const skillColor = SKILL_COLORS[skillName.toUpperCase()];
+          const active     = skill === skillName;
           return (
             <TouchableOpacity
-              key={sk}
+              key={skillName}
               style={[
-                s.chip,
+                styles.chip,
                 active
-                  ? { borderColor: c, backgroundColor: "rgba(255,255,255,0.14)" }
+                  ? { borderColor: skillColor, backgroundColor: "rgba(255,255,255,0.14)" }
                   : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
-              onPress={() => setSkill(sk)}
+              onPress={() => setSkill(skillName)}
             >
-              <Text style={[s.chipText, { color: active ? c : "rgba(255,255,255,0.45)" }]}>
-                {sk.toUpperCase()}
+              <Text style={[styles.chipText, { color: active ? skillColor : "rgba(255,255,255,0.45)" }]}>
+                {skillName.toUpperCase()}
               </Text>
             </TouchableOpacity>
           );
@@ -66,12 +66,12 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
 
       {/* Example tasks for selected skill */}
       {skill && (
-        <Text style={s.skillHint}>e.g. {SKILL_INFO[skill]}</Text>
+        <Text style={styles.skillHint}>e.g. {SKILL_INFO[skill]}</Text>
       )}
 
       {/* Duration buttons */}
-      <Text style={[s.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>DURATION</Text>
-      <View style={s.durGrid}>
+      <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>DURATION</Text>
+      <View style={styles.durGrid}>
         {DURATIONS.map(d => {
           const active = duration === d.mins;
           const ac     = skill ? SKILL_COLORS[skill.toUpperCase()] : accentColor;
@@ -79,12 +79,12 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
             <TouchableOpacity
               key={d.mins}
               style={[
-                s.durBtn,
+                styles.durBtn,
                 active && { borderColor: ac, backgroundColor: ac + "1a" },
               ]}
               onPress={() => setDuration(d.mins)}
             >
-              <Text style={[s.durLabel, active && { color: ac }]}>{d.label}</Text>
+              <Text style={[styles.durLabel, active && { color: ac }]}>{d.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -93,7 +93,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       {/* Start button */}
       <TouchableOpacity
         style={[
-          s.startBtn,
+          styles.startBtn,
           canStart
             ? { backgroundColor: accentColor, borderColor: accentColor }
             : { borderColor: "rgba(255,255,255,0.12)", opacity: 0.4 },
@@ -104,7 +104,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       >
         {busy
           ? <ActivityIndicator color={canStart ? "#030712" : accentColor} />
-          : <Text style={[s.startText, { color: canStart ? "#030712" : "rgba(255,255,255,0.4)" }]}>
+          : <Text style={[styles.startText, { color: canStart ? "#030712" : "rgba(255,255,255,0.4)" }]}>
               Begin Session →
             </Text>
         }
@@ -114,7 +114,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     backgroundColor: "rgba(0,0,0,0.25)",
     borderWidth:     1,

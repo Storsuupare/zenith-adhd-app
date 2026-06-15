@@ -28,7 +28,15 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo2.png",
+          "color": "#090c13",
+          "sounds": ["./assets/376749__zenithinfinitivestudios__fantasy_ui_button_5.wav"]
+        }
+      ]
     ],
     "extra": {
       "eas": {

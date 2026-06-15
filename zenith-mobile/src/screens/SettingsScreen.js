@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView,
+  StyleSheet, SafeAreaView, RefreshControl, Modal, Alert,
 } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
 import { useUser } from "../context/UserContext";
@@ -9,24 +9,45 @@ import { useTheme } from "../context/ThemeContext";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
+import { deleteAccount } from "../services/api";
 
-function getClockRows(accentColor) {
+function getClockRows() {
   return [
-    { time: "12AM – 7AM",  label: "Red Zone. Rewards halved.",  color: COLORS.red    },
-    { time: "8AM – 11AM",  label: "Best XP of the day.",        color: COLORS.green  },
-    { time: "2PM – 4PM",   label: "Slower rewards.",            color: "#facc15"     },
-    { time: "10PM – 12AM", label: "Hyperfocus window.",         color: accentColor   },
+    { time: "12AM – 5AM",  label: "Red Zone. Rewards ×0.5.",   color: "#ff3b3b" },
+    { time: "8AM – 11AM",  label: "Peak window. XP ×1.25.",    color: "#f5c518" },
+    { time: "10PM – 12AM", label: "Hyperfocus. XP ×1.5.",      color: "#a855f7" },
   ];
 }
 
 export default function SettingsScreen({ navigation }) {
   const { signOut } = useAuth();
-  const { user }    = useUser();
+  const { user, fetchUser } = useUser();
   const { accentColor } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      await signOut();
+    } catch {
+      Alert.alert("Error", "Failed to delete account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUser();
+    setRefreshing(false);
+  };
 
   const hour       = new Date().getHours();
-  const isRedzone  = hour >= 0 && hour < 7;
-  const CLOCK_ROWS = getClockRows(accentColor);
+  const isRedzone  = hour >= 0 && hour < 5;
+  const CLOCK_ROWS = getClockRows();
   const tierLabel  = user?.role === "ELITE" ? "Elite" : user?.role === "PRO" ? "Pro" : "Free";
 
   const NavRow = ({ label, screen }) => (
@@ -38,7 +59,7 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}>
         <Text style={styles.pageTitle}>Settings</Text>
 
         {/* Account */}
@@ -57,11 +78,11 @@ export default function SettingsScreen({ navigation }) {
           <View style={[styles.statusBadge, isRedzone && { borderColor: COLORS.red + "55" }]}>
             <View style={[styles.statusDot, { backgroundColor: isRedzone ? COLORS.red : COLORS.green }]} />
             <Text style={styles.statusText}>
-              {isRedzone ? "Red Zone active. Rewards halved until 7AM." : "Rewards shift with the time of day."}
+              {isRedzone ? "Red Zone active. Rewards halved until 5AM." : "Rewards shift with the time of day."}
             </Text>
           </View>
-          {CLOCK_ROWS.map(r => (
-            <Row key={r.time} label={r.time} value={r.label} valueColor={r.color} />
+          {CLOCK_ROWS.map(row => (
+            <Row key={row.time} label={row.time} value={row.label} valueColor={row.color} />
           ))}
         </View>
 
@@ -77,7 +98,43 @@ export default function SettingsScreen({ navigation }) {
         <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut()}>
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
+
+        {/* Danger Zone */}
+        <View style={styles.dangerCard}>
+          <Text style={styles.dangerTitle}>⚠ Danger Zone</Text>
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => setShowDeleteModal(true)}>
+            <Text style={styles.deleteText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
+
+      {/* Confirmation modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalBody}>
+              This permanently deletes your account, all progress, credits, and inventory. This cannot be undone.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={handleDeleteAccount}
+              disabled={deleting}
+            >
+              <Text style={styles.modalConfirmText}>
+                {deleting ? "Deleting..." : "Yes, delete my account"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -149,4 +206,57 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   signOutText: { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
+  dangerCard: {
+    backgroundColor: "rgba(255,34,68,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,34,68,0.3)",
+    borderRadius: 16,
+    padding: 18,
+    gap: 10,
+    alignItems: "center",
+  },
+  dangerTitle: { color: "#000", fontSize: 13, fontFamily: FONTS.bold, letterSpacing: 1, textAlign: "center" },
+  deleteBtn: {
+    backgroundColor: "rgba(255,34,68,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,34,68,0.45)",
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
+    alignSelf: "stretch",
+  },
+  deleteText: { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#111",
+    borderWidth: 1,
+    borderColor: "rgba(255,34,68,0.3)",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    gap: 12,
+  },
+  modalTitle: { color: COLORS.text, fontSize: 18, fontFamily: FONTS.bold },
+  modalBody:  { color: COLORS.textMuted, fontSize: 13, lineHeight: 20 },
+  modalConfirmBtn: {
+    backgroundColor: "rgba(255,34,68,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,34,68,0.5)",
+    borderRadius: 10,
+    padding: 14,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  modalConfirmText: { color: COLORS.red, fontSize: 14, fontFamily: FONTS.semiBold },
+  modalCancelBtn: {
+    padding: 12,
+    alignItems: "center",
+  },
+  modalCancelText: { color: COLORS.textMuted, fontSize: 13 },
 });

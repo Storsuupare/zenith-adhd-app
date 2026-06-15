@@ -4,8 +4,8 @@ import { BlurView } from "expo-blur";
 
 /**
  * Frosted glass card container.
- * Layers: [BlurView] + [dark tint] + [children] — all clipped to the card's borderRadius.
- * The outer View must have overflow:"hidden" for border clipping to work on both platforms.
+ * Layers: [BlurView] + [dark tint] + [children] — all clipped to the card's borderRadiustyles.
+ * The outer View must have overflow:"hidden" for border clipping to work on both platformstyles.
  */
 export default function GlassCard({
   style,
@@ -14,7 +14,7 @@ export default function GlassCard({
   tintColor = "rgba(5,8,15,0.55)",
 }) {
   return (
-    <View style={[style, s.overflow]}>
+    <View style={[style, styles.overflow]}>
       <BlurView intensity={intensity} tint="dark" style={StyleSheet.absoluteFillObject} />
       <View style={[StyleSheet.absoluteFillObject, { backgroundColor: tintColor }]} />
       {children}
@@ -22,6 +22,6 @@ export default function GlassCard({
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   overflow: { overflow: "hidden" },
 });

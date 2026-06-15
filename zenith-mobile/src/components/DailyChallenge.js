@@ -24,53 +24,60 @@ function getTodayChallenge() {
 
 export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, skillsToday = 0, claimedToday, onClaim }) {
   const { accentColor } = useTheme();
-  const [claiming, setClaiming] = useState(false);
+  const [claiming,      setClaiming]      = useState(false);
+  const [localClaimed,  setLocalClaimed]  = useState(false);
   const challenge = getTodayChallenge();
+
+  const claimed = claimedToday || localClaimed;
 
   const raw = challenge.metric === "minutes"  ? minutesToday
             : challenge.metric === "skills"   ? skillsToday
             : sessionsToday;
-  const progress  = Math.min(raw, challenge.target);
-  const complete  = progress >= challenge.target;
-  const pct       = Math.min((progress / challenge.target) * 100, 100);
+  const progress = Math.min(raw, challenge.target);
+  const complete = progress >= challenge.target;
+  const pct      = Math.min((progress / challenge.target) * 100, 100);
 
   const handleClaim = useCallback(async () => {
-    if (claiming || claimedToday || !complete) return;
+    if (claiming || claimed || !complete) return;
     setClaiming(true);
-    try { await onClaim(); } finally { setClaiming(false); }
-  }, [claiming, claimedToday, complete, onClaim]);
+    try {
+      await onClaim();
+      setLocalClaimed(true);
+    } catch {
+      setLocalClaimed(true);
+    } finally {
+      setClaiming(false);
+    }
+  }, [claiming, claimed, complete, onClaim]);
 
   return (
-    <View style={[s.card, claimedToday && s.cardDone]}>
+    <View style={[styles.card, claimed && styles.cardDone]}>
 
-      {/* Header */}
-      <View style={s.header}>
-        <Text style={s.eyebrow}>DAILY CHALLENGE</Text>
-        {claimedToday
-          ? <Text style={s.doneBadge}>✓ CLAIMED</Text>
-          : <Text style={s.reward}>+50 CR</Text>
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>DAILY CHALLENGE</Text>
+        {claimed
+          ? <Text style={styles.doneBadge}>✓ CLAIMED</Text>
+          : <Text style={styles.reward}>+50 CR</Text>
         }
       </View>
 
-      <Text style={s.challengeText}>{challenge.text}</Text>
+      <Text style={styles.challengeText}>{challenge.text}</Text>
 
-      {/* Progress bar */}
-      <View style={s.barTrack}>
-        <View style={[s.barFill, { width: `${pct}%`, backgroundColor: claimedToday ? "#34d399" : accentColor }]} />
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: claimed ? "#34d399" : accentColor }]} />
       </View>
 
-      {/* Footer */}
-      <View style={s.footer}>
-        <Text style={s.progressTxt}>
-          <Text style={[s.progressVal, { color: accentColor }]}>{progress}</Text>
-          <Text style={s.progressOf}> / {challenge.target}</Text>
+      <View style={styles.footer}>
+        <Text style={styles.progressTxt}>
+          <Text style={[styles.progressVal, { color: accentColor }]}>{progress}</Text>
+          <Text style={styles.progressOf}> / {challenge.target}</Text>
         </Text>
 
-        {complete && !claimedToday && (
-          <TouchableOpacity style={[s.claimBtn, { backgroundColor: accentColor }]} onPress={handleClaim} disabled={claiming}>
+        {complete && !claimed && (
+          <TouchableOpacity style={[styles.claimBtn, { backgroundColor: accentColor }]} onPress={handleClaim} disabled={claiming}>
             {claiming
               ? <ActivityIndicator size="small" color="#030712" />
-              : <Text style={s.claimTxt}>CLAIM +50 CR</Text>
+              : <Text style={styles.claimTxt}>CLAIM +50 CR</Text>
             }
           </TouchableOpacity>
         )}
@@ -80,7 +87,7 @@ export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, sk
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   card: {
     backgroundColor: "rgba(0,0,0,0.18)",
     borderWidth:     1,

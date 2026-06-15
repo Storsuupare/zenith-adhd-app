@@ -1,5 +1,6 @@
 import "react-native-gesture-handler";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { requestNotificationPermissions, scheduleNotifications } from "./src/services/notifications";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
@@ -73,6 +74,12 @@ export default function App() {
     JetBrainsMono_400Regular,
     JetBrainsMono_700Bold,
   });
+
+  useEffect(() => {
+    requestNotificationPermissions().then(granted => {
+      if (granted) scheduleNotifications();
+    });
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

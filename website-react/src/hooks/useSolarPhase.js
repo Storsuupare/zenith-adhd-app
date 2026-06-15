@@ -1,9 +1,9 @@
 export function useSolarPhase() {
-  const h = new Date().getHours()
-  if (h >= 5  && h < 8)  return 'morning'
-  if (h >= 8  && h < 12) return 'day'
-  if (h >= 12 && h < 14) return 'noon'
-  if (h >= 14 && h < 18) return 'evening'
-  if (h >= 18 && h < 21) return 'sunset'
+  const hour = new Date().getHours()
+  if (hour >= 5  && hour < 8)  return 'morning'
+  if (hour >= 8  && hour < 11) return 'day'
+  if (hour >= 11 && hour < 16) return 'noon'
+  if (hour >= 16 && hour < 22) return 'evening'
+  if (hour >= 22)              return 'sunset'
   return 'night'
 }
