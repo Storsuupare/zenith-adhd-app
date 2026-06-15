@@ -283,8 +283,7 @@ body::after {
   background: radial-gradient(circle at 36% 34%, #fffde7, #c5caa0);
   box-shadow:
     inset -10px -4px 0 4px rgba(160, 165, 100, 0.45),
-    0 0 28px 10px rgba(220, 220, 150, 0.4),
-    0 0 70px 30px rgba(180, 180, 100, 0.15);
+    0 0 50px 20px rgba(200, 200, 130, 0.18);
 }
 .moon-glow {
   position: absolute;
@@ -462,6 +461,7 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
+ 
   gap: 2px;
 }
 .nav-play-badge {
@@ -1690,6 +1690,20 @@ body::after {
   .nav-link:not(.nav-link--always) {
     display: none;
   }
+
+  .nav-right {
+    gap: 8px;
+  }
+
+  .nav-play-wrap img {
+    height: 28px;
+  }
+
+  .nav-cta {
+    font-size: 0.73rem;
+    padding: 12px 12px;
+  }
+
 }
 @media (max-width: 360px) {
   .section-inner,
