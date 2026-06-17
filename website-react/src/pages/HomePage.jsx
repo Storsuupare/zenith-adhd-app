@@ -217,7 +217,7 @@ export default function HomePage() {
         <div className="section-inner beta-inner">
           <span className="eyebrow" data-reveal>◉ COMMUNITY</span>
           <h2 className="section-headline" data-reveal data-delay="1">Shape What<br />Comes Next.</h2>
-          <p className="section-sub" data-reveal data-delay="2">Got a feature idea, a bug report, or just want to share how Zenith fits into your routine? Send us a message — every submission gets read.</p>
+          <p className="section-sub" data-reveal data-delay="2">Got a feature idea, a bug report, or just want to share how Zenith fits into your routine? Send us a message! Every submission gets read.</p>
           <a
             className="btn btn--primary"
             href="https://discord.gg/Ur75YjyN"

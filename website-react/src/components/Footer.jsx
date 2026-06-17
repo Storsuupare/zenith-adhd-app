@@ -27,7 +27,7 @@ export default function Footer() {
           <span>·</span>
           <Link to="/contact">Contact</Link>
         </div>
-        <span className="footer-copy">© 2026 Zenith. All rights reserved.</span>
+        <span className="footer-copy">© 2026 Zenith. All rights reserved. · v{CHANGELOG[0].version}</span>
       </div>
     </footer>
   )

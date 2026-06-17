@@ -106,6 +106,8 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.versionText}>v1.1.0</Text>
       </ScrollView>
 
       {/* Confirmation modal */}
@@ -215,7 +217,7 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: "center",
   },
-  dangerTitle: { color: "#000", fontSize: 13, fontFamily: FONTS.bold, letterSpacing: 1, textAlign: "center" },
+  dangerTitle: { color: "#fff", fontSize: 13, fontFamily: FONTS.bold, letterSpacing: 1, textAlign: "center" },
   deleteBtn: {
     backgroundColor: "rgba(255,34,68,0.12)",
     borderWidth: 1,
@@ -225,7 +227,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "stretch",
   },
-  deleteText: { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
+  deleteText:   { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
+  versionText:  { color: "rgba(255,255,255,0.18)", fontSize: 11, textAlign: "center", letterSpacing: 1, paddingBottom: 8 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.75)",

@@ -72,22 +72,26 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       {/* Duration buttons */}
       <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>DURATION</Text>
       <View style={styles.durGrid}>
-        {DURATIONS.map(d => {
-          const active = duration === d.mins;
-          const ac     = skill ? SKILL_COLORS[skill.toUpperCase()] : accentColor;
-          return (
-            <TouchableOpacity
-              key={d.mins}
-              style={[
-                styles.durBtn,
-                active && { borderColor: ac, backgroundColor: ac + "1a" },
-              ]}
-              onPress={() => setDuration(d.mins)}
-            >
-              <Text style={[styles.durLabel, active && { color: ac }]}>{d.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+        {[DURATIONS.slice(0, 3), DURATIONS.slice(3)].map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.durRow}>
+            {row.map(dur => {
+              const isActive    = duration === dur.mins;
+              const buttonColor = skill ? SKILL_COLORS[skill.toUpperCase()] : accentColor;
+              return (
+                <TouchableOpacity
+                  key={dur.mins}
+                  style={[
+                    styles.durBtn,
+                    isActive && { borderColor: buttonColor, backgroundColor: buttonColor + "1a" },
+                  ]}
+                  onPress={() => setDuration(dur.mins)}
+                >
+                  <Text style={[styles.durLabel, isActive && { color: buttonColor }]}>{dur.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       {/* Start button */}
@@ -176,17 +180,20 @@ const styles = StyleSheet.create({
   },
 
   durGrid: {
-    flexDirection: "row",
-    flexWrap:      "wrap",
-    gap:           8,
+    gap: 8,
+  },
+  durRow: {
+    flexDirection:  "row",
+    justifyContent: "center",
+    gap:            8,
   },
   durBtn: {
+    flex:            1,
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth:     1,
     borderColor:     "rgba(255,255,255,0.1)",
     borderRadius:    8,
-    paddingVertical:   10,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
     alignItems:      "center",
   },
   durLabel: {
