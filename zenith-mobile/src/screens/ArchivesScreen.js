@@ -24,15 +24,37 @@ const SKILL_ICONS = {
   RESOLVE:       "▲",
 };
 
+function SectionLabel({ text, sub }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionLabel}>{text}</Text>
+      {sub && <Text style={styles.sectionSub}>{sub}</Text>}
+    </View>
+  );
+}
+
+function StatGrid({ tiles, accentColor }) {
+  return (
+    <View style={styles.statGrid}>
+      {tiles.map(tile => (
+        <View key={tile.label} style={styles.statTile}>
+          <Text style={[styles.statValue, { color: tile.color ?? accentColor }]}>{tile.value}</Text>
+          <Text style={styles.statLabel}>{tile.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function ArchivesScreen() {
   const { user } = useUser();
   const { accentColor } = useTheme();
-  const [sessions,   setSessions]  = useState([]);
-  const [loading,    setLoading]   = useState(true);
+  const [sessions,   setSessions]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadSessions = () =>
-    fetchSummitHistory(20)
+    fetchSummitHistory(50)
       .then(res => setSessions(Array.isArray(res.data) ? res.data : []))
       .catch(() => setSessions([]))
       .finally(() => setLoading(false));
@@ -48,12 +70,26 @@ export default function ArchivesScreen() {
   const skills        = user?.mastery ?? [];
   const totalXP       = user?.total_xp ?? 0;
   const avgLevel      = skills.length
-    ? Math.round(skills.reduce((acc, skill) => acc + (skill.current_level ?? 0), 0) / skills.length)
+    ? Math.round(skills.reduce((sum, skill) => sum + (skill.current_level ?? 0), 0) / skills.length)
     : 0;
-  const totalMinutes  = sessions.reduce((acc, session) => acc + (Number(session.minutes) || 0), 0);
-  const totalHours    = (totalMinutes / 60).toFixed(1);
-  const prestigeCount = skills.reduce((acc, skill) => acc + (skill.prestige_level ?? 0), 0);
+  const prestigeCount = skills.reduce((sum, skill) => sum + (skill.prestige_level ?? 0), 0);
+  const allTimeMinutes = skills.length > 0
+    ? sessions.reduce((sum, session) => sum + (Number(session.minutes) || 0), 0)
+    : 0;
 
+  // ── Performance: derived from 7-day sessions ──────────────────────────────
+  const weekMinutes     = sessions.reduce((sum, session) => sum + (Number(session.minutes) || 0), 0);
+  const weekHours       = (weekMinutes / 60).toFixed(1);
+  const dailyAvgMinutes = Math.round(weekMinutes / 7);
+
+  const skillFrequency = {};
+  sessions.forEach(session => {
+    const name = session.skill_name || "";
+    if (name) skillFrequency[name] = (skillFrequency[name] || 0) + 1;
+  });
+  const topSkill = Object.entries(skillFrequency).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+
+  // ── Skill XP ──────────────────────────────────────────────────────────────
   const sortedSkills = [...skills].sort((a, b) => (b.current_xp ?? 0) - (a.current_xp ?? 0));
   const topSkillXP   = sortedSkills.length ? Math.max(sortedSkills[0].current_xp ?? 1, 1) : 1;
 
@@ -63,45 +99,62 @@ export default function ArchivesScreen() {
         <Text style={styles.pageTitle}>History</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
+      >
 
-        {/* ── Personal Records ────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Personal Records</Text>
-        <View style={styles.statsGrid}>
-          {[
-            { label: "Hours Logged",    value: `${totalHours}h` },
-            { label: "Lifetime XP",     value: totalXP.toLocaleString() },
-            { label: "Avg Skill Level", value: String(avgLevel) },
-            { label: "Prestiges",       value: String(prestigeCount) },
-          ].map(tile => (
-            <View key={tile.label} style={styles.statTile}>
-              <Text style={[styles.statValue, { color: accentColor }]}>{tile.value}</Text>
-              <Text style={styles.statLabel}>{tile.label}</Text>
-            </View>
-          ))}
-        </View>
+        {/* ── Personal Records ─────────────────────────────────────────── */}
+        <SectionLabel text="Personal Records" />
+        <StatGrid accentColor={accentColor} tiles={[
+          { label: "Lifetime XP",     value: totalXP.toLocaleString() },
+          { label: "Avg Skill Level", value: `Lv ${avgLevel}`         },
+          { label: "Hours Logged",    value: `${(allTimeMinutes / 60).toFixed(1)}h` },
+          { label: "Prestiges",       value: String(prestigeCount)    },
+        ]} />
 
-        {/* ── Skill XP Breakdown ──────────────────────────────────── */}
+        {/* ── Performance ──────────────────────────────────────────────── */}
+        <SectionLabel text="Performance" sub="Last 7 days" />
+        {loading ? (
+          <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />
+        ) : (
+          <StatGrid accentColor={accentColor} tiles={[
+            { label: "Sessions",     value: String(sessions.length) },
+            { label: "Time Logged",  value: `${weekHours}h`         },
+            { label: "Top Skill",    value: topSkill || "—",  color: topSkill ? SKILL_COLORS[topSkill.toUpperCase()] : undefined },
+            { label: "Daily Avg",    value: `${dailyAvgMinutes}m`   },
+          ]} />
+        )}
+
+        {/* ── Skill XP ─────────────────────────────────────────────────── */}
         {sortedSkills.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Skill XP</Text>
-            <View style={styles.skillCard}>
+            <SectionLabel text="Skill XP" />
+            <View style={styles.card}>
               {sortedSkills.map((skill, index) => {
-                const upperName = (skill.skill_name ?? "").toUpperCase();
-                const color     = SKILL_COLORS[upperName] || accentColor;
-                const icon      = SKILL_ICONS[upperName] ?? "◉";
-                const fillPct   = ((skill.current_xp ?? 0) / topSkillXP) * 100;
+                const upperName  = (skill.skill_name ?? "").toUpperCase();
+                const skillColor = SKILL_COLORS[upperName] || accentColor;
+                const icon       = SKILL_ICONS[upperName] ?? "◉";
+                const fillPct    = ((skill.current_xp ?? 0) / topSkillXP) * 100;
+                const xpDisplay  = (skill.current_xp ?? 0) >= 1000
+                  ? `${((skill.current_xp ?? 0) / 1000).toFixed(1)}k`
+                  : String(skill.current_xp ?? 0);
                 return (
-                  <View
-                    key={skill.skill_name}
-                    style={[styles.skillRow, index > 0 && styles.skillRowDivider]}
-                  >
-                    <Text style={[styles.skillIcon, { color }]}>{icon}</Text>
-                    <Text style={styles.skillName} numberOfLines={1}>{skill.skill_name}</Text>
-                    <View style={styles.skillTrack}>
-                      <View style={[styles.skillFill, { width: `${fillPct}%`, backgroundColor: color }]} />
+                  <View key={skill.skill_name} style={[styles.skillRow, index > 0 && styles.rowDivider]}>
+                    <Text style={[styles.skillIcon, { color: skillColor }]}>{icon}</Text>
+                    <View style={styles.skillMeta}>
+                      <View style={styles.skillTopRow}>
+                        <Text style={styles.skillName} numberOfLines={1}>{skill.skill_name}</Text>
+                        <View style={styles.levelBadge}>
+                          <Text style={[styles.levelText, { color: skillColor }]}>LV {skill.current_level ?? 0}</Text>
+                        </View>
+                        <Text style={[styles.xpValue, { color: skillColor }]}>{xpDisplay} XP</Text>
+                      </View>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.barFill, { width: `${fillPct}%`, backgroundColor: skillColor }]} />
+                      </View>
                     </View>
-                    <Text style={styles.skillLevel}>Lv {skill.current_level}</Text>
                   </View>
                 );
               })}
@@ -109,47 +162,42 @@ export default function ArchivesScreen() {
           </>
         )}
 
-        {/* ── Recent Sessions ─────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Recent Sessions</Text>
+        {/* ── Recent Sessions ──────────────────────────────────────────── */}
+        <SectionLabel text="Recent Sessions" sub="Last 7 days" />
         {loading ? (
-          <ActivityIndicator color={accentColor} style={{ marginVertical: 20 }} />
+          <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />
         ) : sessions.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyIcon}>◌</Text>
-            <Text style={styles.emptyText}>No completed sessions yet.</Text>
+            <Text style={styles.emptyText}>No sessions in the last 7 days.</Text>
           </View>
-        ) : (() => {
-          const maxMinutes = Math.max(...sessions.map(session => Number(session.minutes) || 0), 1);
-          return (
-            <View style={styles.sessionList}>
-              {sessions.slice(0, 20).map((session, index) => {
-                const upperSkill = (session.skill_name ?? "").toUpperCase();
-                const dotColor   = SKILL_COLORS[upperSkill] || accentColor;
-                const fillPct    = ((Number(session.minutes) || 0) / maxMinutes) * 100;
-                return (
-                  <View key={session.id ?? index} style={styles.sessionRow}>
-                    <View style={[styles.sessionAccentBar, { backgroundColor: dotColor }]} />
-                    <View style={styles.sessionBody}>
-                      <View style={styles.sessionTopRow}>
-                        <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
-                        <Text style={styles.sessionDate}>{session.label}</Text>
-                      </View>
-                      <View style={styles.sessionBarRow}>
-                        <Text style={styles.sessionSkillTag} numberOfLines={1}>
-                          {session.skill_name || "Session"}
-                        </Text>
-                        <View style={styles.sessionTrack}>
-                          <View style={[styles.sessionFill, { width: `${fillPct}%`, backgroundColor: dotColor }]} />
-                        </View>
-                        <Text style={styles.sessionDuration}>{session.minutes}m</Text>
-                      </View>
+        ) : (
+          <View style={styles.sessionList}>
+            {[...sessions].reverse().map((session, index) => {
+              const upperSkill = (session.skill_name ?? "").toUpperCase();
+              const skillColor = SKILL_COLORS[upperSkill] || accentColor;
+              const icon       = SKILL_ICONS[upperSkill] ?? "◉";
+              return (
+                <View key={session.id ?? index} style={styles.sessionRow}>
+                  <View style={[styles.sessionAccent, { backgroundColor: skillColor }]} />
+                  <View style={styles.sessionBody}>
+                    <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
+                    <View style={styles.sessionMeta}>
+                      <Text style={[styles.sessionIcon]}>{icon}</Text>
+                      <Text style={[styles.sessionSkill, { color: skillColor }]}>
+                        {session.skill_name || "Session"}
+                      </Text>
+                      <View style={styles.sessionDot} />
+                      <Text style={styles.sessionDate}>{session.label}</Text>
+                      <View style={styles.sessionDot} />
+                      <Text style={styles.sessionDuration}>{session.minutes}m</Text>
                     </View>
                   </View>
-                );
-              })}
-            </View>
-          );
-        })()}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -157,120 +205,101 @@ export default function ArchivesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "transparent" },
-
+  root:      { flex: 1, backgroundColor: "transparent" },
   topBar: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical:   12,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.06)",
   },
   pageTitle: { color: COLORS.text, fontSize: 20, fontFamily: FONTS.bold },
+  content:   { padding: 16, paddingBottom: 40, gap: 12 },
 
-  content: { padding: 16, paddingBottom: 40, gap: 10 },
+  // ── Section header ────────────────────────────────────────────
+  sectionHeader: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: 4 },
+  sectionLabel:  { color: COLORS.textMuted, fontSize: 10, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONTS.bold },
+  sectionSub:    { color: "rgba(255,255,255,0.2)", fontSize: 10, fontFamily: FONTS.regular },
 
-  sectionLabel: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    fontFamily: FONTS.bold,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-
-  // ── Stat tiles ──────────────────────────────────────────────
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  // ── Stat grid ─────────────────────────────────────────────────
+  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   statTile: {
-    width: "47%",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    borderRadius: 12,
-    padding: 14,
-    gap: 4,
+    width:           "47.5%",
+    backgroundColor: "rgba(0,0,0,0.25)",
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.07)",
+    borderRadius:    12,
+    padding:         14,
+    gap:             4,
   },
   statValue: { fontSize: 22, fontFamily: FONTS.bold },
   statLabel: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
 
-  // ── Skill rows ──────────────────────────────────────────────
-  skillCard: {
+  // ── Shared card ───────────────────────────────────────────────
+  card: {
     backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  skillRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  skillRowDivider: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.04)",
-  },
-  skillIcon:  { fontSize: 13, width: 18, textAlign: "center" },
-  // width: 106 fits the longest skill name ("Environment", "Discipline") at 12px semibold
-  skillName:  {
-    color: COLORS.text,
-    fontSize: 12,
-    fontFamily: FONTS.semiBold,
-    width: 106,
-    flexShrink: 0,
-  },
-  skillTrack: {
-    flex: 1,
-    height: 3,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  skillFill:  { height: "100%", borderRadius: 2 },
-  skillLevel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.regular,
-    width: 36,
-    textAlign: "right",
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.06)",
+    borderRadius:    14,
+    overflow:        "hidden",
   },
 
-  // ── Session rows ────────────────────────────────────────────
+  // ── Skill XP rows ─────────────────────────────────────────────
+  skillRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 14,
+    paddingVertical:   10,
+    gap:               10,
+  },
+  rowDivider: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.04)" },
+  skillIcon:  { fontSize: 14, width: 18, textAlign: "center" },
+  skillMeta:  { flex: 1, gap: 5 },
+  skillTopRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  skillName:  { color: COLORS.text, fontSize: 12, fontFamily: FONTS.semiBold, flex: 1 },
+  levelBadge: {
+    backgroundColor:   "rgba(255,255,255,0.07)",
+    borderRadius:      4,
+    paddingHorizontal: 5,
+    paddingVertical:   2,
+  },
+  levelText:  { fontSize: 9, fontFamily: FONTS.bold, letterSpacing: 0.5 },
+  xpValue:    { fontSize: 10, fontFamily: FONTS.monoBold, letterSpacing: 0.5, opacity: 0.85 },
+  barTrack: {
+    height:          3,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius:    2,
+    overflow:        "hidden",
+  },
+  barFill: { height: "100%", borderRadius: 2 },
+
+  // ── Session rows ──────────────────────────────────────────────
   sessionList: { gap: 6 },
   sessionRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
+    flexDirection:   "row",
+    alignItems:      "stretch",
     backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    borderRadius: 10,
-    overflow: "hidden",
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.06)",
+    borderRadius:    10,
+    overflow:        "hidden",
   },
-  sessionAccentBar: { width: 3 },
-  sessionBody: { flex: 1, paddingVertical: 10, paddingHorizontal: 12, gap: 6 },
-  sessionTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  sessionAccent: { width: 3 },
+  sessionBody: {
+    flex:              1,
+    paddingVertical:   10,
+    paddingHorizontal: 12,
+    gap:               4,
   },
-  sessionTitle:    { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold, flex: 1, marginRight: 8 },
-  sessionDate:     { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular, flexShrink: 0 },
-  sessionBarRow:   { flexDirection: "row", alignItems: "center", gap: 8 },
-  sessionSkillTag: { color: COLORS.textMuted, fontSize: 10, fontFamily: FONTS.regular, width: 72, flexShrink: 0 },
-  sessionTrack: {
-    flex: 1,
-    height: 3,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  sessionFill:     { height: "100%", borderRadius: 2 },
-  sessionDuration: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular, width: 30, textAlign: "right" },
+  sessionTitle: { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
+  sessionMeta:  { flexDirection: "row", alignItems: "center", gap: 5 },
+  sessionIcon:  { fontSize: 10, color: "rgba(255,255,255,0.4)" },
+  sessionSkill: { fontSize: 11, fontFamily: FONTS.semiBold },
+  sessionDot:   { width: 2, height: 2, borderRadius: 1, backgroundColor: "rgba(255,255,255,0.2)" },
+  sessionDate:  { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
+  sessionDuration: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
 
-  // ── Empty state ─────────────────────────────────────────────
+  // ── Empty state ───────────────────────────────────────────────
   emptyBox:  { alignItems: "center", paddingVertical: 32, gap: 8 },
   emptyIcon: { color: COLORS.textMuted, fontSize: 28 },
-  emptyText: { color: COLORS.textMuted, fontSize: 14 },
+  emptyText: { color: COLORS.textMuted, fontSize: 13, fontFamily: FONTS.regular },
 });

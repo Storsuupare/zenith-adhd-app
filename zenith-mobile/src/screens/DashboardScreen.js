@@ -3,7 +3,6 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, Alert, RefreshControl,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useUser } from "../context/UserContext";
 import { useTasks } from "../context/TaskContext";
@@ -106,11 +105,7 @@ function SkillCard({ skill, onPrestige, previewXP = 0 }) {
             {projectedPct > pct && (
               <View style={[sk.barGhost, { width: `${projectedPct}%` }]} />
             )}
-            <LinearGradient
-              colors={tier.gradientColors}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={[sk.barFill, { width: `${pct}%` }]}
-            />
+            <View style={[sk.barFill, { width: `${pct}%` }]} />
           </View>
           {/* XP fraction + percent on same row */}
           <View style={sk.bottomRow}>
@@ -154,7 +149,7 @@ const sk = StyleSheet.create({
   boostBadge: { fontSize: 10, fontWeight: "800", color: "#fbbf24" },
 
   barTrack: { height: 3, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden", marginTop: 6, marginBottom: 4 },
-  barFill:  { height: "100%", borderRadius: 20 },
+  barFill:  { height: "100%", borderRadius: 20, backgroundColor: "#22d3ee" },
   barGhost: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)" },
   bottomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   pctReadout: { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.6)", letterSpacing: 0.8 },
