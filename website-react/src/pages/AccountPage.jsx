@@ -12,13 +12,16 @@ const TIER_META = {
 
 export default function AccountPage() {
   const { isSignedIn, getToken } = useAuth()
-  const { user } = useUser()
-  const { signOut } = useClerk()
-  const navigate = useNavigate()
+  const { user }                 = useUser()
+  const { signOut }              = useClerk()
+  const navigate                 = useNavigate()
 
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
+  const [profile,       setProfile]       = useState(null)
+  const [loading,       setLoading]       = useState(true)
+  const [error,         setError]         = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   useEffect(() => {
     if (isSignedIn === false) navigate('/login')
@@ -26,30 +29,70 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!user) return
-    async function load() {
+    async function loadProfile() {
       try {
         const token = await getToken()
         const res   = await fetch(
           `${import.meta.env.VITE_BACKEND_URL}/user/${user.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         )
         if (!res.ok) throw new Error('Failed to load profile')
         setProfile(await res.json())
-      } catch (e) {
-        setError('Could not load your profile. Please refresh the page or try again later.')
+      } catch (fetchErr) {
+        setError('Could not load your profile. Please refresh or try again later.')
       } finally {
         setLoading(false)
       }
     }
-    load()
+    loadProfile()
   }, [user])
 
-  const tierKey  = profile?.role ?? 'FREE'
-  const tierMeta = TIER_META[tierKey] ?? TIER_META.FREE
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      const token = await getToken()
+      const res   = await fetch(`${import.meta.env.VITE_BACKEND_URL}/user/account`, {
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Deletion failed')
+      await signOut()
+      navigate('/')
+    } catch (deleteErr) {
+      setError('Account deletion failed. Please try again or contact support.')
+      setDeleting(false)
+      setDeleteConfirm(false)
+    }
+  }
+
+  const handlePortal = async () => {
+    setPortalLoading(true)
+    try {
+      const token = await getToken()
+      const res   = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/payments/create-portal-session`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!res.ok) throw new Error('Portal failed')
+      const { url } = await res.json()
+      window.location.href = url
+    } catch (portalErr) {
+      setError('Could not open the billing portal. Please try again.')
+      setPortalLoading(false)
+    }
+  }
+
+  const tierKey      = profile?.role ?? 'FREE'
+  const tierMeta     = TIER_META[tierKey] ?? TIER_META.FREE
+  const isPayingUser = tierKey === 'PRO' || tierKey === 'ELITE'
+
   const topSkills = (profile?.mastery ?? [])
     .slice()
-    .sort((a, b) => b.current_xp - a.current_xp)
+    .sort((skillA, skillB) => skillB.current_xp - skillA.current_xp)
     .slice(0, 3)
+
+  const prestigeCount = (profile?.mastery ?? [])
+    .reduce((total, skill) => total + (skill.prestige_level ?? 0), 0)
 
   const initials = user
     ? ((user.firstName?.[0] ?? '') + (user.lastName?.[0] ?? '')).toUpperCase() || '?'
@@ -71,6 +114,9 @@ export default function AccountPage() {
               }
             </div>
             <div className="acc-identity">
+              {profile?.username && (
+                <span className="acc-username">{profile.username}</span>
+              )}
               <span className="acc-name">
                 {user?.firstName} {user?.lastName}
               </span>
@@ -89,6 +135,7 @@ export default function AccountPage() {
 
           {profile && (
             <>
+              {/* Level · Total XP · Streak */}
               <div className="acc-stats">
                 <div className="acc-stat">
                   <span className="acc-stat-value">{profile.level ?? '—'}</span>
@@ -102,19 +149,41 @@ export default function AccountPage() {
                   <span className="acc-stat-label">Total XP</span>
                 </div>
                 <div className="acc-stat-divider" />
+                <div className="acc-stat">
+                  <span className="acc-stat-value">{profile.streak ?? 0}</span>
+                  <span className="acc-stat-label">Streak</span>
+                </div>
               </div>
 
+              {/* Credits · Prestiges */}
+              <div className="acc-stats">
+                <div className="acc-stat">
+                  <span className="acc-stat-value">
+                    {(profile.system_credits ?? 0).toLocaleString()}
+                  </span>
+                  <span className="acc-stat-label">Credits</span>
+                </div>
+                <div className="acc-stat-divider" />
+                <div className="acc-stat">
+                  <span className="acc-stat-value">{prestigeCount}</span>
+                  <span className="acc-stat-label">Prestiges</span>
+                </div>
+              </div>
+
+              {/* Top skills */}
               {topSkills.length > 0 && (
                 <div className="acc-skills">
                   <span className="acc-section-label">Top Skills</span>
-                  {topSkills.map(s => (
-                    <div key={s.skill_id} className="acc-skill-row">
-                      <span className="acc-skill-name">{s.skill_name}</span>
-                      <span className="acc-skill-level">Lv.{s.current_level}</span>
+                  {topSkills.map(skill => (
+                    <div key={skill.skill_id} className="acc-skill-row">
+                      <span className="acc-skill-name">{skill.skill_name}</span>
+                      <span className="acc-skill-level">Lv.{skill.current_level}</span>
                       <div className="acc-skill-bar">
                         <div
                           className="acc-skill-fill"
-                          style={{ width: `${Math.min((s.current_xp / s.next_level_xp) * 100, 100)}%` }}
+                          style={{
+                            width: `${Math.min((skill.current_xp / skill.next_level_xp) * 100, 100)}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -132,7 +201,15 @@ export default function AccountPage() {
             >
               Open App ↗
             </a>
-            {tierKey !== 'ELITE' && (
+            {isPayingUser ? (
+              <button
+                className="acc-btn acc-btn--portal"
+                onClick={handlePortal}
+                disabled={portalLoading}
+              >
+                {portalLoading ? 'Opening portal…' : 'Manage Subscription'}
+              </button>
+            ) : (
               <a href="/#pricing" className="acc-btn acc-btn--upgrade">
                 {tierKey === 'FREE' ? 'Upgrade to PRO' : 'Upgrade to ELITE'}
               </a>
@@ -143,6 +220,39 @@ export default function AccountPage() {
             >
               Sign Out
             </button>
+          </div>
+
+          {/* ── Danger zone ── */}
+          <div className="acc-danger-zone">
+            <span className="acc-section-label acc-section-label--danger">Danger Zone</span>
+            {!deleteConfirm ? (
+              <button
+                className="acc-btn acc-btn--danger"
+                onClick={() => setDeleteConfirm(true)}
+              >
+                Delete Account
+              </button>
+            ) : (
+              <div className="acc-confirm-box">
+                <p className="acc-confirm-text">
+                  This permanently deletes your account, all XP, skills, credits, and inventory.
+                  There is no recovery — this cannot be undone.
+                </p>
+                <button
+                  className="acc-btn acc-btn--danger-confirm"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete everything'}
+                </button>
+                <button
+                  className="acc-btn acc-btn--signout"
+                  onClick={() => setDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
         </div>

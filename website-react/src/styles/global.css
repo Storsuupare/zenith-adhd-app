@@ -285,28 +285,7 @@ body::after {
     inset -10px -4px 0 4px rgba(160, 165, 100, 0.45),
     0 0 50px 20px rgba(200, 200, 130, 0.18);
 }
-.moon-glow {
-  position: absolute;
-  inset: -28px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(220, 220, 160, 0.2),
-    transparent 70%
-  );
-  animation: moon-pulse 4s ease-in-out infinite;
-}
-@keyframes moon-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
+
 
 /* ── Stars ── */
 .stars {
@@ -1218,6 +1197,13 @@ body::after {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.6);
 }
+.rn-description {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.38);
+  font-style: italic;
+  line-height: 1.55;
+  margin: 4px 0 0;
+}
 
 .rn-entry-list {
   list-style: none;
@@ -1229,7 +1215,7 @@ body::after {
 }
 .rn-entry {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
 }
 .rn-entry-text {
@@ -1244,11 +1230,12 @@ body::after {
   font-size: 0.6rem;
   font-weight: 900;
   letter-spacing: 0.1em;
-  padding: 4px 8px;
+  padding: 4px 0;
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-top: 2px;
+  min-width: 72px;
+  text-align: center;
 }
 .rn-chip--new {
   color: var(--ui-accent, #22d3ee);
@@ -1463,7 +1450,7 @@ body::after {
 }
 .acc-skill-fill {
   height: 100%;
-  background: var(--ui-accent, #22d3ee);
+  background: #22d3ee;
   border-radius: 2px;
   transition: width 0.6s ease;
 }
@@ -1512,6 +1499,81 @@ body::after {
 .acc-error {
   color: #f87171;
   font-size: 0.85rem;
+}
+
+/* Username sits above the display name — accent-colored, mono */
+.acc-username {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ui-accent, #22d3ee);
+}
+
+/* Manage Subscription — neutral, not competing with Open App */
+.acc-btn--portal {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.acc-btn--portal:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Danger zone ── */
+.acc-danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(239, 68, 68, 0.1);
+}
+.acc-section-label--danger {
+  color: rgba(248, 113, 113, 0.45);
+}
+
+/* Delete trigger — red border, no fill so it doesn't feel aggressive until clicked */
+.acc-btn--danger {
+  background: transparent;
+  color: rgba(248, 113, 113, 0.65);
+  border: 1px solid rgba(248, 113, 113, 0.22);
+}
+.acc-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.06);
+  opacity: 1;
+}
+
+/* Confirmation box that slides in after clicking Delete Account */
+.acc-confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 10px;
+  padding: 16px;
+}
+.acc-confirm-text {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+}
+
+/* The irreversible "yes" button — solid red so users notice the weight of the action */
+.acc-btn--danger-confirm {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.acc-btn--danger-confirm:hover {
+  background: rgba(239, 68, 68, 0.22);
+  opacity: 1;
+}
+.acc-btn--danger-confirm:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ── Auth pages (Clerk components) ── */
