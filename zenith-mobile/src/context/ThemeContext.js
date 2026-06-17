@@ -14,7 +14,7 @@ export const THEME_DATA = {
   solar:    { accent: "#fb8500", skyCore: "#1a0900" },
   nebula:   { accent: "#7209b7", skyCore: "#04000e" },
   obsidian: { accent: "#6d28d9", skyCore: "#000000" },
-  ghost:    { accent: "#e2e8f0", skyCore: "#0d0d12" },
+  ember:    { accent: "#b87333", skyCore: "#0d0906" },
 };
 
 const ThemeContext = createContext(null);

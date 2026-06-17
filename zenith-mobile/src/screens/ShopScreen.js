@@ -23,20 +23,18 @@ const THEMES = [
   { id: "solar",    label: "Solar",    color: "#fb8500", type: "pro",     price: 2500    },
   { id: "nebula",   label: "Nebula",   color: "#7209b7", type: "elite",   price: 3000    },
   { id: "obsidian", label: "Obsidian", color: "#6d28d9", type: "elite",   price: 3000    },
-  { id: "ghost",    label: "Ghost",    color: "#e2e8f0", type: "elite",   price: 3500    },
+  { id: "ember",    label: "Ember",    color: "#b87333", type: "elite",   price: 3500    },
 ];
 
 const TIER_PERKS = [
   { tier: 1, label: "PRO",   color: "#22d3ee", price: "€4.99/mo", perks: [
     "1.5× XP and credits every session",
     "50% loot drop rate",
-    "120 CR daily bonus",
     "Neon, Arctic + Solar unlocked in shop",
   ]},
   { tier: 2, label: "ELITE", color: "#fbbf24", price: "€9.99/mo", perks: [
     "2× XP and credits every session",
     "75% loot drop rate",
-    "250 CR daily bonus",
     "Unlimited active tasks",
     "All themes unlocked",
     "Best Legendary and Mythic odds",
