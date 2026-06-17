@@ -5,74 +5,107 @@ import { useTheme } from "../context/ThemeContext";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
+const SKILL_ICONS = {
+  "LOGIC FLOW":  "⬡",
+  VITALITY:      "◈",
+  NUTRITION:     "◉",
+  ENVIRONMENT:   "▣",
+  EXECUTION:     "◎",
+  LEARNING:      "⬢",
+  LOGISTICS:     "▤",
+  CREATIVITY:    "◆",
+  DISCIPLINE:    "◫",
+  PRESENCE:      "◑",
+  RECOVERY:      "◌",
+  RESOLVE:       "▲",
+};
+
 export default function EarningSummary({ data, onDismiss }) {
   const { accentColor } = useTheme() || {};
-  const ac = accentColor || COLORS.accent;
-  const scale   = useRef(new Animated.Value(0.85)).current;
+  const resolvedAccent = accentColor || COLORS.accent;
+  const slideY  = useRef(new Animated.Value(24)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const color   = data?.skillName
-    ? (SKILL_COLORS[data.skillName.toUpperCase()] || ac)
-    : ac;
+
+  const skillKey   = data?.skillName?.toUpperCase() ?? "";
+  const skillColor = SKILL_COLORS[skillKey] || resolvedAccent;
+  const skillIcon  = SKILL_ICONS[skillKey] ?? "◉";
 
   useEffect(() => {
     if (!data) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.parallel([
-      Animated.spring(scale,   { toValue: 1, tension: 70, friction: 8, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(slideY,  { toValue: 0, duration: 280, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 280, useNativeDriver: true }),
     ]).start();
   }, [data]);
 
   if (!data) return null;
 
+  const formattedXP = Number(data.xpGained).toLocaleString();
+
+  const statRows = [
+    data.duration   > 0           && { label: "Duration",   value: `${data.duration} min`,           valueColor: null },
+    data.creditsEarned > 0        && { label: "Credits",    value: `+${data.creditsEarned} CR`,      valueColor: COLORS.gold },
+    data.streak     > 0           && { label: "Streak",     value: `${data.streak} days`,            valueColor: "#f97316" },
+    data.perkActive && data.xpMultiplier > 1 && { label: "Multiplier", value: `${data.xpMultiplier}×`, valueColor: resolvedAccent },
+  ].filter(Boolean);
+
   return (
     <Modal transparent animationType="none" visible={!!data}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onDismiss}>
-        <Animated.View style={[styles.card, { borderColor: color + "66", transform: [{ scale }], opacity }]}>
+        <Animated.View
+          style={[
+            styles.card,
+            { borderColor: skillColor + "33", transform: [{ translateY: slideY }], opacity },
+          ]}
+        >
+          {/* Accent stripe */}
+          <View style={[styles.topStripe, { backgroundColor: skillColor }]} />
 
-          {data.skillName && (
-            <Text style={[styles.skillLabel, { color }]}>{data.skillName.toUpperCase()}</Text>
-          )}
+          <View style={styles.body}>
 
-          <Text style={[styles.xpHero, { color }]}>+{data.xpGained}</Text>
-          <Text style={styles.xpUnit}>XP EARNED</Text>
-
-          {data.levelUp && (
-            <View style={[styles.levelUpBanner, { borderColor: color }]}>
-              <Text style={[styles.levelUpText, { color }]}>
-                LEVEL {data.levelUp.level} · {data.levelUp.rank}
+            {/* Skill identifier */}
+            <View style={styles.skillRow}>
+              <Text style={[styles.skillIcon, { color: skillColor }]}>{skillIcon}</Text>
+              <Text style={[styles.skillLabel, { color: skillColor }]}>
+                {data.skillName ? data.skillName.toUpperCase() : "SESSION"}
               </Text>
             </View>
-          )}
 
-          <View style={styles.divider} />
+            {/* XP display */}
+            <View style={styles.xpBlock}>
+              <Text style={styles.xpCaption}>XP EARNED</Text>
+              <Text style={[styles.xpValue, { color: skillColor }]}>+{formattedXP}</Text>
+            </View>
 
-          {data.creditsEarned > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Credits</Text>
-              <Text style={styles.rowValue}>+{data.creditsEarned} CR</Text>
-            </View>
-          )}
-          {data.duration > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Duration</Text>
-              <Text style={styles.rowValue}>{data.duration} min</Text>
-            </View>
-          )}
-          {data.streak > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Streak</Text>
-              <Text style={[styles.rowValue, { color: "#f97316" }]}>{data.streak} days</Text>
-            </View>
-          )}
-          {data.perkActive && data.xpMultiplier > 1 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Multiplier</Text>
-              <Text style={[styles.rowValue, { color: COLORS.gold }]}>{data.xpMultiplier}×</Text>
-            </View>
-          )}
+            {/* Level-up badge */}
+            {data.levelUp && (
+              <View style={[styles.levelBadge, { borderColor: skillColor + "55", backgroundColor: skillColor + "12" }]}>
+                <Text style={[styles.levelBadgeText, { color: skillColor }]}>
+                  LEVEL {data.levelUp.level} · {data.levelUp.rank}
+                </Text>
+              </View>
+            )}
 
-          <Text style={styles.hint}>tap to dismiss</Text>
+            {/* Stat rows */}
+            {statRows.length > 0 && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.statBlock}>
+                  {statRows.map((statRow) => (
+                    <View key={statRow.label} style={styles.statRow}>
+                      <Text style={styles.statLabel}>{statRow.label}</Text>
+                      <Text style={[styles.statValue, statRow.valueColor && { color: statRow.valueColor }]}>
+                        {statRow.value}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            <Text style={styles.hint}>tap anywhere to continue</Text>
+          </View>
         </Animated.View>
       </TouchableOpacity>
     </Modal>
@@ -82,40 +115,109 @@ export default function EarningSummary({ data, onDismiss }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0,0,0,0.82)",
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
   },
   card: {
     width: "100%",
-    maxWidth: 320,
-    backgroundColor: COLORS.surface,
+    maxWidth: 300,
+    backgroundColor: "rgba(10,12,18,0.97)",
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 28,
-    alignItems: "center",
-    gap: 10,
+    borderRadius: 14,
+    overflow: "hidden",
   },
-  skillLabel: { fontSize: 11, fontFamily: FONTS.bold, letterSpacing: 2 },
-  xpHero:    { fontSize: 64, fontFamily: FONTS.bold, lineHeight: 72 },
-  xpUnit:    { color: COLORS.textMuted, fontSize: 12, letterSpacing: 2, marginTop: -4 },
-  levelUpBanner: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginTop: 4,
-  },
-  levelUpText: { fontSize: 12, fontFamily: FONTS.bold, letterSpacing: 1 },
-  divider: { width: "100%", height: 1, backgroundColor: COLORS.border, marginVertical: 4 },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+
+  topStripe: {
+    height: 3,
     width: "100%",
-    paddingHorizontal: 4,
+    opacity: 0.8,
   },
-  rowLabel: { color: COLORS.textMuted, fontSize: 13 },
-  rowValue: { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
-  hint: { color: COLORS.textMuted, fontSize: 11, marginTop: 8 },
+
+  body: {
+    padding: 24,
+    alignItems: "center",
+    gap: 14,
+  },
+
+  // ── Skill identifier ──────────────────────────────────────────
+  skillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  skillIcon:  { fontSize: 12 },
+  skillLabel: {
+    fontSize:      10,
+    fontFamily:    FONTS.bold,
+    letterSpacing: 2.5,
+  },
+
+  // ── XP display ───────────────────────────────────────────────
+  xpBlock: {
+    alignItems: "center",
+    gap: 2,
+  },
+  xpCaption: {
+    color:         COLORS.textMuted,
+    fontSize:      9,
+    fontFamily:    FONTS.bold,
+    letterSpacing: 3,
+  },
+  xpValue: {
+    fontSize:      38,
+    fontFamily:    FONTS.monoBold,
+    letterSpacing: -1,
+    lineHeight:    44,
+  },
+
+  // ── Level-up badge ───────────────────────────────────────────
+  levelBadge: {
+    borderWidth:       1,
+    borderRadius:      6,
+    paddingHorizontal: 12,
+    paddingVertical:   5,
+  },
+  levelBadgeText: {
+    fontSize:      10,
+    fontFamily:    FONTS.bold,
+    letterSpacing: 1.5,
+  },
+
+  // ── Stat rows ────────────────────────────────────────────────
+  divider: {
+    width:           "100%",
+    height:          1,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  statBlock: {
+    width: "100%",
+    gap:   8,
+  },
+  statRow: {
+    flexDirection:  "row",
+    justifyContent: "space-between",
+    alignItems:     "center",
+  },
+  statLabel: {
+    color:      COLORS.textMuted,
+    fontSize:   12,
+    fontFamily: FONTS.regular,
+  },
+  statValue: {
+    color:      COLORS.text,
+    fontSize:   12,
+    fontFamily: FONTS.semiBold,
+  },
+
+  // ── Hint ─────────────────────────────────────────────────────
+  hint: {
+    color:         COLORS.textMuted,
+    fontSize:      10,
+    fontFamily:    FONTS.regular,
+    letterSpacing: 0.5,
+    opacity:       0.5,
+    marginTop:     2,
+  },
 });
