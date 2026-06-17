@@ -16,8 +16,8 @@ async function main() {
     if (res.rowCount === 0) {
       console.error(`No user found with external_id = '${clerkId}'. Sign in once with the account first, then re-run.`);
     } else {
-      const u = res.rows[0];
-      console.log(`Admin granted to: ${u.username ?? u.external_id} (db id: ${u.id})`);
+      const adminUser = res.rows[0];
+      console.log(`Admin granted to: ${adminUser.username ?? adminUser.external_id} (db id: ${adminUser.id})`);
     }
   } finally {
     client.release();

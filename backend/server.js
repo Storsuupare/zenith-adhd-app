@@ -16,7 +16,7 @@ const REQUIRED_ENV = [
   "ADMIN_SECRET",
   "RESEND_API_KEY",
 ];
-const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+const missing = REQUIRED_ENV.filter((envKey) => !process.env[envKey]);
 if (missing.length > 0) {
   if (process.env.NODE_ENV === "production") {
     console.error("[STARTUP] Missing required env vars:", missing.join(", "));
@@ -93,24 +93,29 @@ const requireAdmin = async (req, res, next) => {
 };
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
-const _rl = (windowMin, max) => rateLimit({
+const createRateLimiter = (windowMin, max) => rateLimit({
   windowMs: windowMin * 60 * 1000,
   max,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "TOO_MANY_REQUESTS" },
 });
-const globalLimiter   = _rl(15, 300);  // 300 req per 15 min — general abuse guard
-const mutationLimiter = _rl(60, 60);   // 60 mutations per hour — task/loot/prestige/inventory
-const shopLimiter     = _rl(15, 10);   // 10 purchases per 15 min — shop anti-spam
-const bonusLimiter    = _rl(60, 5);    // 5 attempts per hour — daily bonus anti-spam
-const adminLimiter    = _rl(15, 20);   // 20 req per 15 min — admin panel
-const paymentLimiter  = _rl(60, 5);    // 5 Stripe session creations per hour — prevents API abuse
+const globalLimiter   = createRateLimiter(15, 300);  // 300 req per 15 min — general abuse guard
+const mutationLimiter = createRateLimiter(60, 60);   // 60 mutations per hour — task/loot/prestige/inventory
+const shopLimiter     = createRateLimiter(15, 10);   // 10 purchases per 15 min — shop anti-spam
+const bonusLimiter    = createRateLimiter(60, 5);    // 5 attempts per hour — daily bonus anti-spam
+const adminLimiter    = createRateLimiter(15, 20);   // 20 req per 15 min — admin panel
+const paymentLimiter  = createRateLimiter(60, 5);    // 5 Stripe session creations per hour — prevents API abuse
 
 const app = express();
 
+// Tell Express to trust the X-Forwarded-For header from the first proxy hop.
+// Without this, rate limiting keys off the proxy IP (127.0.0.1) and treats
+// the entire internet as a single client — making rate limits useless.
+app.set("trust proxy", 1);
+
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
-  .split(",").map(o => o.trim()).filter(Boolean);
+  .split(",").map(rawOrigin => rawOrigin.trim()).filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -172,6 +177,13 @@ app.post(
           "tier:",
           targetTier,
         );
+        // Save Stripe customer ID so the billing portal can look it up later
+        if (checkoutSession.customer && userId) {
+          await pool.query(
+            "UPDATE users SET stripe_customer_id = $1 WHERE external_id = $2",
+            [checkoutSession.customer, userId],
+          ).catch(saveErr => console.warn("[WEBHOOK] Could not save stripe_customer_id:", saveErr.message));
+        }
         await applyTierUpgrade(userId, targetTier);
       } else if (event.type === "invoice.payment_succeeded") {
         const invoice = event.data.object;
@@ -253,6 +265,7 @@ pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_task_completed BOOL
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_challenge_claimed_date DATE`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`).catch(() => {});
 // Upgrade DATE → TIMESTAMPTZ for existing deployments (no-op if already correct type)
 pool.query(`
   DO $$ BEGIN
@@ -398,7 +411,7 @@ function getTierRarity(roll, accountTier) {
 const COSMETICS_PRICES = {
   cobalt: 1500, amber: 1500, crimson: 2000, violet: 2500, jade: 3000,
   neon: 2000, arctic: 2000, solar: 2500,
-  nebula: 3000, obsidian: 3000, ghost: 3500,
+  nebula: 3000, obsidian: 3000, ember: 3500,
   rain: 600, library: 600, lofi: 900, cyberpunk: 1200,
   deepspace: null, spacestation: null, deepsea: null,
 };
@@ -406,7 +419,7 @@ const COSMETICS_PRICES = {
 // Minimum account_tier required to purchase the cosmetic with credits.
 const COSMETICS_MIN_TIER = {
   neon: 1, arctic: 1, solar: 1,
-  nebula: 2, obsidian: 2, ghost: 2,
+  nebula: 2, obsidian: 2, ember: 2,
 };
 
 // Consumable prices — deducted on purchase, effect applied immediately.
@@ -478,8 +491,8 @@ function isReservedUsername(username) {
     .replace(/[̀-ͯ]/g, "")   // strip combining diacritics
     .toLowerCase()
     .replace(/[\s_\-\.0@$1!]/g, "");   // strip separators + common leet substitutes
-  return RESERVED_USERNAME_PATTERNS.some(p =>
-    normalized.includes(p.replace(/[\s_\-\.]/g, ""))
+  return RESERVED_USERNAME_PATTERNS.some(pattern =>
+    normalized.includes(pattern.replace(/[\s_\-\.]/g, ""))
   );
 }
 
@@ -900,34 +913,34 @@ app.post("/api/tasks/batch", requireAuth, mutationLimiter, async (req, res) => {
     }
 
     const inserted = [];
-    for (const t of tasks) {
-      if (!t.taskName || typeof t.taskName !== "string" || t.taskName.trim().length === 0 || t.taskName.length > 200) {
+    for (const batchTask of tasks) {
+      if (!batchTask.taskName || typeof batchTask.taskName !== "string" || batchTask.taskName.trim().length === 0 || batchTask.taskName.length > 200) {
         await batchClient.query("ROLLBACK");
         return res.status(400).json({ error: "Each task name must be 1–200 characters" });
       }
-      const parsedBatchDuration = parseInt(t.durationMinutes);
+      const parsedBatchDuration = parseInt(batchTask.durationMinutes);
       if (!VALID_DURATIONS.has(parsedBatchDuration)) {
         await batchClient.query("ROLLBACK");
         return res.status(400).json({ error: "Duration must be 5, 15, 30, 60, 90, or 120 minutes" });
       }
 
       let batchSkillId = null;
-      if (t.skillName) {
+      if (batchTask.skillName) {
         const batchSkillRes = await batchClient.query(
           "SELECT id FROM skills WHERE LOWER(name) = LOWER($1)",
-          [t.skillName],
+          [batchTask.skillName],
         );
         batchSkillId = batchSkillRes.rows[0]?.id || null;
       }
       const deadline = new Date(Date.now() + parsedBatchDuration * 60 * 1000);
       const batchStake = calculateStake(parsedBatchDuration);
-      const row = await batchClient.query(
+      const batchInsertResult = await batchClient.query(
         `INSERT INTO tasks (user_id, title, duration_minutes, stake_amount, status, deadline, skill_id)
           VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6)
           RETURNING *`,
-        [userId, t.taskName.trim(), parsedBatchDuration, batchStake, deadline.toISOString(), batchSkillId],
+        [userId, batchTask.taskName.trim(), parsedBatchDuration, batchStake, deadline.toISOString(), batchSkillId],
       );
-      inserted.push(row.rows[0]);
+      inserted.push(batchInsertResult.rows[0]);
     }
 
     await batchClient.query("COMMIT");
@@ -1543,6 +1556,54 @@ app.post("/payments/create-session", requireAuth, paymentLimiter, async (req, re
 
 
 
+// ── Stripe: open billing portal ────────────────────────────────────────────
+// Creates a Stripe Customer Portal session for PRO/ELITE users so they can
+// cancel, change plan, or update payment details without contacting support.
+// Customer ID is looked up from the DB — never trusted from the client.
+app.post("/payments/create-portal-session", requireAuth, paymentLimiter, async (req, res) => {
+  const clerkId = req.auth.userId;
+
+  try {
+    const userRes = await pool.query(
+      "SELECT stripe_customer_id, email_address, role FROM users WHERE external_id = $1",
+      [clerkId],
+    );
+    if (!userRes.rows.length) return res.status(404).json({ error: "USER_NOT_FOUND" });
+
+    const { stripe_customer_id, email_address, role } = userRes.rows[0];
+
+    if (role === "FREE") {
+      return res.status(403).json({ error: "NO_ACTIVE_SUBSCRIPTION" });
+    }
+
+    let customerId = stripe_customer_id;
+
+    // Fallback for users who subscribed before customer_id was saved to the DB.
+    // Look them up in Stripe by email and backfill for future requests.
+    if (!customerId) {
+      const stripeCustomers = await stripe.customers.list({ email: email_address, limit: 1 });
+      if (!stripeCustomers.data.length) {
+        return res.status(404).json({ error: "STRIPE_CUSTOMER_NOT_FOUND" });
+      }
+      customerId = stripeCustomers.data[0].id;
+      await pool.query(
+        "UPDATE users SET stripe_customer_id = $1 WHERE external_id = $2",
+        [customerId, clerkId],
+      ).catch(() => {});
+    }
+
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer:   customerId,
+      return_url: `${process.env.FRONTEND_URL}/account`,
+    });
+
+    res.json({ url: portalSession.url });
+  } catch (portalErr) {
+    console.error("[STRIPE PORTAL] Failed:", portalErr.message);
+    res.status(500).json({ error: "PORTAL_SESSION_FAILED" });
+  }
+});
+
 // ── Elevation Chart — 7-day focus stats ────────────────────────────────────
 app.get("/api/stats/elevation", requireAuth, async (req, res) => {
   const clerk_id = req.auth.userId;
@@ -1590,12 +1651,15 @@ app.get("/api/stats/summit-history", requireAuth, async (req, res) => {
          t.duration_minutes::int                        AS minutes,
          TO_CHAR(t.completed_at, 'Mon DD')              AS label,
          COALESCE(t.title, 'Mission')                   AS title,
+         COALESCE(s.name, '')                           AS skill_name,
          t.completed_at
        FROM tasks t
        JOIN users u ON u.id::text = t.user_id::text
+       LEFT JOIN skills s ON s.id = t.skill_id
        WHERE u.external_id = $1
          AND t.status       = 'SUCCESS'
          AND t.completed_at IS NOT NULL
+         AND t.completed_at >= NOW() - INTERVAL '7 days'
          AND t.duration_minutes BETWEEN 1 AND 180
        ORDER BY t.completed_at DESC
        LIMIT $2`,
@@ -1772,7 +1836,7 @@ app.post("/api/shop/consumable-purchase", requireAuth, shopLimiter, async (req, 
 // ── Admin: manually grant tier by username ────────────────────────────────────
 // Used for gifting PRO/ELITE to promoters, testers, etc.
 // Body: { username: string, tier: "FREE" | "PRO" | "ELITE" }
-app.post("/admin/grant-tier", requireAuth, requireAdminToken, requireAdmin, adminLimiter, async (req, res) => {
+app.post("/admin/grant-tier", requireAuth, requireAdmin, adminLimiter, async (req, res) => {
   const { username, tier } = req.body;
 
   const TIER_MAP = { FREE: 0, PRO: 1, ELITE: 2 };
@@ -1813,7 +1877,7 @@ app.post("/admin/grant-tier", requireAuth, requireAdminToken, requireAdmin, admi
   }
 });
 
-app.post("/admin/ban-user", requireAuth, requireAdminToken, requireAdmin, adminLimiter, async (req, res) => {
+app.post("/admin/ban-user", requireAuth, requireAdmin, adminLimiter, async (req, res) => {
   const { username, ban, reason } = req.body;
   if (!username || typeof username !== "string")
     return res.status(400).json({ error: "MISSING_USERNAME" });
@@ -1840,7 +1904,7 @@ app.post("/admin/ban-user", requireAuth, requireAdminToken, requireAdmin, adminL
 });
 
 // ── Admin: list all users ────────────────────────────────────────────────────
-app.get("/admin/users", requireAuth, requireAdminToken, requireAdmin, adminLimiter, async (req, res) => {
+app.get("/admin/users", requireAuth, requireAdmin, adminLimiter, async (req, res) => {
   const { search } = req.query;
   try {
     let result;
@@ -1991,7 +2055,13 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
 app.delete("/api/push/unsubscribe", requireAuth, async (req, res) => {
   const { endpoint } = req.body;
   if (!endpoint) return res.status(400).json({ error: "Missing endpoint" });
-  await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]).catch(() => {});
+  // Scope delete to the authenticated user — prevents one user from removing another's subscription
+  await pool.query(
+    `DELETE FROM push_subscriptions
+     WHERE endpoint = $1
+       AND user_id  = (SELECT id FROM users WHERE external_id = $2)`,
+    [endpoint, req.auth.userId],
+  ).catch(() => {});
   res.json({ ok: true });
 });
 
@@ -2027,7 +2097,7 @@ cron.schedule("0 * * * *", async () => {
     );
     if (!expired.rows.length) return;
 
-    const ids = expired.rows.map((u) => u.id);
+    const ids = expired.rows.map((expiredUser) => expiredUser.id);
     await pool.query(
       `UPDATE users SET streak = 0 WHERE id = ANY($1::int[])`,
       [ids],
@@ -2071,21 +2141,38 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // ── Contact form ─────────────────────────────────────────────────────────────
+// Escape function — prevents user content from injecting HTML into the outbound email.
+function escapeHtml(raw) {
+  return String(raw)
+    .replace(/&/g,  "&amp;")
+    .replace(/</g,  "&lt;")
+    .replace(/>/g,  "&gt;")
+    .replace(/"/g,  "&quot;")
+    .replace(/'/g,  "&#39;");
+}
+
 app.post("/contact", rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), async (req, res) => {
   const { email, topic, message } = req.body;
   if (!email || !message) return res.status(400).json({ error: "Missing fields" });
+  if (typeof email !== "string"   || email.length   > 320) return res.status(400).json({ error: "Invalid email" });
+  if (typeof message !== "string" || message.length > 5000) return res.status(400).json({ error: "Message too long" });
+  if (topic  && (typeof topic !== "string" || topic.length > 200)) return res.status(400).json({ error: "Topic too long" });
+
+  const safeEmail   = escapeHtml(email);
+  const safeTopic   = topic ? escapeHtml(topic) : "—";
+  const safeMessage = escapeHtml(message).replace(/\n/g, "<br/>");
 
   try {
     await resend.emails.send({
       from: "Zenith <noreply@zenithapp.org>",
       to:   "contact@zenithapp.org",
       replyTo: email,
-      subject: `[Zenith Contact] ${topic || "General Inquiry"}`,
+      subject: `[Zenith Contact] ${safeTopic}`,
       html: `
-        <p><strong>From:</strong> ${email}</p>
-        <p><strong>Topic:</strong> ${topic || "—"}</p>
+        <p><strong>From:</strong> ${safeEmail}</p>
+        <p><strong>Topic:</strong> ${safeTopic}</p>
         <hr/>
-        <p>${message.replace(/\n/g, "<br/>")}</p>
+        <p>${safeMessage}</p>
       `,
     });
     res.json({ ok: true });

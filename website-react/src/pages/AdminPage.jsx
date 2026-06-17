@@ -35,10 +35,7 @@ export default function AdminPage() {
       const token = await getToken()
       const url   = `${import.meta.env.VITE_BACKEND_URL}/admin/users${q ? `?search=${encodeURIComponent(q)}` : ''}`
       const res   = await fetch(url, {
-        headers: {
-          Authorization:  `Bearer ${token}`,
-          'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       })
       if (res.status === 401) { navigate('/login'); return }
       if (res.status === 403) { navigate('/'); return }
@@ -71,9 +68,8 @@ export default function AdminPage() {
       const res   = await fetch(`${import.meta.env.VITE_BACKEND_URL}/admin/ban-user`, {
         method:  'POST',
         headers: {
-          Authorization:   `Bearer ${token}`,
-          'Content-Type':  'application/json',
-          'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN,
+          Authorization:  `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           username,
@@ -103,9 +99,8 @@ export default function AdminPage() {
       const res   = await fetch(`${import.meta.env.VITE_BACKEND_URL}/admin/grant-tier`, {
         method:  'POST',
         headers: {
-          Authorization:   `Bearer ${token}`,
-          'Content-Type':  'application/json',
-          'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN,
+          Authorization:  `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, tier }),
       })
