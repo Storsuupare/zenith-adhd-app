@@ -36,6 +36,9 @@ export default function ReleaseNotesPage() {
                   </div>
                   <span className="rn-date">{release.date}</span>
                   <span className="rn-release-title">{release.title}</span>
+                  {release.description && (
+                    <p className="rn-description">{release.description}</p>
+                  )}
                 </div>
                 <ul className="rn-entry-list">
                   {release.entries.map((entry, j) => {

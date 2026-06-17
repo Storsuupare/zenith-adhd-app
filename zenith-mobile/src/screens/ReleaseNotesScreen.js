@@ -11,6 +11,19 @@ const TAG_COLORS = {
 
 const CHANGELOG = [
   {
+    version:     "1.1.0",
+    date:        "June 2026",
+    title:       "The Sky Update",
+    description: "The sky is now alive. The solar backdrop no longer snaps between phases — it moves continuously with the clock, every minute of the day.",
+    entries: [
+      { tag: "FIX",    text: "The moon is finally a moon. Not three circles stacked on top of each other." },
+      { tag: "CHANGE", text: "Ghost is gone. Ember is here — copper, warm, and nothing like anything else in the shop." },
+      { tag: "CHANGE", text: "The session complete screen got a full rework. It actually feels like a reward now." },
+      { tag: "NEW",    text: "History has a real Performance section. 7-day stats, your top skill, daily average — all there without opening the app." },
+      { tag: "NEW",    text: "Your account page now shows what actually matters. Streak, credits, prestiges, and a proper way to manage or leave if you need to." },
+    ],
+  },
+  {
     version: "1.0.0",
     date:    "May 2026",
     title:   "Initial Release",
@@ -47,6 +60,9 @@ export default function ReleaseNotesScreen({ navigation }) {
               <Text style={styles.date}>{entry.date}</Text>
             </View>
             <Text style={styles.entryTitle}>{entry.title}</Text>
+            {entry.description && (
+              <Text style={styles.description}>{entry.description}</Text>
+            )}
             {entry.entries.map((e, j) => (
               <View key={j} style={styles.entryRow}>
                 <Text style={[styles.tag, { color: TAG_COLORS[e.tag] || COLORS.textMuted }]}>
@@ -89,13 +105,14 @@ const styles = StyleSheet.create({
   version:    { color: COLORS.accent, fontSize: 14, fontWeight: "700" },
   date:       { color: COLORS.textMuted, fontSize: 12 },
   entryTitle: { color: COLORS.text, fontSize: 15, fontWeight: "700", marginBottom: 4 },
-  entryRow:   { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  entryRow:   { flexDirection: "row", gap: 8, alignItems: "center" },
   tag: {
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
-    width: 52,
-    paddingTop: 2,
+    width: 68,
+    textAlign: "center",
   },
-  entryText:  { color: COLORS.textMuted, fontSize: 13, flex: 1, lineHeight: 18 },
+  entryText:   { color: COLORS.textMuted, fontSize: 13, flex: 1, lineHeight: 18 },
+  description: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20, marginBottom: 4, fontStyle: "italic" },
 });

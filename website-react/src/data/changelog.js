@@ -3,6 +3,19 @@
 
 export const CHANGELOG = [
   {
+    version: "1.1.0",
+    date: "2026-06-17",
+    title: "The Sky Update",
+    description: "The sky is now alive. The solar backdrop no longer snaps between phases — it moves continuously with the clock, every minute of the day.",
+    entries: [
+      { type: "fix",    text: "The moon is finally a moon. Not three circles stacked on top of each other." },
+      { type: "change", text: "Ghost is gone. Ember is here — copper, warm, and nothing like anything else in the shop." },
+      { type: "change", text: "The session complete screen got a full rework. It actually feels like a reward now." },
+      { type: "new",    text: "History has a real Performance section. 7-day stats, your top skill, daily average — all there without opening the app." },
+      { type: "new",    text: "Your account page now shows what actually matters. Streak, credits, prestiges, and a proper way to manage or leave if you need to." },
+    ],
+  },
+  {
     version: "1.0",
     date: "2026-06-08",
     title: "Initial Release",
