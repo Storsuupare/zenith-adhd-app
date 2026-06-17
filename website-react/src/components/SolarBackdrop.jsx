@@ -40,7 +40,7 @@ export default function SolarBackdrop() {
         <div className="cloud cloud-4" />
       </div>
       <div className="backdrop-night" style={{ display: phase === 'night' ? 'block' : 'none' }}>
-        <div className="moon"><div className="moon-glow" /></div>
+        <div className="moon" />
         <div className="stars" ref={starsRef} />
       </div>
     </div>

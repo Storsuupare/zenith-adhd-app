@@ -22,6 +22,7 @@ import LootDisplay       from "./src/components/LootDisplay";
 import LevelUpModal      from "./src/components/LevelUpModal";
 import PrestigeCinematic from "./src/components/PrestigeCinematic";
 import EarningSummary    from "./src/components/EarningSummary";
+import LoadingScreen     from "./src/components/LoadingScreen";
 
 const tokenCache = {
   async getToken(key) {
@@ -81,7 +82,7 @@ export default function App() {
     });
   }, []);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) return <LoadingScreen />;
 
   return (
     <ClerkProvider publishableKey={CLERK_KEY} tokenCache={tokenCache}>
