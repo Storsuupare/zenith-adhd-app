@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { fetchUser, createUser, setAuthToken } from "../services/api";
+import { registerPushToken } from "../services/notifications";
 
 const UserContext = createContext(null);
 
@@ -19,7 +20,8 @@ export function UserProvider({ children }) {
   const loadUser = useCallback(async () => {
     if (!userId) return;
     try {
-      await refreshToken();
+      const token = await refreshToken();
+      registerPushToken(token).catch(() => {});
       const res = await fetchUser(userId);
       setUser(res.data);
     } catch (err) {

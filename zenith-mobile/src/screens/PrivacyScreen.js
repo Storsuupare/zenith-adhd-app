@@ -19,21 +19,18 @@ export default function PrivacyScreen({ navigation }) {
           <Item label="Account info." text="Your email address and username, provided when you sign up." />
           <Item label="Task data." text="Task names, durations, timestamps, and completion status." />
           <Item label="Progress data." text="XP, skill levels, streak count, credits, and inventory items." />
-          <Item label="Subscription status." text="Your current plan (Free, PRO, or ELITE). Payment details are handled by Stripe and never stored by us." />
           <Item label="Notification data." text="Only stored if you opt in to push notifications." />
           <Text style={styles.body}>We don't collect your location, contact list, or anything unrelated to the app.</Text>
         </Section>
 
         <Section title="How we use your data">
           <BulletItem text="To run Zenith and give you your XP, loot, and skill progress." />
-          <BulletItem text="To manage your subscription and billing through Stripe." />
           <BulletItem text="To send session reminders if you have notifications turned on." />
           <BulletItem text="To improve the app. We look at aggregate usage patterns, never individual task content." />
           <Text style={styles.body}>We don't sell your data. We don't use it for ads.</Text>
         </Section>
 
         <Section title="Third-party services">
-          <Item label="Stripe." text="Payment processing. Your card details go directly to Stripe." />
           <Item label="Railway." text="Backend and database hosting on EU-compliant servers." />
           <Item label="Vercel." text="The frontend is served through Vercel." />
         </Section>

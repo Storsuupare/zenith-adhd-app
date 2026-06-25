@@ -48,7 +48,6 @@ export default function SettingsScreen({ navigation }) {
   const hour       = new Date().getHours();
   const isRedzone  = hour >= 0 && hour < 5;
   const CLOCK_ROWS = getClockRows();
-  const tierLabel  = user?.role === "ELITE" ? "Elite" : user?.role === "PRO" ? "Pro" : "Free";
 
   const NavRow = ({ label, screen }) => (
     <TouchableOpacity style={styles.navRow} onPress={() => navigation.navigate(screen)}>
@@ -65,7 +64,6 @@ export default function SettingsScreen({ navigation }) {
         {/* Account */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account</Text>
-          <Row label="Plan"   value={tierLabel} />
           <Row label="Level"  value={String(user?.level ?? 1)} />
           {(user?.streak ?? 0) > 0 && (
             <Row label="Streak" value={`${user.streak} days`} />
@@ -107,7 +105,7 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.versionText}>v1.1.0</Text>
+        <Text style={styles.versionText}>v1.0.0</Text>
       </ScrollView>
 
       {/* Confirmation modal */}

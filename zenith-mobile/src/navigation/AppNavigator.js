@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Modal } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -12,6 +12,7 @@ import DashboardScreen      from "../screens/DashboardScreen";
 import ShopScreen           from "../screens/ShopScreen";
 import ArchivesScreen       from "../screens/ArchivesScreen";
 import SettingsScreen       from "../screens/SettingsScreen";
+import SessionScreen        from "../screens/SessionScreen";
 import ReleaseNotesScreen   from "../screens/ReleaseNotesScreen";
 import PrivacyScreen        from "../screens/PrivacyScreen";
 import TermsScreen          from "../screens/TermsScreen";
@@ -20,6 +21,7 @@ import PaymentCancelScreen  from "../screens/PaymentCancelScreen";
 import SolarBackdrop        from "../components/SolarBackdrop";
 import { useTheme }         from "../context/ThemeContext";
 import { COLORS }           from "../constants/colors";
+import { useTasks }         from "../context/TaskContext";
 
 // Per-theme dark base that tints the navbar glass —
 // matched to each theme's night sky top color at ~72% opacity
@@ -30,7 +32,7 @@ const TAB_BAR_BG = {
   solar:    "rgba(26,9,0,0.72)",
   nebula:   "rgba(4,0,14,0.72)",
   obsidian: "rgba(0,0,0,0.72)",
-  ghost:    "rgba(13,13,18,0.72)",
+  ember:    "rgba(13,13,18,0.72)",
 };
 const DEFAULT_NAV_BG = "rgba(9,12,19,0.72)";
 
@@ -127,12 +129,35 @@ function AppTabs() {
 }
 
 function RootStack() {
+  const { contracts, handleComplete, handleAbort } = useTasks();
+  const activeContract = contracts?.[0] ?? null;
+
   return (
-    <Stack.Navigator screenOptions={stackOpts}>
-      <Stack.Screen name="Tabs"           component={AppTabs} />
-      <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
-      <Stack.Screen name="PaymentCancel"  component={PaymentCancelScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator screenOptions={stackOpts}>
+        <Stack.Screen name="Tabs"           component={AppTabs} />
+        <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+        <Stack.Screen name="PaymentCancel"  component={PaymentCancelScreen} />
+      </Stack.Navigator>
+
+      {/* Full-screen session takeover — floats above everything when a session is running */}
+      <Modal
+        visible={!!activeContract}
+        animationType="slide"
+        transparent={false}
+        statusBarTranslucent
+      >
+        <SolarBackdrop>
+          {activeContract && (
+            <SessionScreen
+              contract={activeContract}
+              onComplete={handleComplete}
+              onAbort={handleAbort}
+            />
+          )}
+        </SolarBackdrop>
+      </Modal>
+    </>
   );
 }
 

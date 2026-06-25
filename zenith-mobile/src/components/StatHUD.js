@@ -55,7 +55,7 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
           {/* Rank name + LVL */}
           <View style={styles.rankNameRow}>
             <Text style={styles.rankText}>{rankName}</Text>
-            <Text style={[styles.lvlTag, { color: accentColor }]}> LVL {level}</Text>
+            <Text style={[styles.lvlTag, { color: accentColor }]}>LVL {level}</Text>
           </View>
         </View>
 
@@ -151,10 +151,11 @@ const styles = StyleSheet.create({
   rankNameRow: {
     flexDirection: "row",
     alignItems:    "baseline",
+    gap:           14,
   },
   rankText: {
     fontFamily:    FONTS.black,
-    fontSize:      20,
+    fontSize:      18,
     fontWeight:    "800",
     letterSpacing: -0.5,
     color:         "#ffffff",

@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
+import { useEffect, useRef } from 'react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
@@ -26,10 +24,6 @@ const FAQ = [
     a: "No. Zenith is built specifically for people who struggle to start and finish tasks. The first session takes 30 seconds to set up. Just name what you're working on and hit Start.",
   },
   {
-    q: 'What does PRO actually unlock?',
-    a: '120-minute sessions, more active task slots, 1.5× XP and credits on everything, and access to additional themes.',
-  },
-  {
     q: 'What happens if I quit a session early?',
     a: 'You lose the XP and credits you would have earned. There is no streak break for a single quit, but consistent quitting will hurt your long-term progression.',
   },
@@ -39,38 +33,6 @@ const FAQ = [
   },
 ]
 
-const PRICING = [
-  {
-    tier: 'FREE',
-    price: '€0',
-    period: '/mo',
-    perks: ['5 active task slots', 'Sessions up to 60 min', '1× XP + credit earn rate', 'Base loot drop rate', 'Full rarity access — Junk to Mythic', 'Classic theme + Cobalt–Jade purchasable'],
-    cta: 'Get Started Free',
-    ctaClass: 'pricing-btn--free',
-    href: '/signup',
-  },
-  {
-    tier: 'PRO',
-    price: '€4.99',
-    period: '/mo',
-    badge: 'BEST VALUE',
-    perks: ['15 active task slots', 'Sessions up to 120 min', '1.5× XP + credits per session', '2× loot drop rate', 'Neon, Arctic + Solar themes unlocked in shop'],
-    cta: 'Upgrade to Pro',
-    ctaClass: 'pricing-btn--pro',
-    href: null,
-    stripeKey: 1,
-  },
-  {
-    tier: 'ELITE',
-    price: '€9.99',
-    period: '/mo',
-    perks: ['Unlimited active task slots', 'Sessions up to 120 min', '2× XP + credits per session', '3× loot drop rate', 'Full theme shop access'],
-    cta: 'Go Elite',
-    ctaClass: 'pricing-btn--elite',
-    href: null,
-    stripeKey: 2,
-  },
-]
 
 function useScrollReveal() {
   const ref = useRef(null)
@@ -94,44 +56,7 @@ function useScrollReveal() {
 }
 
 export default function HomePage() {
-  const { isSignedIn, getToken } = useAuth()
-  const navigate = useNavigate()
-  const [checkoutLoading, setCheckoutLoading] = useState(null)
-  const [checkoutError, setCheckoutError]     = useState(null)
-
   useScrollReveal()
-
-  const handleCheckout = useCallback(async (tier) => {
-    if (!isSignedIn) {
-      navigate('/signup')
-      return
-    }
-    const backendUrl = import.meta.env.VITE_BACKEND_URL
-    if (!backendUrl) return
-    setCheckoutLoading(tier)
-    setCheckoutError(null)
-    try {
-      const token = await getToken()
-      const res = await fetch(`${backendUrl}/payments/create-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ targetTier: tier }),
-      })
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        setCheckoutError('Could not start checkout. Please try again.')
-      }
-    } catch {
-      setCheckoutError('Something went wrong. Please try again.')
-    } finally {
-      setCheckoutLoading(null)
-    }
-  }, [isSignedIn, getToken, navigate])
 
   return (
     <>
@@ -170,45 +95,6 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section className="section pricing-section" id="pricing">
-        <div className="section-inner">
-          <span className="eyebrow" data-reveal>▣ PRICING</span>
-          <h2 className="section-headline" data-reveal data-delay="1">Direct Web Pricing.<br />No App Store Markup.</h2>
-          <p className="section-sub" data-reveal data-delay="2">Buy direct and save. Your subscription syncs instantly to your mobile account on login.</p>
-          <div className="pricing-grid">
-            {PRICING.map((p, i) => (
-              <div
-                key={p.tier}
-                className={`pricing-card${p.tier === 'PRO' ? ' pricing-card--pro' : ''}${p.tier === 'ELITE' ? ' pricing-card--elite' : ''}`}
-                data-reveal
-                data-delay={i + 1}
-              >
-                {p.badge && <span className="pricing-badge">{p.badge}</span>}
-                <span className="pricing-tier">{p.tier}</span>
-                <div className="pricing-price">{p.price}<span className="pricing-period">{p.period}</span></div>
-                <ul className="pricing-perks">
-                  {p.perks.map((perk) => <li key={perk}>{perk}</li>)}
-                </ul>
-                {p.href ? (
-                  <Link to={p.href} className={`pricing-btn ${p.ctaClass}`}>{p.cta}</Link>
-                ) : (
-                  <button
-                    className={`pricing-btn ${p.ctaClass}`}
-                    onClick={() => handleCheckout(p.stripeKey)}
-                    disabled={checkoutLoading !== null}
-                  >
-                    {checkoutLoading === p.stripeKey ? 'Starting…' : p.cta}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {checkoutError && <p className="pricing-error">{checkoutError}</p>}
-          <p className="pricing-trust" data-reveal>◈ Securely processed via Stripe · Subscription syncs instantly to your mobile account on login</p>
         </div>
       </section>
 

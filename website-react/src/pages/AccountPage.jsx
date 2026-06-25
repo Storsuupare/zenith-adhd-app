@@ -4,11 +4,6 @@ import { useAuth, useUser, useClerk } from '@clerk/clerk-react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 
-const TIER_META = {
-  FREE:  { label: 'FREE',  cls: 'acc-tier--free'  },
-  PRO:   { label: 'PRO',   cls: 'acc-tier--pro'   },
-  ELITE: { label: 'ELITE', cls: 'acc-tier--elite' },
-}
 
 export default function AccountPage() {
   const { isSignedIn, getToken } = useAuth()
@@ -21,7 +16,6 @@ export default function AccountPage() {
   const [error,         setError]         = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting,      setDeleting]      = useState(false)
-  const [portalLoading, setPortalLoading] = useState(false)
 
   useEffect(() => {
     if (isSignedIn === false) navigate('/login')
@@ -65,27 +59,6 @@ export default function AccountPage() {
     }
   }
 
-  const handlePortal = async () => {
-    setPortalLoading(true)
-    try {
-      const token = await getToken()
-      const res   = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/payments/create-portal-session`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
-      )
-      if (!res.ok) throw new Error('Portal failed')
-      const { url } = await res.json()
-      window.location.href = url
-    } catch (portalErr) {
-      setError('Could not open the billing portal. Please try again.')
-      setPortalLoading(false)
-    }
-  }
-
-  const tierKey      = profile?.role ?? 'FREE'
-  const tierMeta     = TIER_META[tierKey] ?? TIER_META.FREE
-  const isPayingUser = tierKey === 'PRO' || tierKey === 'ELITE'
-
   const topSkills = (profile?.mastery ?? [])
     .slice()
     .sort((skillA, skillB) => skillB.current_xp - skillA.current_xp)
@@ -122,9 +95,6 @@ export default function AccountPage() {
               </span>
               <span className="acc-email">
                 {user?.primaryEmailAddress?.emailAddress}
-              </span>
-              <span className={`acc-tier-badge ${tierMeta.cls}`}>
-                {tierMeta.label}
               </span>
             </div>
           </div>
@@ -201,19 +171,6 @@ export default function AccountPage() {
             >
               Open App ↗
             </a>
-            {isPayingUser ? (
-              <button
-                className="acc-btn acc-btn--portal"
-                onClick={handlePortal}
-                disabled={portalLoading}
-              >
-                {portalLoading ? 'Opening portal…' : 'Manage Subscription'}
-              </button>
-            ) : (
-              <a href="/#pricing" className="acc-btn acc-btn--upgrade">
-                {tierKey === 'FREE' ? 'Upgrade to PRO' : 'Upgrade to ELITE'}
-              </a>
-            )}
             <button
               className="acc-btn acc-btn--signout"
               onClick={() => signOut(() => navigate('/'))}

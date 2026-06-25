@@ -21,7 +21,6 @@ export default function PrivacyPage() {
               <li><strong>Account info.</strong> Your email address and username, provided when you sign up.</li>
               <li><strong>Task data.</strong> Task names, durations, timestamps, and completion status. This is what drives your XP and skill progression.</li>
               <li><strong>Progress data.</strong> XP, skill levels, streak count, credits, and inventory items.</li>
-              <li><strong>Subscription status.</strong> Your current plan (Free, PRO, or ELITE). Payment details are handled by Stripe and never stored by us.</li>
               <li><strong>Notification data.</strong> Only stored if you opt in to push notifications.</li>
             </ul>
             <p>We don't collect your location, your contact list, or anything unrelated to the app.</p>
@@ -31,7 +30,6 @@ export default function PrivacyPage() {
             <h2>How we use your data</h2>
             <ul>
               <li>To run Zenith and give you your XP, loot, and skill progress.</li>
-              <li>To manage your subscription and billing through Stripe.</li>
               <li>To send session reminders if you have notifications turned on.</li>
               <li>To improve the app. We look at how people use Zenith in aggregate, never at what you personally typed into your tasks.</li>
             </ul>
@@ -41,7 +39,6 @@ export default function PrivacyPage() {
 
             <h2>Third-party services</h2>
             <ul>
-              <li><strong>Stripe.</strong> Payment processing. Your card details go directly to Stripe. We only receive confirmation that a subscription is active.</li>
               <li><strong>Railway.</strong> We host the backend and database on Railway. Your data stays on EU-compliant servers.</li>
               <li><strong>Vercel.</strong> The frontend is served through Vercel.</li>
             </ul>

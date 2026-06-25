@@ -266,6 +266,7 @@ pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NUL
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_challenge_claimed_date DATE`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'`).catch(() => {});
 // Upgrade DATE → TIMESTAMPTZ for existing deployments (no-op if already correct type)
 pool.query(`
   DO $$ BEGIN
@@ -286,6 +287,15 @@ pool.query(`
     user_id    INTEGER NOT NULL,
     endpoint   TEXT NOT NULL UNIQUE,
     subscription JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(() => {});
+
+pool.query(`
+  CREATE TABLE IF NOT EXISTS expo_push_tokens (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token      TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )
 `).catch(() => {});
@@ -416,11 +426,6 @@ const COSMETICS_PRICES = {
   deepspace: null, spacestation: null, deepsea: null,
 };
 
-// Minimum account_tier required to purchase the cosmetic with credits.
-const COSMETICS_MIN_TIER = {
-  neon: 1, arctic: 1, solar: 1,
-  nebula: 2, obsidian: 2, ember: 2,
-};
 
 // Consumable prices — deducted on purchase, effect applied immediately.
 const CONSUMABLE_PRICES = {
@@ -964,9 +969,14 @@ app.get("/api/tasks", requireAuth, async (req, res) => {
     if (tasksUserRes.rows.length === 0) return res.json([]);
 
     const tasksListRes = await pool.query(
-      `SELECT t.*, s.name AS skill_name, NOW() AS server_now
+      `SELECT t.*,
+              s.name                        AS skill_name,
+              COALESCE(us.prestige_level, 0) AS prestige_level,
+              NOW()                          AS server_now
        FROM tasks t
-       LEFT JOIN skills s ON t.skill_id = s.id
+       LEFT JOIN skills s      ON s.id = t.skill_id
+       LEFT JOIN user_skills us ON us.skill_id = t.skill_id
+                                AND us.user_id  = t.user_id::integer
        WHERE t.user_id = $1 AND t.status = 'ACTIVE'`,
       [tasksUserRes.rows[0].id],
     );
@@ -1708,19 +1718,12 @@ app.post("/api/shop/cosmetic-purchase", requireAuth, shopLimiter, async (req, re
   try {
     await client.query("BEGIN");
     const userRes = await client.query(
-      `SELECT id, system_credits, COALESCE(purchased_cosmetics, '[]') AS purchased_cosmetics,
-              COALESCE(account_tier, 0) AS account_tier
+      `SELECT id, system_credits, COALESCE(purchased_cosmetics, '[]') AS purchased_cosmetics
        FROM users WHERE external_id = $1 FOR UPDATE`,
       [externalId],
     );
     if (!userRes.rows.length) throw new Error("USER_NOT_FOUND");
-    const { id: userId, system_credits, purchased_cosmetics, account_tier } = userRes.rows[0];
-
-    const requiredTier = COSMETICS_MIN_TIER[cosmeticId] ?? 0;
-    if (requiredTier > 0 && (account_tier ?? 0) < requiredTier) {
-      await client.query("ROLLBACK");
-      return res.status(403).json({ error: "TIER_REQUIRED" });
-    }
+    const { id: userId, system_credits, purchased_cosmetics } = userRes.rows[0];
 
     const owned = Array.isArray(purchased_cosmetics) ? purchased_cosmetics : [];
     if (owned.includes(cosmeticId)) {
@@ -1948,7 +1951,7 @@ app.get("/admin/users", requireAuth, requireAdmin, adminLimiter, async (req, res
 // which immediately writes a user_patch frame — no 30-second wait.
 
 // ── Daily challenge reward ─────────────────────────────────────────────────────
-// Awards 50 CR once per calendar day (UTC). Challenge completion is tracked
+// Awards 150 CR once per calendar day (UTC). Challenge completion is tracked
 // client-side (localStorage), so we can't verify it — but the once-per-day
 // gate makes this economically insignificant even if someone calls it directly.
 app.post("/api/daily-challenge/claim", requireAuth, bonusLimiter, async (req, res) => {
@@ -1956,7 +1959,7 @@ app.post("/api/daily-challenge/claim", requireAuth, bonusLimiter, async (req, re
   try {
     const result = await pool.query(
       `UPDATE users
-          SET system_credits             = system_credits + 50,
+          SET system_credits             = system_credits + 150,
               daily_challenge_claimed_date = CURRENT_DATE
         WHERE external_id = $1
           AND (daily_challenge_claimed_date IS NULL
@@ -2065,6 +2068,48 @@ app.delete("/api/push/unsubscribe", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Stores the Expo push token and device timezone so the server can send
+// personalised mobile push at the right local time for each user.
+app.post("/api/push/register-token", requireAuth, async (req, res) => {
+  const { token, timezone } = req.body;
+  if (typeof token !== "string" || !token.startsWith("ExponentPushToken[")) {
+    return res.status(400).json({ error: "Invalid Expo push token" });
+  }
+
+  // Basic IANA timezone validation — reject anything with suspicious characters
+  const safeTimezone = (typeof timezone === "string" && /^[A-Za-z/_\-+0-9]{1,64}$/.test(timezone))
+    ? timezone
+    : "UTC";
+
+  try {
+    const userRes = await pool.query(
+      "SELECT id FROM users WHERE external_id = $1",
+      [req.auth.userId],
+    );
+    if (!userRes.rows.length) return res.status(404).json({ error: "User not found" });
+
+    const userId = userRes.rows[0].id;
+
+    await pool.query(
+      `INSERT INTO expo_push_tokens (user_id, token)
+       VALUES ($1, $2)
+       ON CONFLICT (token) DO NOTHING`,
+      [userId, token],
+    );
+
+    // Keep the user's timezone up to date (device may change timezone)
+    await pool.query(
+      "UPDATE users SET timezone = $1 WHERE id = $2",
+      [safeTimezone, userId],
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("register-token error:", err.message);
+    res.status(500).json({ error: "Failed to save token" });
+  }
+});
+
 async function sendPushToUser(userId, payload) {
   const subs = await pool.query(
     "SELECT subscription FROM push_subscriptions WHERE user_id = $1",
@@ -2083,6 +2128,45 @@ async function sendPushToUser(userId, payload) {
     }
   });
   await Promise.allSettled(sends);
+}
+
+// Sends a push notification to all Expo push tokens registered for a user
+async function sendExpoPushToUser(userId, payload) {
+  const tokenRes = await pool.query(
+    "SELECT token FROM expo_push_tokens WHERE user_id = $1",
+    [userId],
+  );
+  if (!tokenRes.rows.length) return;
+
+  const messages = tokenRes.rows.map((row) => ({
+    to:    row.token,
+    title: payload.title,
+    body:  payload.body,
+    sound: "default",
+    data:  payload.data ?? {},
+  }));
+
+  try {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body:    JSON.stringify(messages),
+    });
+    const result = await response.json();
+
+    // Clean up invalid tokens
+    const data = Array.isArray(result.data) ? result.data : [result.data];
+    for (let i = 0; i < data.length; i++) {
+      if (data[i]?.details?.error === "DeviceNotRegistered") {
+        await pool.query(
+          "DELETE FROM expo_push_tokens WHERE token = $1",
+          [messages[i].to],
+        ).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.error("Expo push error:", err.message);
+  }
 }
 
 // ── Streak reaper — runs every hour ──────────────────────────────────────────
@@ -2106,8 +2190,8 @@ cron.schedule("0 * * * *", async () => {
     for (const user of expired.rows) {
       pushUserPatch(user.external_id).catch(() => {});
       await sendPushToUser(user.id, {
-        title: "Streak Lost",
-        body: `Your ${user.streak}-day streak has ended. Complete a task today to start a new one.`,
+        title: "Zenith",
+        body: `💀 Your ${user.streak}-day streak has ended. Complete a session today to start a new one.`,
         icon: "/icons.svg",
         badge: "/icons.svg",
         tag: "streak-reset",
@@ -2118,6 +2202,130 @@ cron.schedule("0 * * * *", async () => {
     console.log(`Streak reaper: reset ${expired.rows.length} user(s)`);
   } catch (err) {
     console.error("Streak reaper error:", err.message);
+  }
+});
+
+// ── Session expiry — runs every 5 minutes ────────────────────────────────────
+// 25 min after deadline: push warning. 30 min after: auto-fail.
+
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    // ── Warning: deadline passed 23–27 min ago (5-min window centred on 25 min) ──
+    const warned = await pool.query(
+      `SELECT t.id, t.title, t.user_id, u.id AS db_user_id
+       FROM tasks t
+       JOIN users u ON u.id::text = t.user_id::text
+       WHERE t.status  = 'ACTIVE'
+         AND t.deadline < NOW() - INTERVAL '23 minutes'
+         AND t.deadline > NOW() - INTERVAL '27 minutes'`,
+    );
+    for (const task of warned.rows) {
+      await sendExpoPushToUser(task.db_user_id, {
+        title: "⚡ Session expiring",
+        body:  `"${task.title}" — 5 minutes to collect your reward before it's gone.`,
+      });
+    }
+
+    // ── Auto-fail: deadline passed more than 30 min ago ──
+    const abandoned = await pool.query(
+      `UPDATE tasks
+       SET status = 'FAILED'
+       WHERE status  = 'ACTIVE'
+         AND deadline < NOW() - INTERVAL '30 minutes'
+       RETURNING id, title, user_id,
+                 (SELECT id FROM users WHERE id::text = user_id::text) AS db_user_id,
+                 (SELECT external_id FROM users WHERE id::text = user_id::text) AS external_id`,
+    );
+    for (const task of abandoned.rows) {
+      pushUserPatch(task.external_id).catch(() => {});
+      await sendExpoPushToUser(task.db_user_id, {
+        title: "❌ Session abandoned",
+        body:  `"${task.title}" was not collected in time and has been marked as failed.`,
+      });
+    }
+
+    if (warned.rows.length || abandoned.rows.length) {
+      console.log(`Session expiry: ${warned.rows.length} warned, ${abandoned.rows.length} auto-failed`);
+    }
+  } catch (err) {
+    console.error("Session expiry cron error:", err.message);
+  }
+});
+
+// ── Streak-at-risk alert — fires every hour, targets users where it is 7 PM locally ──
+// Only sent to users with an active streak who haven't logged a session today.
+
+cron.schedule("0 * * * *", async () => {
+  try {
+    const atRisk = await pool.query(
+      `SELECT u.id, u.streak
+       FROM users u
+       WHERE u.streak > 0
+         AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 19
+         AND NOT EXISTS (
+           SELECT 1 FROM tasks t
+           WHERE t.user_id = u.id::text
+             AND t.completed_at >= (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(u.timezone, 'UTC'))::date
+         )`,
+    );
+    if (!atRisk.rows.length) return;
+
+    for (const user of atRisk.rows) {
+      await sendExpoPushToUser(user.id, {
+        title: "Zenith",
+        body:  `🔥 Day ${user.streak} streak. You haven't logged a session yet — REDZONE starts in 5 hours.`,
+      });
+    }
+
+    console.log(`Streak alert sent to ${atRisk.rows.length} user(s)`);
+  } catch (err) {
+    console.error("Streak alert cron error:", err.message);
+  }
+});
+
+// ── Weekly summary — fires every hour, targets users where it is Sunday 6 PM locally ──
+
+cron.schedule("0 * * * *", async () => {
+  try {
+    const results = await pool.query(
+      `SELECT
+         u.id,
+         COUNT(t.id)::int                          AS session_count,
+         COALESCE(SUM(t.duration_minutes), 0)::int AS total_minutes,
+         COALESCE(SUM(t.xp_earned), 0)::int        AS total_xp,
+         s.name                                    AS top_skill
+       FROM users u
+       JOIN tasks t ON t.user_id = u.id::text
+         AND t.completed_at >= NOW() - INTERVAL '7 days'
+       LEFT JOIN LATERAL (
+         SELECT sk.name
+         FROM tasks t2
+         JOIN skills sk ON sk.id = t2.skill_id
+         WHERE t2.user_id = u.id::text
+           AND t2.completed_at >= NOW() - INTERVAL '7 days'
+           AND t2.skill_id IS NOT NULL
+         GROUP BY sk.name
+         ORDER BY SUM(t2.xp_earned) DESC
+         LIMIT 1
+       ) s ON true
+       WHERE EXTRACT(DOW  FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 0
+         AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 18
+       GROUP BY u.id, s.name
+       HAVING COUNT(t.id) > 0`,
+    );
+    if (!results.rows.length) return;
+
+    for (const row of results.rows) {
+      const skillLine = row.top_skill ? ` Top skill: ${row.top_skill}.` : "";
+      await sendExpoPushToUser(row.id, {
+        title: "Zenith — Weekly Summary",
+        body:  `📊 ${row.session_count} sessions · ${row.total_minutes} min focused · +${row.total_xp} XP.${skillLine}`,
+      });
+    }
+
+    console.log(`Weekly summary sent to ${results.rows.length} user(s)`);
+  } catch (err) {
+    console.error("Weekly summary cron error:", err.message);
   }
 });
 

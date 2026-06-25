@@ -78,21 +78,22 @@ function getInterpolatedSky(palette) {
   ];
 }
 
-// Sun fades in 5:30–6:30 AM, fades out 8:30–9:30 PM
+// Sun fades in 5:30–6:00 AM, fades out 8:00–8:30 PM
+// Moon fades out 5:00–5:30 AM, fades in 8:30–9:00 PM
+// The two never overlap — no simultaneous circles in the sky.
 function getSunOpacity() {
   const mins = getMinuteOfDay();
-  if (mins >= 330 && mins < 390)  return clamp01((mins - 330) / 60);
-  if (mins >= 1230 && mins < 1290) return clamp01((1290 - mins) / 60);
-  if (mins >= 390 && mins < 1230) return 1;
+  if (mins >= 330 && mins < 360)   return clamp01((mins - 330) / 30);
+  if (mins >= 1200 && mins < 1230) return clamp01((1230 - mins) / 30);
+  if (mins >= 360 && mins < 1200)  return 1;
   return 0;
 }
 
-// Moon fades in 7–8 PM, fades out 5–6 AM
 function getMoonOpacity() {
   const mins = getMinuteOfDay();
-  if (mins >= 1140 && mins < 1200) return clamp01((mins - 1140) / 60);
-  if (mins >= 300  && mins < 360)  return clamp01((360 - mins) / 60);
-  if (mins >= 1200 || mins < 300)  return 1;
+  if (mins >= 1230 && mins < 1260) return clamp01((mins - 1230) / 30);
+  if (mins >= 300  && mins < 330)  return clamp01((330 - mins) / 30);
+  if (mins >= 1260 || mins < 300)  return 1;
   return 0;
 }
 

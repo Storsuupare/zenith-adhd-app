@@ -11,19 +11,6 @@ const TAG_COLORS = {
 
 const CHANGELOG = [
   {
-    version:     "1.1.0",
-    date:        "June 2026",
-    title:       "The Sky Update",
-    description: "The sky is now alive. The solar backdrop no longer snaps between phases — it moves continuously with the clock, every minute of the day.",
-    entries: [
-      { tag: "FIX",    text: "The moon is finally a moon. Not three circles stacked on top of each other." },
-      { tag: "CHANGE", text: "Ghost is gone. Ember is here — copper, warm, and nothing like anything else in the shop." },
-      { tag: "CHANGE", text: "The session complete screen got a full rework. It actually feels like a reward now." },
-      { tag: "NEW",    text: "History has a real Performance section. 7-day stats, your top skill, daily average — all there without opening the app." },
-      { tag: "NEW",    text: "Your account page now shows what actually matters. Streak, credits, prestiges, and a proper way to manage or leave if you need to." },
-    ],
-  },
-  {
     version: "1.0.0",
     date:    "May 2026",
     title:   "Initial Release",
@@ -34,8 +21,7 @@ const CHANGELOG = [
       { tag: "NEW", text: "Neural Clock — time-based reward multipliers" },
       { tag: "NEW", text: "Daily challenge with credit reward" },
       { tag: "NEW", text: "Solar backdrop — live sky based on time of day" },
-      { tag: "NEW", text: "PRO and ELITE subscription tiers" },
-      { tag: "NEW", text: "Themes and ambient audio in the shop" },
+      { tag: "NEW", text: "Themes in the shop" },
       { tag: "NEW", text: "History — session history and skill XP breakdown" },
     ],
   },

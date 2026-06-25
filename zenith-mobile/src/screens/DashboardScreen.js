@@ -58,7 +58,7 @@ const SKILL_DATA = {
 };
 
 // ── Skill card (matches SkillSideBar.css) ────────────────────────────────────
-function SkillCard({ skill, onPrestige, previewXP = 0 }) {
+function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }) {
   const level      = skill.current_level ?? 0;
   const xp         = skill.current_xp ?? 0;
   const nextXP     = Math.max(skill.next_level_xp ?? 100, 1);
@@ -78,12 +78,12 @@ function SkillCard({ skill, onPrestige, previewXP = 0 }) {
     <View style={[sk.card, { borderColor: tier.borderColor, backgroundColor: tier.cardBg }]}>
 
       {/* Icon badge — absolute top-right, never affects row layout */}
-      {data && <Text style={sk.iconBadge}>{data.icon}</Text>}
+      {data && <Text style={[sk.iconBadge, { color: accentColor }]}>{data.icon}</Text>}
 
       {/* LVL badge row — .skill-lvl-row — only badge + xpBonus + stars, no wrapping */}
       <View style={sk.lvlRow}>
         <View style={sk.lvlBadge}>
-          <Text style={sk.lvlText}>LVL {level}</Text>
+          <Text style={[sk.lvlText, { color: accentColor }]}>LVL {level}</Text>
         </View>
         {level >= 2 && !canPrestige && (
           <Text style={[sk.xpBonus, { color: tier.color }]} numberOfLines={1}>+{level * 5}% XP</Text>
@@ -105,7 +105,7 @@ function SkillCard({ skill, onPrestige, previewXP = 0 }) {
             {projectedPct > pct && (
               <View style={[sk.barGhost, { width: `${projectedPct}%` }]} />
             )}
-            <View style={[sk.barFill, { width: `${pct}%` }]} />
+            <View style={[sk.barFill, { width: `${pct}%`, backgroundColor: accentColor }]} />
           </View>
           {/* XP fraction + percent on same row */}
           <View style={sk.bottomRow}>
@@ -113,7 +113,7 @@ function SkillCard({ skill, onPrestige, previewXP = 0 }) {
             <View style={sk.xpFrac}>
               <Text style={sk.xpVal}>{xp.toLocaleString()}</Text>
               <Text style={sk.xpDim}> / {nextXP.toLocaleString()} </Text>
-              <Text style={sk.xpLbl}>XP</Text>
+              <Text style={[sk.xpLbl, { color: accentColor }]}>XP</Text>
             </View>
           </View>
         </>
@@ -140,23 +140,23 @@ const sk = StyleSheet.create({
   // lvlRow never wraps — xpBonus shrinks first, icon stays pinned right
   lvlRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6, overflow: "hidden" },
   lvlBadge: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 0 },
-  lvlText:  { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", color: "#22d3ee", letterSpacing: 0.5 },
+  lvlText:  { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   xpBonus:  { fontFamily: FONTS.monoBold, fontSize: 10, fontWeight: "700", letterSpacing: 0.6, opacity: 0.7, flexShrink: 1 },
   prestigeStars: { color: "#fbbf24", fontSize: 11, lineHeight: 14, flexShrink: 0 },
-  iconBadge: { position: "absolute", top: 10, right: 10, fontSize: 13, color: "#22d3ee", opacity: 0.55 },
+  iconBadge: { position: "absolute", top: 10, right: 10, fontSize: 13, opacity: 0.55 },
 
   skillName: { fontFamily: FONTS.bold, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.9)", letterSpacing: -0.1, marginBottom: 4 },
   boostBadge: { fontSize: 10, fontWeight: "800", color: "#fbbf24" },
 
   barTrack: { height: 3, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden", marginTop: 6, marginBottom: 4 },
-  barFill:  { height: "100%", borderRadius: 20, backgroundColor: "#22d3ee" },
+  barFill:  { height: "100%", borderRadius: 20 },
   barGhost: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)" },
   bottomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   pctReadout: { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.6)", letterSpacing: 0.8 },
   xpFrac:   { flexDirection: "row", alignItems: "baseline" },
   xpVal:    { fontFamily: FONTS.semiBold, fontSize: 10, color: "rgba(255,255,255,0.9)" },
   xpDim:    { fontFamily: FONTS.regular,  fontSize: 10, color: "rgba(255,255,255,0.35)" },
-  xpLbl:    { fontFamily: FONTS.bold,     fontSize: 10, fontWeight: "800", color: "#22d3ee", letterSpacing: 0.6 },
+  xpLbl:    { fontFamily: FONTS.bold,     fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
 
   prestigeBtn:    { marginTop: 10, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 10, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
   prestigeBtnTxt: { fontFamily: FONTS.black, fontSize: 13, fontWeight: "800", color: "#fff", letterSpacing: -0.1 },
@@ -187,7 +187,7 @@ export default function DashboardScreen({ navigation }) {
   const handleDailyChallengeClaim = async () => {
     try {
       await claimDailyChallenge();
-      addNotification({ type: "success", message: "+50 CR — challenge complete!" });
+      addNotification({ type: "success", message: "+150 CR — challenge complete!" });
       await fetchUser();
     } catch (err) {
       if (err.response?.status === 409) {
@@ -353,6 +353,7 @@ export default function DashboardScreen({ navigation }) {
                   key={skill.skill_name}
                   skill={skill}
                   onPrestige={handlePrestige}
+                  accentColor={accentColor}
                   previewXP={
                     activeSkillName === skill.skill_name?.toUpperCase()
                       ? Math.floor(activeStake * elapsedFraction)

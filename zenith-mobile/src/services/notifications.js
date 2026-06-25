@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
-const SOUND = '376749__zenithinfinitivestudios__fantasy_ui_button_5.wav';
+const SOUND   = '833599__subquire__bright-synth-ping-ui-bell-tone.wav';
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:5000';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -15,14 +17,37 @@ export async function requestNotificationPermissions() {
   return status === 'granted';
 }
 
+// Sends the Expo push token to the backend so the server can send
+// personalised notifications (streak alerts, weekly summary, etc.)
+export async function registerPushToken(clerkJwt) {
+  try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    if (!projectId) return;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const timezone  = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+    await fetch(`${API_BASE}/api/push/register-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${clerkJwt}`,
+      },
+      body: JSON.stringify({ token: tokenData.data, timezone }),
+    });
+  } catch {
+    // Silently ignore — simulators and permission-denied cases both land here
+  }
+}
+
 export async function scheduleNotifications() {
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  // 9 AM — nudge to start the first session of the day
+  // 9 AM — daily challenge prompt
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Zenith',
-      body: "Start your first session for today. Your skill tree is waiting.",
+      body: '🎯 Daily challenge is live. Complete it before midnight for bonus credits.',
       sound: SOUND,
     },
     trigger: {
@@ -32,17 +57,4 @@ export async function scheduleNotifications() {
     },
   });
 
-  // 8 PM — streak save reminder
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Zenith',
-      body: "Don't lose your streak. Complete a session before midnight.",
-      sound: SOUND,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 20,
-      minute: 0,
-    },
-  });
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Linking, ActivityIndicator, RefreshControl,
+  StyleSheet, SafeAreaView, ActivityIndicator, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useUser } from "../context/UserContext";
@@ -10,7 +10,6 @@ import { fetchShopState, purchaseCosmetic } from "../services/api";
 import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
 
-// ── Exact cosmetics catalog from web constantstyles.js ──────────────────────────
 const THEMES = [
   { id: "default",  label: "Classic",  color: "#22d3ee", type: "free"                    },
   { id: "cobalt",   label: "Cobalt",   color: "#3b82f6", type: "credits", price: 1500    },
@@ -18,47 +17,23 @@ const THEMES = [
   { id: "crimson",  label: "Crimson",  color: "#ef4444", type: "credits", price: 2000    },
   { id: "violet",   label: "Violet",   color: "#8b5cf6", type: "credits", price: 2500    },
   { id: "jade",     label: "Jade",     color: "#10b981", type: "credits", price: 3000    },
-  { id: "neon",     label: "Neon",     color: "#f72585", type: "pro",     price: 2000    },
-  { id: "arctic",   label: "Arctic",   color: "#67e8f9", type: "pro",     price: 2000    },
-  { id: "solar",    label: "Solar",    color: "#fb8500", type: "pro",     price: 2500    },
-  { id: "nebula",   label: "Nebula",   color: "#7209b7", type: "elite",   price: 3000    },
-  { id: "obsidian", label: "Obsidian", color: "#6d28d9", type: "elite",   price: 3000    },
-  { id: "ember",    label: "Ember",    color: "#b87333", type: "elite",   price: 3500    },
+  { id: "neon",     label: "Neon",     color: "#f72585", type: "credits", price: 2000    },
+  { id: "arctic",   label: "Arctic",   color: "#67e8f9", type: "credits", price: 2000    },
+  { id: "solar",    label: "Solar",    color: "#fb8500", type: "credits", price: 2500    },
+  { id: "nebula",   label: "Nebula",   color: "#7209b7", type: "credits", price: 3000    },
+  { id: "obsidian", label: "Obsidian", color: "#6d28d9", type: "credits", price: 3000    },
+  { id: "ember",    label: "Ember",    color: "#b87333", type: "credits", price: 3500    },
 ];
 
-const TIER_PERKS = [
-  { tier: 1, label: "PRO",   color: "#22d3ee", price: "€4.99/mo", perks: [
-    "1.5× XP and credits every session",
-    "50% loot drop rate",
-    "Neon, Arctic + Solar unlocked in shop",
-  ]},
-  { tier: 2, label: "ELITE", color: "#fbbf24", price: "€9.99/mo", perks: [
-    "2× XP and credits every session",
-    "75% loot drop rate",
-    "Unlimited active tasks",
-    "All themes unlocked",
-    "Best Legendary and Mythic odds",
-  ]},
-];
-
-function isUnlocked(item, tier, owned) {
+function isUnlocked(item, owned) {
   if (item.type === "free") return true;
   return owned.includes(item.id);
 }
-
-function tierMet(item, tier) {
-  if (item.type === "pro")   return tier >= 1;
-  if (item.type === "elite") return tier >= 2;
-  return true;
-}
-
-const TABS = ["Themes", "Upgrade"];
 
 export default function ShopScreen() {
   const { user, fetchUser, refreshToken } = useUser();
   const { activeTheme, setActiveTheme, previewTheme, accentColor } = useTheme();
 
-  const [tab,        setTab]       = useState("Themes");
   const [owned,      setOwned]     = useState([]);
   const [buying,     setBuying]    = useState(null);
   const [feedback,   setFeedback]  = useState(null);
@@ -85,10 +60,10 @@ export default function ShopScreen() {
     if (!previewId) realThemeRef.current = activeTheme;
   }, [activeTheme, previewId]);
 
-  const tier    = user?.account_tier ?? 0;
   const credits = user?.system_credits ?? 0;
 
   useEffect(() => {
+    if (!user?.id) return;
     setLoading(true);
     setFetchError(false);
     fetchShopState()
@@ -127,7 +102,6 @@ export default function ShopScreen() {
       const msg =
         code === "INSUFFICIENT_CREDITS" ? "Not enough credits" :
         code === "ALREADY_OWNED"        ? "Already owned" :
-        code === "TIER_REQUIRED"        ? "Requires PRO or ELITE" :
         code === "COSMETIC_NOT_FOUND"   ? "Item not found" :
         code === "TOO_MANY_REQUESTS"    ? "Slow down — try again shortly" :
         code === "UNAUTHORIZED"         ? "Session expired — please restart the app" :
@@ -227,19 +201,6 @@ export default function ShopScreen() {
         </View>
       )}
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        {TABS.map(t => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.tab, tab === t && { borderBottomColor: accentColor, borderBottomWidth: 2 }]}
-            onPress={() => setTab(t)}
-          >
-            <Text style={[styles.tabTxt, tab === t && { color: accentColor }]}>{t}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       <ScrollView
         ref={onboardingRefs.shopContent}
         contentContainerStyle={styles.content}
@@ -248,104 +209,56 @@ export default function ShopScreen() {
       >
 
         {/* ── THEMES ──────────────────────────────────────────────────────── */}
-        {tab === "Themes" && (
-          <View style={styles.themeGrid}>
-            {THEMES.map(item => {
-              const unlocked    = isUnlocked(item, tier, owned);
-              const active      = activeTheme === item.id;
-              const tierUnlocked = tierMet(item, tier);
-              const canBuy      = item.price && !unlocked && tierUnlocked && credits >= item.price;
-              const isBuying    = buying === item.id;
+        <View style={styles.themeGrid}>
+          {THEMES.map(item => {
+            const unlocked = isUnlocked(item, owned);
+            const active   = activeTheme === item.id;
+            const canBuy   = item.price && !unlocked && credits >= item.price;
+            const isBuying = buying === item.id;
 
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.themeCard,
-                    (active && !previewId) && { borderColor: item.color, borderWidth: 2 },
-                    previewId === item.id && { borderColor: item.color, borderWidth: 2 },
-                    !unlocked && styles.locked,
-                  ]}
-                  onPress={() => {
-                    if (unlocked) handleApplyTheme(item.id);
-                    else if (canBuy) handleBuyTheme(item);
-                    else handlePreview(item);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  {/* Color swatch */}
-                  <View style={[styles.swatch, { backgroundColor: item.color }]}>
-                    {active && !previewId && <Text style={styles.activeCheck}>✓</Text>}
-                    {previewId === item.id && <Text style={styles.activeCheck}>◉</Text>}
-                    {!unlocked && !tierUnlocked && previewId !== item.id && (
-                      <View style={styles.lockOverlay}>
-                        <Text style={styles.lockIcon}>
-                          {item.type === "pro" ? "PRO" : "ELITE"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Label */}
-                  <Text style={[styles.themeLabel, active && { color: item.color }]} numberOfLines={1}>
-                    {item.label}
-                  </Text>
-
-                  {/* Price or status */}
-                  {previewId === item.id ? (
-                    <Text style={[styles.themePrice, { color: item.color }]}>Preview</Text>
-                  ) : !unlocked && !tierUnlocked ? (
-                    <Text style={[styles.themePrice, { color: item.type === "pro" ? "#22d3ee" : "#fbbf24" }]}>
-                      {item.type.toUpperCase()} · Preview
-                    </Text>
-                  ) : !unlocked && tierUnlocked && item.price ? (
-                    <Text style={[styles.themePrice, canBuy && { color: item.color }]}>
-                      {isBuying ? "···" : `${item.price} CR`}
-                    </Text>
-                  ) : unlocked && active ? (
-                    <Text style={[styles.themePrice, { color: item.color }]}>Active</Text>
-                  ) : (
-                    <Text style={styles.themePrice}>Apply</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {/* ── UPGRADE ─────────────────────────────────────────────────────── */}
-        {tab === "Upgrade" && (
-          <>
-            {tier >= 2 ? (
-              <View style={styles.maxed}>
-                <Text style={[styles.maxedIcon, { color: "#fbbf24" }]}>◆</Text>
-                <Text style={styles.maxedTitle}>You're on Elite</Text>
-                <Text style={styles.maxedSub}>Every feature is unlocked.</Text>
-              </View>
-            ) : (
-              TIER_PERKS.filter(t => t.tier > tier).map(tp => (
-                <View key={tp.tier} style={[styles.upgradeCard, { borderColor: tp.color + "33" }]}>
-                  <View style={styles.upgradeHeader}>
-                    <Text style={[styles.upgradeTier, { color: tp.color }]}>{tp.label}</Text>
-                    <Text style={[styles.upgradePrice, { color: tp.color }]}>{tp.price}</Text>
-                  </View>
-                  {tp.perks.map((p, i) => (
-                    <View key={i} style={styles.perkRow}>
-                      <Text style={[styles.perkDot, { color: tp.color }]}>◆</Text>
-                      <Text style={styles.perkTxt}>{p}</Text>
-                    </View>
-                  ))}
-                  <TouchableOpacity
-                    style={[styles.upgradeBtn, { backgroundColor: tp.color }]}
-                    onPress={() => Linking.openURL("https://zenithapp.org")}
-                  >
-                    <Text style={styles.upgradeBtnTxt}>Subscribe at zenithapp.org ↗</Text>
-                  </TouchableOpacity>
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.themeCard,
+                  (active && !previewId) && { borderColor: item.color, borderWidth: 2 },
+                  previewId === item.id && { borderColor: item.color, borderWidth: 2 },
+                  !unlocked && !canBuy && styles.locked,
+                ]}
+                onPress={() => {
+                  if (unlocked) handleApplyTheme(item.id);
+                  else if (canBuy) handleBuyTheme(item);
+                  else handlePreview(item);
+                }}
+                activeOpacity={0.75}
+              >
+                {/* Color swatch */}
+                <View style={[styles.swatch, { backgroundColor: item.color }]}>
+                  {active && !previewId && <Text style={styles.activeCheck}>✓</Text>}
+                  {previewId === item.id && <Text style={styles.activeCheck}>◉</Text>}
                 </View>
-              ))
-            )}
-          </>
-        )}
+
+                {/* Label */}
+                <Text style={[styles.themeLabel, active && { color: item.color }]} numberOfLines={1}>
+                  {item.label}
+                </Text>
+
+                {/* Price or status */}
+                {previewId === item.id ? (
+                  <Text style={[styles.themePrice, { color: item.color }]}>Preview</Text>
+                ) : !unlocked && item.price ? (
+                  <Text style={[styles.themePrice, canBuy && { color: item.color }]}>
+                    {isBuying ? "···" : canBuy ? `BUY · ${item.price} CR` : `${item.price} CR`}
+                  </Text>
+                ) : unlocked && active ? (
+                  <Text style={[styles.themePrice, { color: item.color }]}>Active</Text>
+                ) : (
+                  <Text style={styles.themePrice}>Apply</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
       </ScrollView>
     </SafeAreaView>

@@ -57,7 +57,7 @@ export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, sk
         <Text style={styles.eyebrow}>DAILY CHALLENGE</Text>
         {claimed
           ? <Text style={styles.doneBadge}>✓ CLAIMED</Text>
-          : <Text style={styles.reward}>+50 CR</Text>
+          : <Text style={styles.reward}>+150 CR</Text>
         }
       </View>
 
@@ -77,7 +77,7 @@ export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, sk
           <TouchableOpacity style={[styles.claimBtn, { backgroundColor: accentColor }]} onPress={handleClaim} disabled={claiming}>
             {claiming
               ? <ActivityIndicator size="small" color="#030712" />
-              : <Text style={styles.claimTxt}>CLAIM +50 CR</Text>
+              : <Text style={styles.claimTxt}>CLAIM +150 CR</Text>
             }
           </TouchableOpacity>
         )}

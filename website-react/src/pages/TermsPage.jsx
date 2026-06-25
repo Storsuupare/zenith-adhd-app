@@ -30,17 +30,6 @@ export default function TermsPage() {
 
             <hr className="legal-divider" />
 
-            <h2>Subscriptions and billing</h2>
-            <p>Zenith has two paid plans: PRO at €4.99/month and ELITE at €9.99/month. All plans are billed monthly.</p>
-            <ul>
-              <li>Plans renew automatically each month.</li>
-              <li>Cancel any time. You keep access until the end of the current billing period.</li>
-              <li>No refunds for partial months. Cancel and your plan stays active until the period ends.</li>
-              <li>Failed payment means your account drops to Free.</li>
-            </ul>
-
-            <hr className="legal-divider" />
-
             <h2>Acceptable use</h2>
             <p>Keep it honest. Don't do any of the following:</p>
             <ul>
