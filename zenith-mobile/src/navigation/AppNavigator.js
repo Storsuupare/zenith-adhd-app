@@ -111,10 +111,10 @@ function AppTabs() {
         tabBarLabelStyle: { fontSize: 10, marginBottom: 2, fontFamily: FONTS.semiBold, letterSpacing: 0.5 },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = {
-            Home:    focused ? "home"       : "home-outline",
-            Shop:    focused ? "storefront" : "storefront-outline",
-            History: focused ? "time"       : "time-outline",
-            Profile: focused ? "person"     : "person-outline",
+            Home:     focused ? "home"          : "home-outline",
+            Shop:     focused ? "storefront"    : "storefront-outline",
+            History:  focused ? "time"          : "time-outline",
+            Settings: focused ? "settings"      : "settings-outline",
           };
           return <Ionicons name={icons[route.name]} size={size - 2} color={color} />;
         },
@@ -123,7 +123,7 @@ function AppTabs() {
       <Tab.Screen name="Home"    component={DashboardScreen} />
       <Tab.Screen name="Shop"    component={ShopScreen} />
       <Tab.Screen name="History" component={ArchivesScreen} />
-      <Tab.Screen name="Profile" component={SettingsStack} />
+      <Tab.Screen name="Settings" component={SettingsStack} />
     </Tab.Navigator>
   );
 }

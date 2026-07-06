@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, RefreshControl, Modal, Alert,
+  StyleSheet, SafeAreaView, RefreshControl, Modal, Alert, Linking,
 } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
 import { useUser } from "../context/UserContext";
@@ -9,7 +9,10 @@ import { useTheme } from "../context/ThemeContext";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
-import { deleteAccount } from "../services/api";
+import { deleteAccount, createPortalSession } from "../services/api";
+import Purchases from "react-native-purchases";
+
+const WEBSITE_URL = process.env.EXPO_PUBLIC_WEBSITE_URL || "https://zenithapp.org";
 
 function getClockRows() {
   return [
@@ -23,9 +26,68 @@ export default function SettingsScreen({ navigation }) {
   const { signOut } = useAuth();
   const { user, fetchUser } = useUser();
   const { accentColor } = useTheme();
-  const [refreshing, setRefreshing] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [refreshing,          setRefreshing]          = useState(false);
+  const [showDeleteModal,     setShowDeleteModal]     = useState(false);
+  const [deleting,            setDeleting]            = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [offerings,           setOfferings]           = useState(null);
+  const [offeringsLoading,    setOfferingsLoading]    = useState(false);
+  const [purchaseLoading,     setPurchaseLoading]     = useState(false);
+
+  const userRole   = user?.role ?? "FREE";
+  const isPaidTier = userRole === "PRO" || userRole === "ELITE";
+  const tierColor  = userRole === "ELITE" ? "#fbbf24" : userRole === "PRO" ? accentColor : "rgba(255,255,255,0.35)";
+
+  useEffect(() => {
+    if (userRole !== "FREE" || !process.env.EXPO_PUBLIC_REVENUECAT_KEY) return;
+    setOfferingsLoading(true);
+    Purchases.getOfferings()
+      .then(availableOfferings => {
+        if (availableOfferings.current) setOfferings(availableOfferings.current);
+      })
+      .catch(() => {})
+      .finally(() => setOfferingsLoading(false));
+  }, [userRole]);
+
+  const handlePurchase = async (pkg) => {
+    setPurchaseLoading(true);
+    try {
+      await Purchases.purchasePackage(pkg);
+      await fetchUser();
+    } catch (purchaseError) {
+      if (!purchaseError.userCancelled) {
+        Alert.alert("Purchase failed", "Something went wrong. Please try again.");
+      }
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setSubscriptionLoading(true);
+    try {
+      if (process.env.EXPO_PUBLIC_REVENUECAT_KEY) {
+        const customerInfo       = await Purchases.getCustomerInfo();
+        const hasAppleEntitlement = Object.keys(customerInfo.entitlements.active).length > 0;
+        if (hasAppleEntitlement) {
+          await Purchases.showManageSubscriptions();
+          setSubscriptionLoading(false);
+          return;
+        }
+      }
+      const response  = await createPortalSession();
+      const portalUrl = response.data?.url;
+      if (portalUrl) {
+        await Linking.openURL(portalUrl);
+      } else {
+        Alert.alert("Error", "Could not open subscription management. Please try again.");
+      }
+    } catch {
+      Alert.alert("Error", "Could not open subscription management. Please try again.");
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -67,6 +129,71 @@ export default function SettingsScreen({ navigation }) {
           <Row label="Level"  value={String(user?.level ?? 1)} />
           {(user?.streak ?? 0) > 0 && (
             <Row label="Streak" value={`${user.streak} days`} />
+          )}
+        </View>
+
+        {/* Subscription */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Subscription</Text>
+          <View style={styles.subscriptionTierRow}>
+            <Text style={styles.subscriptionTierLabel}>Current plan</Text>
+            <Text style={[styles.subscriptionTierValue, { color: tierColor }]}>{userRole}</Text>
+          </View>
+          {isPaidTier ? (
+            <>
+              <Text style={styles.subscriptionNote}>
+                To cancel or update your plan, open the Stripe billing portal.
+              </Text>
+              <TouchableOpacity
+                style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
+                onPress={handleManageSubscription}
+                disabled={subscriptionLoading}
+              >
+                <Text style={styles.manageBtnText}>
+                  {subscriptionLoading ? "Loading..." : "Manage subscription ↗"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {offeringsLoading ? (
+                <Text style={styles.subscriptionNote}>Loading plans...</Text>
+              ) : offerings?.availablePackages.length ? (
+                offerings.availablePackages.map(pkg => (
+                  <TouchableOpacity
+                    key={pkg.identifier}
+                    style={[
+                      styles.upgradeBtn,
+                      { borderColor: accentColor + "55" },
+                      purchaseLoading && { opacity: 0.5 },
+                    ]}
+                    onPress={() => handlePurchase(pkg)}
+                    disabled={purchaseLoading}
+                  >
+                    <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
+                      {pkg.product.title}
+                    </Text>
+                    <Text style={[styles.upgradePriceText, { color: accentColor + "99" }]}>
+                      {pkg.product.priceString} / month
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <>
+                  <Text style={styles.subscriptionNote}>
+                    Upgrade to PRO or ELITE to unlock advanced features. Plans start at €4.99/mo.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.upgradeBtn, { borderColor: accentColor + "55" }]}
+                    onPress={() => Linking.openURL(WEBSITE_URL)}
+                  >
+                    <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
+                      View plans at zenithapp.org ↗
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
           )}
         </View>
 
@@ -197,6 +324,67 @@ const styles = StyleSheet.create({
   },
   navLabel: { color: COLORS.text, fontSize: 14 },
   navArrow: { color: COLORS.textMuted, fontSize: 18 },
+  subscriptionTierRow: {
+    flexDirection:  "row",
+    justifyContent: "space-between",
+    alignItems:     "center",
+    paddingVertical: 8,
+    borderTopWidth:  1,
+    borderTopColor:  "rgba(255,255,255,0.04)",
+  },
+  subscriptionTierLabel: {
+    color:         "rgba(255,255,255,0.3)",
+    fontSize:      11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  subscriptionTierValue: {
+    fontSize:   12,
+    fontFamily: FONTS.semiBold,
+    letterSpacing: 1,
+  },
+  subscriptionNote: {
+    color:      "rgba(255,255,255,0.28)",
+    fontSize:   12,
+    lineHeight: 18,
+    marginTop:  4,
+  },
+  upgradeBtn: {
+    borderWidth:       1,
+    borderRadius:      10,
+    paddingVertical:   12,
+    paddingHorizontal: 16,
+    alignItems:        "flex-start",
+    marginTop:         8,
+    backgroundColor:   "rgba(255,255,255,0.03)",
+  },
+  upgradeBtnText: {
+    fontSize:   13,
+    fontFamily: FONTS.semiBold,
+    letterSpacing: 0.3,
+  },
+  upgradePriceText: {
+    fontSize:   11,
+    fontFamily: FONTS.monoBold,
+    letterSpacing: 0.5,
+    marginTop:  2,
+  },
+  manageBtn: {
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.15)",
+    borderRadius:      10,
+    paddingVertical:   12,
+    paddingHorizontal: 16,
+    alignItems:        "center",
+    marginTop:         8,
+    backgroundColor:   "rgba(255,255,255,0.04)",
+  },
+  manageBtnText: {
+    color:      "rgba(255,255,255,0.7)",
+    fontSize:   13,
+    fontFamily: FONTS.semiBold,
+    letterSpacing: 0.3,
+  },
   signOutBtn: {
     backgroundColor: "rgba(255,34,68,0.12)",
     borderWidth: 1,

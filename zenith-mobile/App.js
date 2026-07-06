@@ -1,5 +1,6 @@
 import "react-native-gesture-handler";
 import React, { useState, useEffect } from "react";
+import Purchases from "react-native-purchases";
 import { requestNotificationPermissions, scheduleNotifications } from "./src/services/notifications";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
@@ -35,10 +36,11 @@ const tokenCache = {
   },
 };
 
-const CLERK_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const CLERK_KEY        = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const REVENUECAT_KEY   = process.env.EXPO_PUBLIC_REVENUECAT_KEY;
 
 function Overlays() {
-  const { loot, setLoot, levelUpData, setLevelUpData, prestigeData, setPrestigeData } = useTasks();
+  const { loot, setLoot, levelUpData, dismissLevelUp, prestigeData, setPrestigeData } = useTasks();
   const [earningSummary, setEarningSummary] = useState(null);
 
   return (
@@ -49,7 +51,7 @@ function Overlays() {
       />
       <LevelUpModal
         data={levelUpData}
-        onDismiss={() => setLevelUpData(null)}
+        onDismiss={dismissLevelUp}
       />
       <PrestigeCinematic
         skillName={prestigeData?.skillName}
@@ -77,6 +79,9 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (REVENUECAT_KEY) {
+      Purchases.configure({ apiKey: REVENUECAT_KEY });
+    }
     requestNotificationPermissions().then(granted => {
       if (granted) scheduleNotifications();
     });

@@ -58,10 +58,12 @@ const requireAuth = async (req, res, next) => {
   try {
     const payload = await verifyToken(header.slice(7), {
       secretKey: process.env.CLERK_SECRET_KEY,
+      clockSkewInMs: 60000,
     });
     req.auth = { userId: payload.sub };
     next();
-  } catch {
+  } catch (tokenError) {
+    console.error("[AUTH] Token verification failed:", tokenError.message);
     return res.status(401).json({ error: "INVALID_TOKEN" });
   }
 };
@@ -215,6 +217,63 @@ app.post(
 
 app.use(express.json());
 
+// ── RevenueCat webhook ────────────────────────────────────────────────────────
+// Receives subscription lifecycle events (purchase, renewal, cancellation, expiry).
+// REVENUECAT_WEBHOOK_SECRET must match the Authorization token configured in the
+// RevenueCat dashboard under Project Settings → Webhooks.
+const APPLE_PRODUCT_ROLES = {
+  "org.zenithapp.mobile.pro_monthly":   { role: "PRO",   accountTier: 1 },
+  "org.zenithapp.mobile.elite_monthly": { role: "ELITE", accountTier: 2 },
+};
+
+app.post("/webhooks/revenuecat", async (req, res) => {
+  const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.warn("[REVENUECAT] Webhook secret not configured — rejecting request");
+    return res.status(503).json({ error: "WEBHOOK_NOT_CONFIGURED" });
+  }
+  if (req.headers.authorization !== `Bearer ${webhookSecret}`) {
+    return res.status(401).json({ error: "UNAUTHORIZED" });
+  }
+
+  const { event } = req.body ?? {};
+  if (!event?.type || !event?.app_user_id) {
+    return res.status(400).json({ error: "INVALID_PAYLOAD" });
+  }
+
+  const clerkUserId = event.app_user_id;
+  const eventType   = event.type;
+
+  try {
+    if (["INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE", "UNCANCELLATION"].includes(eventType)) {
+      const mapping = APPLE_PRODUCT_ROLES[event.product_id];
+      if (!mapping) {
+        console.warn(`[REVENUECAT] Unknown product_id: ${event.product_id}`);
+        return res.json({ received: true });
+      }
+      await pool.query(
+        "UPDATE users SET role = $1, account_tier = $2 WHERE external_id = $3",
+        [mapping.role, mapping.accountTier, clerkUserId],
+      );
+      console.log(`[REVENUECAT] ${eventType}: ${clerkUserId} → ${mapping.role}`);
+
+    } else if (["EXPIRATION", "BILLING_ISSUE"].includes(eventType)) {
+      await pool.query(
+        "UPDATE users SET role = 'FREE', account_tier = 0 WHERE external_id = $1",
+        [clerkUserId],
+      );
+      console.log(`[REVENUECAT] ${eventType}: ${clerkUserId} → FREE`);
+    }
+    // CANCELLATION is intentionally ignored — the subscription is still active
+    // until the period ends. Access is revoked only on EXPIRATION.
+  } catch (dbError) {
+    console.error("[REVENUECAT] DB update failed:", dbError.message);
+    return res.status(500).json({ error: "DATABASE_ERROR" });
+  }
+
+  res.json({ received: true });
+});
+
 if (process.env.NODE_ENV !== "production") {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
@@ -223,11 +282,8 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 
@@ -262,6 +318,15 @@ pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_bonus_claimed_at TI
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS has_seen_onboarding BOOLEAN DEFAULT false`).catch(() => {});
 pool.query(`ALTER TABLE user_skills ADD COLUMN IF NOT EXISTS prestige_boost_until TIMESTAMPTZ`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_task_completed BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_shield BOOLEAN DEFAULT false`).catch(() => {});
+pool.query(`
+  CREATE TABLE IF NOT EXISTS streak_milestones (
+    user_id   INTEGER NOT NULL,
+    milestone INTEGER NOT NULL,
+    claimed_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, milestone)
+  )
+`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_challenge_claimed_date DATE`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
@@ -312,7 +377,8 @@ const sseTokens = new Map();
 
 // Stake amounts per duration — mirrors client getMissionStakes but is authoritative.
 // Red Zone (0–4am server time) halves the stake so the server, not the client, decides.
-const STAKE_BY_DURATION = { 5: 250, 15: 1200, 30: 4000, 60: 10000, 90: 15800, 120: 30000 };
+const STAKE_BY_DURATION      = { 5: 250, 15: 1200, 30: 4000, 60: 10000, 90: 15800, 120: 30000 };
+const SESSION_CR_BY_DURATION = { 5:  25, 15:   60, 30:  120, 60:   220, 90:   320, 120:   420 };
 
 function calculateStake(durationMinutes) {
   const base = STAKE_BY_DURATION[durationMinutes] ?? Math.floor(Number(durationMinutes) * 10);
@@ -431,6 +497,17 @@ const COSMETICS_PRICES = {
 const CONSUMABLE_PRICES = {
   streak_rescue:   500,
   extra_loot_pull: 250,
+};
+
+// Milestone rewards at specific streak counts.
+// credits: flat CR award. lootRarity: null means no guaranteed loot.
+// shieldUnlock: whether this milestone grants a streak shield.
+const STREAK_MILESTONES = {
+  7:   { credits: 150,  lootRarity: null,        shieldUnlock: false },
+  14:  { credits: 300,  lootRarity: "Rare",       shieldUnlock: false },
+  30:  { credits: 500,  lootRarity: "Epic",       shieldUnlock: true  },
+  60:  { credits: 1000, lootRarity: "Legendary",  shieldUnlock: false },
+  100: { credits: 2500, lootRarity: "Mythic",     shieldUnlock: false },
 };
 
 
@@ -1068,15 +1145,18 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed } = userRow.rows[0];
 
     const durationMins = Math.min(parseInt(task.durationMinutes) || 0, 180);
-    const osrsXpRequired = (lvl) => Math.max(1, Math.floor(100 * Math.pow(lvl, 1.8)));
+    const xpRequiredForLevel = (lvl) => Math.max(1, Math.floor(100 * Math.pow(lvl, 1.6)));
 
     const streakCount  = parseInt(streak || 0);
-    const streakMult   = 1 + Math.min(streakCount, 20) * 0.05;
 
-    const stakeXp     = Math.floor(parseInt(task.stakeAmount || 0) * 1.5 * streakMult);
-    let totalXpGained = stakeXp;
+    const stakeXp       = Math.floor(parseInt(task.stakeAmount || 0) * 1.5);
+    let totalXpGained   = stakeXp;
+    const sessionCr     = SESSION_CR_BY_DURATION[durationMins] ?? 0;
 
     let completedSkillName = null;
+    let skillLeveledUp     = false;
+    let skillHit99         = false;
+    let returnedSkillLevel = null;
     if (task.skillId) {
       const skillRow = await completeClient.query(
         `SELECT us.id, us.xp, us.level, us.next_level_xp, us.prestige_level,
@@ -1097,12 +1177,15 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
         const boostActive  = skillData.prestige_boost_until && new Date(skillData.prestige_boost_until) > new Date();
         const boostMult    = boostActive ? 2.0 : 1.0;
         const neuralMult   = getNeuralMult();
-        const finalSkillXp = Math.round(baseSkillXp * streakMult * prestigeMult * boostMult * neuralMult);
+        const finalSkillXp = Math.round(baseSkillXp * prestigeMult * boostMult * neuralMult);
         totalXpGained += finalSkillXp;
         let skillXp    = parseInt(skillData.xp) + finalSkillXp;
         let newSkillLevel = skillLevel;
-        let nextSkillLevelXpRequired   = osrsXpRequired(newSkillLevel);
-        while (skillXp >= nextSkillLevelXpRequired && newSkillLevel < 99) { skillXp -= nextSkillLevelXpRequired; newSkillLevel++; nextSkillLevelXpRequired = osrsXpRequired(newSkillLevel); }
+        let nextSkillLevelXpRequired   = xpRequiredForLevel(newSkillLevel);
+        while (skillXp >= nextSkillLevelXpRequired && newSkillLevel < 99) { skillXp -= nextSkillLevelXpRequired; newSkillLevel++; nextSkillLevelXpRequired = xpRequiredForLevel(newSkillLevel); }
+        skillLeveledUp = newSkillLevel > skillLevel;
+        skillHit99     = newSkillLevel === 99 && skillLevel < 99;
+        returnedSkillLevel = newSkillLevel;
         await completeClient.query(
           `UPDATE user_skills SET xp = $1, level = $2, next_level_xp = $3 WHERE id = $4`,
           [skillXp, newSkillLevel, nextSkillLevelXpRequired, skillData.id],
@@ -1113,14 +1196,15 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     let globalXp      = parseInt(xp) + totalXpGained;
     let globalLevel     = parseInt(level);
     let globalTotalXp = (parseInt(total_xp) || 0) + totalXpGained;
-    let nextGlobalLevelXpRequired    = osrsXpRequired(globalLevel);
+    let nextGlobalLevelXpRequired    = xpRequiredForLevel(globalLevel);
     let leveledUp = false;
-    while (globalXp >= nextGlobalLevelXpRequired) { globalXp -= nextGlobalLevelXpRequired; globalLevel++; nextGlobalLevelXpRequired = osrsXpRequired(globalLevel); leveledUp = true; }
+    while (globalXp >= nextGlobalLevelXpRequired) { globalXp -= nextGlobalLevelXpRequired; globalLevel++; nextGlobalLevelXpRequired = xpRequiredForLevel(globalLevel); leveledUp = true; }
 
     // last_reboot = NOW() starts the regen clock fresh from the moment the task ends.
     const updatedUser = await completeClient.query(
       `UPDATE users
        SET xp = $1, level = $2, current_level = $2, total_xp = $3,
+           system_credits = system_credits + $5,
            streak = CASE
              WHEN streak_last_updated IS NULL
                OR DATE(streak_last_updated AT TIME ZONE 'UTC') < DATE(NOW() AT TIME ZONE 'UTC')
@@ -1131,8 +1215,85 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
            streak_last_updated = NOW(),
            last_reboot = NOW()
        WHERE id::text = $4 RETURNING *`,
-      [globalXp, globalLevel, globalTotalXp, String(task.userId)],
+      [globalXp, globalLevel, globalTotalXp, String(task.userId), sessionCr],
     );
+
+    // Determine whether the streak actually incremented this session.
+    // The UPDATE increments streak only when streak_last_updated was on a previous
+    // calendar day, so comparing the old and new values gives a reliable signal.
+    const newStreakCount     = parseInt(updatedUser.rows[0].streak || 0);
+    const streakDidIncrement = newStreakCount > streakCount;
+    let   streakBonus        = 0;
+    let   milestoneClaimed   = null;
+
+    if (streakDidIncrement) {
+      // Flat +50 CR for extending the streak — replaces the old XP multiplier.
+      // A multiplier compounds unfairly for long-term users; a flat credit bonus
+      // is spendable, visible, and equal in value per session.
+      streakBonus = 50;
+      await completeClient.query(
+        `UPDATE users SET system_credits = system_credits + $1 WHERE id::text = $2`,
+        [streakBonus, String(task.userId)],
+      );
+
+      const milestoneConfig = STREAK_MILESTONES[newStreakCount];
+      if (milestoneConfig) {
+        // SAVEPOINT isolates milestone processing from the main transaction.
+        // If any milestone SQL fails, ROLLBACK TO SAVEPOINT reverts only the
+        // milestone queries — the session completion, XP, loot, and the +50 CR
+        // streak bonus above all survive and get committed normally.
+        // Without SAVEPOINT, a milestone failure puts the whole transaction into
+        // an aborted state, causing the COMMIT below to throw and rolling back
+        // the entire session completion.
+        await completeClient.query("SAVEPOINT milestone_processing");
+        try {
+          // INSERT ... ON CONFLICT DO NOTHING — rowCount 1 = first claim, 0 = already claimed.
+          // The PRIMARY KEY (user_id, milestone) makes double-award impossible even under
+          // concurrent requests — the second INSERT simply returns rowCount 0.
+          const milestoneInsert = await completeClient.query(
+            `INSERT INTO streak_milestones (user_id, milestone)
+             VALUES ($1::integer, $2) ON CONFLICT DO NOTHING`,
+            [parseInt(task.userId, 10), newStreakCount],
+          );
+
+          if (milestoneInsert.rowCount === 1) {
+            await completeClient.query(
+              `UPDATE users SET system_credits = system_credits + $1 WHERE id::text = $2`,
+              [milestoneConfig.credits, String(task.userId)],
+            );
+
+            let milestoneLoot = null;
+            if (milestoneConfig.lootRarity) {
+              const milestoneLootCredits = CREDIT_BY_RARITY[milestoneConfig.lootRarity] ?? 50;
+              await completeClient.query(
+                `UPDATE users SET system_credits = system_credits + $1 WHERE id::text = $2`,
+                [milestoneLootCredits, String(task.userId)],
+              );
+              milestoneLoot = { rarity: milestoneConfig.lootRarity, credits_earned: milestoneLootCredits };
+            }
+
+            if (milestoneConfig.shieldUnlock) {
+              await completeClient.query(
+                `UPDATE users SET streak_shield = true WHERE id::text = $1`,
+                [String(task.userId)],
+              );
+            }
+
+            milestoneClaimed = {
+              days:            newStreakCount,
+              credits_earned:  milestoneConfig.credits,
+              loot:            milestoneLoot,
+              shield_unlocked: milestoneConfig.shieldUnlock,
+            };
+          }
+          await completeClient.query("RELEASE SAVEPOINT milestone_processing");
+        } catch (milestoneError) {
+          console.error("[MILESTONE] Processing failed:", milestoneError.message);
+          await completeClient.query("ROLLBACK TO SAVEPOINT milestone_processing");
+          await completeClient.query("RELEASE SAVEPOINT milestone_processing");
+        }
+      }
+    }
 
     // Loot drop: guaranteed Epic on first ever session, normal RNG after that.
     const dropChance = TIER_DROP_CHANCE[account_tier] ?? 0.25;
@@ -1176,15 +1337,20 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     broadcastPresence();
 
     res.json({
-      success:        true,
-      reward:         totalXpGained,
-      credits_earned: 0,
-      xp_earned:      totalXpGained,
-      skill_name:     completedSkillName,
-      user:           updatedUser.rows[0],
+      success:          true,
+      reward:           totalXpGained,
+      credits_earned:   sessionCr,
+      xp_earned:        totalXpGained,
+      skill_name:       completedSkillName,
+      user:             updatedUser.rows[0],
       drop,
       leveledUp,
-      newLevel:      globalLevel,
+      newLevel:         globalLevel,
+      skillLeveledUp,
+      skillHit99,
+      newSkillLevel:    returnedSkillLevel,
+      streak_bonus:     streakBonus,
+      milestone:        milestoneClaimed,
     });
   } catch (err) {
     await completeClient.query("ROLLBACK");
@@ -2174,32 +2340,53 @@ async function sendExpoPushToUser(userId, payload) {
 cron.schedule("0 * * * *", async () => {
   try {
     const expired = await pool.query(
-      `SELECT id, external_id, username, streak
+      `SELECT id, external_id, username, streak, streak_shield
        FROM users
        WHERE streak > 0
          AND streak_last_updated < NOW() - INTERVAL '24 hours'`,
     );
     if (!expired.rows.length) return;
 
-    const ids = expired.rows.map((expiredUser) => expiredUser.id);
-    await pool.query(
-      `UPDATE users SET streak = 0 WHERE id = ANY($1::int[])`,
-      [ids],
-    );
+    const shieldedUsers = expired.rows.filter(expiredUser => expiredUser.streak_shield);
+    const resetUsers    = expired.rows.filter(expiredUser => !expiredUser.streak_shield);
 
-    for (const user of expired.rows) {
-      pushUserPatch(user.external_id).catch(() => {});
-      await sendPushToUser(user.id, {
-        title: "Zenith",
-        body: `💀 Your ${user.streak}-day streak has ended. Complete a session today to start a new one.`,
-        icon: "/icons.svg",
-        badge: "/icons.svg",
-        tag: "streak-reset",
-        data: { url: "/" },
-      });
+    // Shielded users: consume the shield and reset the 24h window so they have
+    // until tomorrow to complete a session. Streak count is preserved.
+    if (shieldedUsers.length) {
+      const shieldedIds = shieldedUsers.map(expiredUser => expiredUser.id);
+      await pool.query(
+        `UPDATE users
+         SET streak_shield = false, streak_last_updated = NOW()
+         WHERE id = ANY($1::int[])`,
+        [shieldedIds],
+      );
     }
 
-    console.log(`Streak reaper: reset ${expired.rows.length} user(s)`);
+    // Unshielded users: streak resets to 0.
+    if (resetUsers.length) {
+      const resetIds = resetUsers.map(expiredUser => expiredUser.id);
+      await pool.query(
+        `UPDATE users SET streak = 0 WHERE id = ANY($1::int[])`,
+        [resetIds],
+      );
+    }
+
+    for (const expiredUser of expired.rows) {
+      pushUserPatch(expiredUser.external_id).catch(() => {});
+      if (expiredUser.streak_shield) {
+        await sendExpoPushToUser(expiredUser.id, {
+          title: "Streak Shield used",
+          body:  `Your ${expiredUser.streak}-day streak was protected. Complete a session today to keep it.`,
+        });
+      } else {
+        await sendExpoPushToUser(expiredUser.id, {
+          title: "Streak lost",
+          body:  `Your ${expiredUser.streak}-day streak has ended. Start fresh today.`,
+        });
+      }
+    }
+
+    console.log(`Streak reaper: shielded ${shieldedUsers.length}, reset ${resetUsers.length}`);
   } catch (err) {
     console.error("Streak reaper error:", err.message);
   }
@@ -2292,20 +2479,21 @@ cron.schedule("0 * * * *", async () => {
          u.id,
          COUNT(t.id)::int                          AS session_count,
          COALESCE(SUM(t.duration_minutes), 0)::int AS total_minutes,
-         COALESCE(SUM(t.xp_earned), 0)::int        AS total_xp,
          s.name                                    AS top_skill
        FROM users u
        JOIN tasks t ON t.user_id = u.id::text
          AND t.completed_at >= NOW() - INTERVAL '7 days'
+         AND t.status = 'SUCCESS'
        LEFT JOIN LATERAL (
          SELECT sk.name
          FROM tasks t2
          JOIN skills sk ON sk.id = t2.skill_id
          WHERE t2.user_id = u.id::text
            AND t2.completed_at >= NOW() - INTERVAL '7 days'
+           AND t2.status = 'SUCCESS'
            AND t2.skill_id IS NOT NULL
          GROUP BY sk.name
-         ORDER BY SUM(t2.xp_earned) DESC
+         ORDER BY COUNT(t2.id) DESC
          LIMIT 1
        ) s ON true
        WHERE EXTRACT(DOW  FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 0
@@ -2319,7 +2507,7 @@ cron.schedule("0 * * * *", async () => {
       const skillLine = row.top_skill ? ` Top skill: ${row.top_skill}.` : "";
       await sendExpoPushToUser(row.id, {
         title: "Zenith — Weekly Summary",
-        body:  `📊 ${row.session_count} sessions · ${row.total_minutes} min focused · +${row.total_xp} XP.${skillLine}`,
+        body:  `${row.session_count} sessions · ${row.total_minutes} min focused.${skillLine}`,
       });
     }
 

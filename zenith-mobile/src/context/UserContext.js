@@ -2,6 +2,9 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { useAuth } from "@clerk/clerk-expo";
 import { fetchUser, createUser, setAuthToken } from "../services/api";
 import { registerPushToken } from "../services/notifications";
+import Purchases from "react-native-purchases";
+
+const REVENUECAT_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY;
 
 const UserContext = createContext(null);
 
@@ -24,6 +27,7 @@ export function UserProvider({ children }) {
       registerPushToken(token).catch(() => {});
       const res = await fetchUser(userId);
       setUser(res.data);
+      if (REVENUECAT_KEY) Purchases.logIn(userId).catch(() => {});
     } catch (err) {
       // 404 means the user exists in Clerk but not in our DB yet — create them
       if (err.response?.status === 404) {
@@ -31,6 +35,7 @@ export function UserProvider({ children }) {
           await createUser({ username: userId, email: "" });
           const res = await fetchUser(userId);
           setUser(res.data);
+          if (REVENUECAT_KEY) Purchases.logIn(userId).catch(() => {});
         } catch (createErr) {
           console.error("[UserContext] createUser failed:", createErr.message);
         }

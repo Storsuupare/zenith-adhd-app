@@ -5,13 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_CONFIG = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-}
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Kinetic Mode: tasks are only reaped if still ACTIVE this many minutes past
 # their deadline (user never completed or aborted — true abandonment).
@@ -32,7 +26,7 @@ def run_reaper_check() -> None:
     """
     conn = None
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -72,7 +66,7 @@ def run_reaper_check() -> None:
 
 
 def start() -> None:
-    print(f"ZENITH WARDEN ONLINE — DB: {DB_CONFIG['dbname']}")
+    print("ZENITH WARDEN ONLINE")
     print(f"Reaper config: max buffer={MAX_BUFFER_MINUTES}m, no lockout penalty")
     while True:
         run_reaper_check()

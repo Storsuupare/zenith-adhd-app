@@ -33,7 +33,7 @@ const STEPS = [
     id: "welcome",
     icon: "⬡",
     title: "Welcome to Zenith",
-    body: "Turn what you're already doing into a game. Every session earns XP and credits. Stay consistent and the streak multiplier stacks.",
+    body: "Turn what you're already doing into a game. Every session earns XP and credits. Maintain your streak to earn bonus credits and unlock milestone rewards.",
   },
   {
     id: "stathud",

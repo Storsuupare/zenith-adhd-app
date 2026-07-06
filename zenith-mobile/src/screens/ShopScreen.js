@@ -6,23 +6,42 @@ import {
 import * as Haptics from "expo-haptics";
 import { useUser } from "../context/UserContext";
 import { useTheme, THEME_DATA } from "../context/ThemeContext";
-import { fetchShopState, purchaseCosmetic } from "../services/api";
+import { useTasks } from "../context/TaskContext";
+import { fetchShopState, purchaseCosmetic, purchaseConsumable } from "../services/api";
 import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
 
+const CONSUMABLES = [
+  {
+    id:          "streak_rescue",
+    label:       "Streak Rescue",
+    description: "Sets your broken streak back to 1. You then have 24h to complete a session or it resets again. Only works when your streak is already at zero.",
+    price:       1500,
+    icon:        "◈",
+  },
+  {
+    id:          "extra_loot_pull",
+    label:       "Extra Loot Pull",
+    description: "Rolls a loot drop right now — same RNG as a session drop. Result shows immediately.",
+    price:       750,
+    icon:        "◇",
+  },
+];
+
+// color is derived from THEME_DATA at render time so it never drifts out of sync
 const THEMES = [
-  { id: "default",  label: "Classic",  color: "#22d3ee", type: "free"                    },
-  { id: "cobalt",   label: "Cobalt",   color: "#3b82f6", type: "credits", price: 1500    },
-  { id: "amber",    label: "Amber",    color: "#f59e0b", type: "credits", price: 1500    },
-  { id: "crimson",  label: "Crimson",  color: "#ef4444", type: "credits", price: 2000    },
-  { id: "violet",   label: "Violet",   color: "#8b5cf6", type: "credits", price: 2500    },
-  { id: "jade",     label: "Jade",     color: "#10b981", type: "credits", price: 3000    },
-  { id: "neon",     label: "Neon",     color: "#f72585", type: "credits", price: 2000    },
-  { id: "arctic",   label: "Arctic",   color: "#67e8f9", type: "credits", price: 2000    },
-  { id: "solar",    label: "Solar",    color: "#fb8500", type: "credits", price: 2500    },
-  { id: "nebula",   label: "Nebula",   color: "#7209b7", type: "credits", price: 3000    },
-  { id: "obsidian", label: "Obsidian", color: "#6d28d9", type: "credits", price: 3000    },
-  { id: "ember",    label: "Ember",    color: "#b87333", type: "credits", price: 3500    },
+  { id: "default",  label: "Classic",  type: "free"                  },
+  { id: "cobalt",   label: "Cobalt",   type: "credits", price:  4500 },
+  { id: "amber",    label: "Amber",    type: "credits", price:  4500 },
+  { id: "crimson",  label: "Crimson",  type: "credits", price:  6000 },
+  { id: "violet",   label: "Violet",   type: "credits", price:  7500 },
+  { id: "jade",     label: "Jade",     type: "credits", price:  9000 },
+  { id: "neon",     label: "Neon",     type: "credits", price:  6000 },
+  { id: "arctic",   label: "Arctic",   type: "credits", price:  6000 },
+  { id: "solar",    label: "Solar",    type: "credits", price:  7500 },
+  { id: "nebula",   label: "Nebula",   type: "credits", price:  9000 },
+  { id: "obsidian", label: "Obsidian", type: "credits", price:  9000 },
+  { id: "ember",    label: "Ember",    type: "credits", price: 10500 },
 ];
 
 function isUnlocked(item, owned) {
@@ -32,16 +51,18 @@ function isUnlocked(item, owned) {
 
 export default function ShopScreen() {
   const { user, fetchUser, refreshToken } = useUser();
+  const { setLoot } = useTasks();
   const { activeTheme, setActiveTheme, previewTheme, accentColor } = useTheme();
 
-  const [owned,      setOwned]     = useState([]);
-  const [buying,     setBuying]    = useState(null);
-  const [feedback,   setFeedback]  = useState(null);
-  const [loading,    setLoading]   = useState(true);
-  const [fetchError, setFetchError] = useState(false);
-  const [retryKey,   setRetryKey]  = useState(0);
-  const [previewId,  setPreviewId] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [owned,            setOwned]            = useState([]);
+  const [buying,           setBuying]           = useState(null);
+  const [buyingConsumable, setBuyingConsumable] = useState(null);
+  const [feedback,         setFeedback]         = useState(null);
+  const [loading,          setLoading]          = useState(true);
+  const [fetchError,       setFetchError]       = useState(false);
+  const [retryKey,         setRetryKey]         = useState(0);
+  const [previewId,        setPreviewId]        = useState(null);
+  const [refreshing,       setRefreshing]       = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -119,6 +140,42 @@ export default function ShopScreen() {
     realThemeRef.current = id;
     setActiveTheme(id);
     setFeedback({ ok: true, msg: "Theme applied" });
+  };
+
+  const handleBuyConsumable = async (item) => {
+    const streakActive = (user?.streak ?? 0) > 0;
+    if (buyingConsumable || credits < item.price) return;
+    if (item.id === "streak_rescue" && streakActive) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBuyingConsumable(item.id);
+    try {
+      await refreshToken();
+      const purchaseResponse = await purchaseConsumable(item.id);
+      fetchUser();
+
+      if (item.id === "extra_loot_pull" && purchaseResponse.data?.rarity) {
+        // Show the same loot overlay the user sees after sessions — makes the
+        // result visible and gives the pull a proper payoff moment.
+        setLoot({
+          rarity:         purchaseResponse.data.rarity,
+          credits_earned: purchaseResponse.data.credits_earned,
+        });
+      } else if (item.id === "streak_rescue") {
+        setFeedback({ ok: true, msg: "Streak restored to 1 — complete a session within 24h to keep it" });
+      } else {
+        setFeedback({ ok: true, msg: `${item.label} activated` });
+      }
+    } catch (purchaseError) {
+      const errorCode = purchaseError.response?.data?.error;
+      const errorMsg =
+        errorCode === "INSUFFICIENT_CREDITS" ? "Not enough credits" :
+        errorCode === "STREAK_NOT_BROKEN"    ? "Your streak is still active — no rescue needed" :
+        errorCode === "TOO_MANY_REQUESTS"    ? "Slow down — try again shortly" :
+        errorCode === "UNAUTHORIZED"         ? "Session expired — please restart the app" :
+        errorCode === "INVALID_TOKEN"        ? "Session expired — please restart the app" :
+        errorCode ? `Error: ${errorCode}` : "Purchase failed — check your connection";
+      setFeedback({ ok: false, msg: errorMsg });
+    } finally { setBuyingConsumable(null); }
   };
 
   const previewLocked = useRef(false);
@@ -208,22 +265,85 @@ export default function ShopScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
       >
 
+        {/* ── CONSUMABLES ─────────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>CONSUMABLES</Text>
+
+        {/* Streak shield passive status — earned at 30-day milestone, not purchasable */}
+        <View style={[
+          styles.shieldStatus,
+          user?.streak_shield
+            ? { borderColor: "#3b82f655", backgroundColor: "rgba(59,130,246,0.06)" }
+            : { borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(0,0,0,0.25)" },
+        ]}>
+          <Text style={[styles.shieldIcon, user?.streak_shield && { color: "#3b82f6" }]}>
+            {user?.streak_shield ? "▣" : "▢"}
+          </Text>
+          <View style={styles.shieldInfo}>
+            <Text style={[styles.shieldLabel, user?.streak_shield && { color: "#3b82f6" }]}>
+              Streak Shield {user?.streak_shield ? "ACTIVE" : "INACTIVE"}
+            </Text>
+            <Text style={styles.shieldDesc}>
+              {user?.streak_shield
+                ? "Your next missed day will be absorbed automatically — your streak count is protected."
+                : "Earned at 30-day milestone. Passively absorbs one missed day before your streak resets."}
+            </Text>
+          </View>
+        </View>
+        {CONSUMABLES.map(item => {
+          const streakIsActive = (user?.streak ?? 0) > 0;
+          const unavailable    = item.id === "streak_rescue" && streakIsActive;
+          const canAfford      = credits >= item.price && !unavailable;
+          const isPurchasing   = buyingConsumable === item.id;
+
+          return (
+            <View key={item.id} style={styles.consumableCard}>
+              <View style={styles.consumableLeft}>
+                <Text style={styles.consumableIcon}>{item.icon}</Text>
+                <View style={styles.consumableInfo}>
+                  <Text style={styles.consumableLabel}>{item.label}</Text>
+                  <Text style={styles.consumableDesc}>{item.description}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.consumableBtn,
+                  canAfford && !isPurchasing && { borderColor: accentColor + "88" },
+                  !canAfford && styles.consumableBtnDisabled,
+                ]}
+                onPress={() => handleBuyConsumable(item)}
+                disabled={!canAfford || !!isPurchasing}
+                activeOpacity={0.75}
+              >
+                <Text style={[
+                  styles.consumableBtnTxt,
+                  canAfford && { color: accentColor },
+                  !canAfford && styles.consumableBtnTxtDisabled,
+                ]}>
+                  {isPurchasing ? "···" : unavailable ? "STREAK ACTIVE" : `${item.price} CR`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+
         {/* ── THEMES ──────────────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>THEMES</Text>
         <View style={styles.themeGrid}>
           {THEMES.map(item => {
-            const unlocked = isUnlocked(item, owned);
-            const active   = activeTheme === item.id;
-            const canBuy   = item.price && !unlocked && credits >= item.price;
-            const isBuying = buying === item.id;
+            const themeColor = THEME_DATA[item.id]?.accent ?? "#22d3ee";
+            const unlocked   = isUnlocked(item, owned);
+            const active     = activeTheme === item.id;
+            const canBuy     = item.price && !unlocked && credits >= item.price;
+            const isBuying   = buying === item.id;
 
             return (
               <TouchableOpacity
                 key={item.id}
                 style={[
                   styles.themeCard,
-                  (active && !previewId) && { borderColor: item.color, borderWidth: 2 },
-                  previewId === item.id && { borderColor: item.color, borderWidth: 2 },
-                  !unlocked && !canBuy && styles.locked,
+                  (active && !previewId) && { borderColor: themeColor, borderWidth: 2 },
+                  previewId === item.id   && { borderColor: themeColor, borderWidth: 2 },
+                  !unlocked && !canBuy   && styles.locked,
                 ]}
                 onPress={() => {
                   if (unlocked) handleApplyTheme(item.id);
@@ -233,25 +353,25 @@ export default function ShopScreen() {
                 activeOpacity={0.75}
               >
                 {/* Color swatch */}
-                <View style={[styles.swatch, { backgroundColor: item.color }]}>
+                <View style={[styles.swatch, { backgroundColor: themeColor }]}>
                   {active && !previewId && <Text style={styles.activeCheck}>✓</Text>}
                   {previewId === item.id && <Text style={styles.activeCheck}>◉</Text>}
                 </View>
 
                 {/* Label */}
-                <Text style={[styles.themeLabel, active && { color: item.color }]} numberOfLines={1}>
+                <Text style={[styles.themeLabel, active && { color: themeColor }]} numberOfLines={1}>
                   {item.label}
                 </Text>
 
                 {/* Price or status */}
                 {previewId === item.id ? (
-                  <Text style={[styles.themePrice, { color: item.color }]}>Preview</Text>
+                  <Text style={[styles.themePrice, { color: themeColor }]}>Preview</Text>
                 ) : !unlocked && item.price ? (
-                  <Text style={[styles.themePrice, canBuy && { color: item.color }]}>
+                  <Text style={[styles.themePrice, canBuy && { color: themeColor }]}>
                     {isBuying ? "···" : canBuy ? `BUY · ${item.price} CR` : `${item.price} CR`}
                   </Text>
                 ) : unlocked && active ? (
-                  <Text style={[styles.themePrice, { color: item.color }]}>Active</Text>
+                  <Text style={[styles.themePrice, { color: themeColor }]}>Active</Text>
                 ) : (
                   <Text style={styles.themePrice}>Apply</Text>
                 )}
@@ -305,6 +425,84 @@ const styles = StyleSheet.create({
   tabTxt: { color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: FONTS.bold, letterSpacing: 1 },
 
   content: { padding: 16, paddingBottom: 40, gap: 12 },
+
+  sectionLabel: {
+    color:         "rgba(255,255,255,0.35)",
+    fontSize:      11,
+    fontFamily:    FONTS.bold,
+    letterSpacing: 2,
+    marginTop:     4,
+    marginBottom:  2,
+  },
+
+  // Shield status
+  shieldStatus: {
+    flexDirection:   "row",
+    alignItems:      "flex-start",
+    borderWidth:     1,
+    borderRadius:    12,
+    padding:         14,
+    gap:             12,
+  },
+  shieldIcon: {
+    fontSize:   18,
+    color:      "rgba(255,255,255,0.2)",
+    width:      24,
+    textAlign:  "center",
+    marginTop:  1,
+  },
+  shieldInfo:  { flex: 1, gap: 3 },
+  shieldLabel: {
+    color:         "rgba(255,255,255,0.4)",
+    fontSize:      12,
+    fontFamily:    FONTS.bold,
+    letterSpacing: 1,
+  },
+  shieldDesc: {
+    color:      "rgba(255,255,255,0.3)",
+    fontSize:   11,
+    fontFamily: FONTS.regular,
+    lineHeight: 16,
+  },
+
+  // Consumables
+  consumableCard: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0,0,0,0.40)",
+    borderWidth:    1,
+    borderColor:    "rgba(255,255,255,0.07)",
+    borderRadius:   12,
+    padding:        14,
+    gap:            12,
+  },
+  consumableLeft: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           12,
+    flex:          1,
+  },
+  consumableIcon: {
+    color:      "rgba(255,255,255,0.5)",
+    fontSize:   20,
+    fontFamily: FONTS.bold,
+    width:      24,
+    textAlign:  "center",
+  },
+  consumableInfo:  { flex: 1 },
+  consumableLabel: { color: "#f8fafc", fontSize: 13, fontFamily: FONTS.semiBold, marginBottom: 2 },
+  consumableDesc:  { color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: FONTS.regular, lineHeight: 16 },
+  consumableBtn: {
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.15)",
+    borderRadius:      8,
+    paddingHorizontal: 12,
+    paddingVertical:   8,
+  },
+  consumableBtnDisabled: { opacity: 0.4 },
+  consumableBtnTxt:      { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: FONTS.bold },
+  consumableBtnTxtDisabled: { color: "rgba(255,255,255,0.25)" },
 
   // Themes
   themeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },

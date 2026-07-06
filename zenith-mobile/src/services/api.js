@@ -48,6 +48,8 @@ export const prestigeSkill = (skillName) => api.post("/skills/prestige", { skill
 
 // ── Stripe ────────────────────────────────────────────────────────────────────
 export const createCheckoutSession = (targetTier) =>
-  api.post("/payments/create-checkout-session", { targetTier });
+  api.post("/payments/create-session", { targetTier });
+
+export const createPortalSession = () => api.post("/payments/create-portal-session");
 
 export default api;

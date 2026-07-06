@@ -11,6 +11,7 @@ export function TaskProvider({ children }) {
   const [loot,          setLoot]          = useState(null);
   const [levelUpData,   setLevelUpData]   = useState(null);
   const [prestigeData,  setPrestigeData]  = useState(null);
+  const pendingMilestone = React.useRef(null);
 
   const loadContracts = useCallback(async () => {
     if (!user?.external_id && !userId) return;
@@ -46,29 +47,76 @@ export function TaskProvider({ children }) {
       await refreshToken();
       const oldStreak = user?.streak ?? 0;
       const res = await completeTask(String(taskId));
-      await Promise.all([loadContracts(), fetchUser()]);
+      // Delay contract refresh so DoneOverlay has time to show the reward animation
+      // before the modal closes due to the active contract disappearing.
+      setTimeout(() => Promise.all([loadContracts(), fetchUser()]), 4000);
 
-      const { reward, leveledUp, newLevel, drop } = res.data;
+      const { reward, leveledUp, newLevel, drop, skillLeveledUp, skillHit99, newSkillLevel, milestone, streak_bonus } = res.data;
       const newStreak = res.data.user?.streak ?? 0;
 
       // Trigger loot overlay if a drop was earned
       if (drop?.rarity) setLoot(drop);
 
-      // Trigger level-up overlay
-      if (leveledUp) {
+      // Build milestone payload for the modal (used below to sequence it correctly)
+      const milestonePayload = milestone ? {
+        type:            "milestone",
+        days:            milestone.days,
+        credits_earned:  milestone.credits_earned,
+        loot:            milestone.loot,
+        shield_unlocked: milestone.shield_unlocked,
+      } : null;
+
+      // Trigger the right celebration based on what happened.
+      // Milestone is always sequenced after any level-up to avoid two modals stacking.
+      const hasLevelCelebration = skillHit99 || leveledUp || skillLeveledUp;
+
+      if (skillHit99) {
         setLevelUpData({
+          type:      "skill99",
+          skillName: res.data.skill_name || null,
+          level:     99,
+          xpGain:    reward,
+          tier:      user?.account_tier ?? 0,
+        });
+      } else if (leveledUp) {
+        setLevelUpData({
+          type:      "totalLevelUp",
           level:     newLevel,
           xpGain:    reward,
           skillName: res.data.skill_name || null,
+          tier:      user?.account_tier ?? 0,
+        });
+      } else if (skillLeveledUp) {
+        setLevelUpData({
+          type:      "skillLevelUp",
+          skillName: res.data.skill_name || null,
+          level:     newSkillLevel,
+          xpGain:    reward,
           tier:      user?.account_tier ?? 0,
         });
       } else if (reward) {
         addNotification({ type: "success", message: `+${reward} XP earned` });
       }
 
-      // Streak milestone notification
-      if (newStreak > oldStreak) {
-        addNotification({ type: "success", message: `🔥 ${newStreak}-day streak!` });
+      if (milestonePayload) {
+        if (hasLevelCelebration) {
+          // Queue the milestone to fire after the level-up modal auto-dismisses.
+          // The slowest auto-dismiss is skill99 at 5000ms; add 1s buffer.
+          pendingMilestone.current = milestonePayload;
+          setTimeout(() => {
+            if (pendingMilestone.current) {
+              setLevelUpData(pendingMilestone.current);
+              pendingMilestone.current = null;
+            }
+          }, 6000);
+        } else {
+          setLevelUpData(milestonePayload);
+        }
+      }
+
+      // Streak increment notification (only if no full milestone modal is showing)
+      if (newStreak > oldStreak && !milestonePayload) {
+        addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  +${streak_bonus} CR` : "") });
       }
 
       return res.data;
@@ -93,12 +141,19 @@ export function TaskProvider({ children }) {
     }
   }, [refreshToken, loadContracts, fetchUser, addNotification, user?.streak]);
 
+  const dismissLevelUp = useCallback(() => {
+    // If the user manually taps to dismiss before the auto-dismiss fires, cancel
+    // any pending milestone so it doesn't appear several seconds later unexpectedly.
+    pendingMilestone.current = null;
+    setLevelUpData(null);
+  }, []);
+
   return (
     <TaskContext.Provider value={{
       contracts, loadContracts,
       notifications, addNotification,
       loot, setLoot,
-      levelUpData, setLevelUpData,
+      levelUpData, setLevelUpData, dismissLevelUp,
       prestigeData, setPrestigeData,
       handleCreateTask, handleComplete, handleAbort,
     }}>

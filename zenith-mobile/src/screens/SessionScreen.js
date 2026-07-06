@@ -6,6 +6,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
+import { useTheme } from "../context/ThemeContext";
 
 // ── Neural Clock window — mirrors server getNeuralMult() ─────────────────────
 function getNeuralWindow() {
@@ -46,55 +47,71 @@ function formatTime(totalSeconds) {
 
 // ── Done state — mirrors ContractCard DoneCard but full-screen ────────────────
 function DoneOverlay({ contract, skillColor, onComplete }) {
-  const [phase,     setPhase]     = useState("calculating");
-  const [displayXP, setDisplayXP] = useState(0);
-  const [isPending, setIsPending] = useState(false);
-  const pulse = useRef(new Animated.Value(0.25)).current;
+  const [phase,        setPhase]        = useState("idle");
+  const [displayXP,    setDisplayXP]    = useState(0);
+  const [sessionCr,    setSessionCr]    = useState(0);
+  const [isPending,    setIsPending]    = useState(false);
+  const [neuralWindow, setNeuralWindow] = useState(() => getNeuralWindow());
+  const pulse = useRef(new Animated.Value(0.3)).current;
 
+  // Pulse the ??? while idle
   useEffect(() => {
+    if (phase !== "idle") return;
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.7, duration: 600, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.25, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.9, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.3, duration: 700, useNativeDriver: true }),
       ])
     );
     anim.start();
+    return () => anim.stop();
+  }, [phase]);
 
-    const t1 = setTimeout(() => {
-      anim.stop();
-      setPhase("revealing");
-      const target = contract.stake_amount || 0;
-      const steps  = 24;
-      let step = 0;
-      const id = setInterval(() => {
-        step++;
-        setDisplayXP(Math.round((target / steps) * step));
-        if (step >= steps) { setDisplayXP(target); clearInterval(id); }
-      }, 800 / steps);
-    }, 2000);
-
-    const t2 = setTimeout(() => setPhase("ready"), 2900);
-    return () => { clearTimeout(t1); clearTimeout(t2); anim.stop(); };
-  }, []);
+  const runReveal = (actualReward) => {
+    setPhase("revealing");
+    const target = actualReward || 0;
+    const steps  = 28;
+    let step = 0;
+    const intervalId = setInterval(() => {
+      step++;
+      setDisplayXP(Math.round((target / steps) * step));
+      if (step >= steps) {
+        setDisplayXP(target);
+        clearInterval(intervalId);
+        setPhase("done");
+      }
+    }, 900 / steps);
+  };
 
   const handleCollect = async () => {
     if (isPending) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsPending(true);
-    try { await onComplete(contract.id); }
-    finally { setIsPending(false); }
+    setPhase("collecting");
+    try {
+      const result = await onComplete(contract.id);
+      const actualReward = result?.reward ?? result?.xp_earned ?? contract.stake_amount ?? 0;
+      setSessionCr(result?.credits_earned ?? 0);
+      runReveal(actualReward);
+    } catch (collectError) {
+      console.error("[DoneOverlay] collect failed:", collectError?.message);
+      setPhase("idle");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
     <View style={done.root}>
       <View style={[done.strip, { backgroundColor: skillColor }]} />
+
       <Text style={[done.skillLabel, { color: skillColor }]}>
         {(contract.skill_name || "GENERAL").toUpperCase()}
       </Text>
       <Text style={done.title}>{(contract.title || "").toUpperCase()}</Text>
 
       <View style={done.xpRow}>
-        {phase === "calculating" ? (
+        {phase === "idle" || phase === "collecting" ? (
           <Animated.Text style={[done.xpNum, { color: skillColor, opacity: pulse }]}>???</Animated.Text>
         ) : (
           <Text style={[done.xpNum, { color: skillColor }]}>+{displayXP}</Text>
@@ -102,22 +119,41 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
         <Text style={done.xpLabel}>XP</Text>
       </View>
 
-      {phase === "calculating" && (
-        <Text style={done.calcLabel}>CALCULATING REWARDS...</Text>
+      {phase === "done" && sessionCr > 0 && (
+        <Text style={done.crEarned}>+{sessionCr} CR</Text>
       )}
 
-      {phase === "ready" && (
+      {neuralWindow.isRedzone && (phase === "idle" || phase === "collecting") && (
+        <View style={done.redzoneNotice}>
+          <Text style={done.redzoneNoticeText}>REDZONE ACTIVE — REWARDS HALVED</Text>
+        </View>
+      )}
+
+      {phase === "done" && neuralWindow.label !== "STANDARD" && (
+        <View style={[done.neuralBadge, {
+          backgroundColor: neuralWindow.color + "18",
+          borderColor:     neuralWindow.color + "45",
+        }]}>
+          <Text style={[done.neuralBadgeText, { color: neuralWindow.color }]}>
+            {neuralWindow.label} ×{neuralWindow.mult} APPLIED
+          </Text>
+        </View>
+      )}
+
+      {phase === "idle" && (
         <TouchableOpacity
           style={[done.collectBtn, { backgroundColor: skillColor }]}
           onPress={handleCollect}
-          disabled={isPending}
           activeOpacity={0.85}
         >
-          {isPending
-            ? <ActivityIndicator color="#000" />
-            : <Text style={done.collectText}>COLLECT REWARD →</Text>
-          }
+          <Text style={done.collectText}>COLLECT REWARD →</Text>
         </TouchableOpacity>
+      )}
+
+      {phase === "collecting" && (
+        <View style={[done.collectBtn, { backgroundColor: skillColor, opacity: 0.6 }]}>
+          <ActivityIndicator color="#000" />
+        </View>
       )}
     </View>
   );
@@ -125,6 +161,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
 
 // ── Main session screen ───────────────────────────────────────────────────────
 export default function SessionScreen({ contract, onComplete, onAbort }) {
+  const { accentColor } = useTheme() || {};
   const duration     = Number(contract.duration_minutes || 30);
   const totalSeconds = duration * 60;
   const prestige     = Number(contract.prestige_level || 0);
@@ -255,7 +292,7 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
         <View style={styles.dataDivider} />
         <View style={styles.dataNode}>
           <Text style={styles.dataLabel}>NEURAL</Text>
-          <Text style={[styles.dataValue, { color: neural.color }]}>
+          <Text style={[styles.dataValue, { color: neural.label === "PEAK" ? (accentColor || neural.color) : neural.color }]}>
             ×{neural.mult} {neural.label}
           </Text>
         </View>
@@ -317,7 +354,7 @@ const styles = StyleSheet.create({
   // ── Header ──
   header: {
     gap:        10,
-    marginTop:  16,
+    marginTop:  48,
     alignItems: "center",
   },
   skillRow: {
@@ -328,8 +365,8 @@ const styles = StyleSheet.create({
   },
   skillName: {
     fontFamily:    FONTS.monoBold,
-    fontSize:      11,
-    fontWeight:    "700",
+    fontSize:      15,
+    fontWeight:    "900",
     letterSpacing: 3,
   },
   skillDot: {
@@ -375,9 +412,10 @@ const styles = StyleSheet.create({
   },
   timerLabel: {
     fontFamily:    FONTS.monoBold,
-    fontSize:      11,
-    fontWeight:    "700",
+    fontSize:      21,
+    fontWeight:    "900",
     letterSpacing: 4,
+    opacity:       0.9,
   },
 
   // ── Progress bar ──
@@ -509,18 +547,18 @@ const done = StyleSheet.create({
   },
   skillLabel: {
     fontFamily:    FONTS.monoBold,
-    fontSize:      12,
-    fontWeight:    "800",
+    fontSize:      20,
+    fontWeight:    "900",
     letterSpacing: 3,
   },
   title: {
     fontFamily:    FONTS.black,
-    fontSize:      26,
+    fontSize:      34,
     fontWeight:    "900",
     color:         "#ffffff",
     letterSpacing: -0.5,
     textAlign:     "center",
-    lineHeight:    30,
+    lineHeight:    38,
   },
   xpRow: {
     flexDirection:  "row",
@@ -548,6 +586,42 @@ const done = StyleSheet.create({
     fontWeight:    "900",
     letterSpacing: 2,
     color:         "rgba(255,255,255,0.3)",
+  },
+  redzoneNotice: {
+    backgroundColor: "rgba(255,34,34,0.1)",
+    borderWidth:     1,
+    borderColor:     "rgba(255,34,34,0.35)",
+    borderRadius:    8,
+    paddingVertical:   8,
+    paddingHorizontal: 16,
+    alignItems:      "center",
+  },
+  redzoneNoticeText: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      11,
+    fontWeight:    "900",
+    letterSpacing: 2,
+    color:         "#ff4444",
+  },
+  crEarned: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      18,
+    fontWeight:    "700",
+    color:         "#fbbf24",
+    letterSpacing: 0.5,
+  },
+  neuralBadge: {
+    borderWidth:       1,
+    borderRadius:      8,
+    paddingVertical:   8,
+    paddingHorizontal: 16,
+    alignItems:        "center",
+  },
+  neuralBadgeText: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      11,
+    fontWeight:    "900",
+    letterSpacing: 2,
   },
   collectBtn: {
     width:           "100%",

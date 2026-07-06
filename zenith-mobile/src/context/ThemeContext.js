@@ -1,20 +1,19 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Exact values from web App.css theme definitions
 export const THEME_DATA = {
-  default:  { accent: "#22d3ee", skyCore: "#03060b" },
-  cobalt:   { accent: "#3b82f6", skyCore: "#030712" },
-  amber:    { accent: "#f59e0b", skyCore: "#0d0800" },
-  crimson:  { accent: "#ef4444", skyCore: "#0a0305" },
-  violet:   { accent: "#8b5cf6", skyCore: "#050312" },
-  jade:     { accent: "#10b981", skyCore: "#030f08" },
-  neon:     { accent: "#f72585", skyCore: "#050108" },
-  arctic:   { accent: "#67e8f9", skyCore: "#060e1e" },
-  solar:    { accent: "#fb8500", skyCore: "#1a0900" },
-  nebula:   { accent: "#7209b7", skyCore: "#04000e" },
-  obsidian: { accent: "#6d28d9", skyCore: "#000000" },
-  ember:    { accent: "#b87333", skyCore: "#0d0906" },
+  default:  { accent: "#22d3ee", skyCore: "#03060b" },  // electric cyan
+  cobalt:   { accent: "#3b82f6", skyCore: "#030712" },  // royal blue
+  amber:    { accent: "#f59e0b", skyCore: "#0d0800" },  // golden amber
+  crimson:  { accent: "#ef4444", skyCore: "#0a0305" },  // vivid red
+  violet:   { accent: "#a855f7", skyCore: "#050312" },  // bright violet
+  jade:     { accent: "#34d399", skyCore: "#030f08" },  // vivid emerald
+  neon:     { accent: "#f72585", skyCore: "#050108" },  // hot pink
+  arctic:   { accent: "#38bdf8", skyCore: "#060e1e" },  // vivid sky blue
+  solar:    { accent: "#f97316", skyCore: "#1a0900" },  // bright orange
+  nebula:   { accent: "#d946ef", skyCore: "#04000e" },  // bright fuchsia-purple
+  obsidian: { accent: "#818cf8", skyCore: "#000000" },  // electric indigo
+  ember:    { accent: "#fb923c", skyCore: "#0d0906" },  // glowing coral-orange
 };
 
 const ThemeContext = createContext(null);

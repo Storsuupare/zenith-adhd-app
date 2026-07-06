@@ -229,9 +229,9 @@ const THEME_MOON = {
   neon:     "#ff70d0",
   arctic:   "#c0f0ff",
   solar:    "#ffb060",
-  nebula:   "#c080ff",
-  obsidian: "#b090e0",
-  ember:    "#d4944a",
+  nebula:   "#e879f9",
+  obsidian: "#a5b4fc",
+  ember:    "#fdba74",
 };
 
 // ── Theme sun tint ────────────────────────────────────────────────────────────
@@ -244,9 +244,9 @@ const THEME_SUN = {
   neon:     ["#ff80e0", "rgba(240,20,160,1.0)"],
   arctic:   ["#e8f8ff", "rgba(100,220,255,1.0)"],
   solar:    ["#fff060", "rgba(255,140,0,1.0)"],
-  nebula:   ["#e0b0ff", "rgba(180,20,240,1.0)"],
-  obsidian: ["#c0a0f0", "rgba(120,40,220,1.0)"],
-  ember:    ["#e8963a", "rgba(200,100,30,1.0)"],
+  nebula:   ["#f0a0ff", "rgba(217,70,239,1.0)"],
+  obsidian: ["#c7d2fe", "rgba(129,140,248,1.0)"],
+  ember:    ["#fed7aa", "rgba(251,146,60,1.0)"],
 };
 
 // ── Theme star color ──────────────────────────────────────────────────────────
@@ -259,9 +259,9 @@ const THEME_STAR = {
   neon:     "#ff80e0",
   arctic:   "#c0f0ff",
   solar:    "#ffcc80",
-  nebula:   "#c080ff",
-  obsidian: "#b090e0",
-  ember:    "#d4844a",
+  nebula:   "#e879f9",
+  obsidian: "#a5b4fc",
+  ember:    "#fdba74",
 };
 
 // ── Sun config per phase (position + size for arc interpolation) ──────────────
@@ -354,7 +354,7 @@ const Star = React.memo(function Star({ x, y, size, delay, color }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SolarBackdrop({ children }) {
-  const { activeTheme } = useTheme() || {};
+  const { activeTheme, accentColor } = useTheme() || {};
 
   // Re-derive sky colors every 60 seconds — each step is imperceptible
   const [, setTick] = useState(0);
@@ -438,6 +438,9 @@ export default function SolarBackdrop({ children }) {
       {starElements}
 
       <View style={styles.overlay} />
+      {accentColor && (
+        <View style={[styles.fill, { backgroundColor: accentColor + "0e" }]} pointerEvents="none" />
+      )}
       <View style={styles.content}>{children}</View>
     </View>
   );
