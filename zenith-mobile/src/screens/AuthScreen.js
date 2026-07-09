@@ -15,7 +15,7 @@ export default function AuthScreen() {
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
 
-  const [mode,     setMode]     = useState("signin"); // "signin" | "signup" | "verify"
+  const [mode,     setMode]     = useState("signup"); // "signin" | "signup" | "verify"
   const [verifyFlow, setVerifyFlow] = useState("signin"); // tracks whether verify came from signin or signup
   const [email,    setEmail]    = useState("");
   const [username, setUsername] = useState("");

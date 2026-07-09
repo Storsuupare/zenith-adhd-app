@@ -10,11 +10,11 @@ Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store
 
 | Layer       | Technology                                                  |
 |-------------|-------------------------------------------------------------|
-| Mobile      | React Native 0.76 + Expo SDK 52                             |
+| Mobile      | React Native 0.76 + Expo SDK 54                             |
 | Web         | React 18 + Vite 5                                           |
 | Backend     | Node.js 20 + Express 4 + PostgreSQL 16                      |
 | Auth        | Clerk (JWT-based, webhook-verified role sync)               |
-| Payments    | Stripe (web subscriptions) + Apple IAP (mobile)             |
+| Payments    | Stripe (web subscriptions) + Apple IAP via RevenueCat (mobile) |
 | Email       | Resend                                                      |
 | Hosting     | Railway (API + DB) + Vercel (web)                           |
 
@@ -49,9 +49,7 @@ Payments are split: Stripe handles web subscriptions, Apple IAP handles mobile p
 
 ### Session economy
 
-Every completed focus session earns XP and has a chance to drop a loot item. Credits come exclusively from loot drops — never from session completion — so the reward curve stays unpredictable and dopamine-relevant.
-
-Drop probability is tier-gated: FREE 25%, PRO 50%, ELITE 75%. Paying users get more *chances*, not more *guaranteed* outcomes. The free tier has access to identical rarity tables.
+Every completed focus session earns XP and a flat credit reward based on duration (5 min → 25 CR, 15 min → 60 CR, 30 min → 120 CR, 60 min → 220 CR, 90 min → 320 CR, 120 min → 420 CR). Sessions also have a flat 25% chance to drop a loot item regardless of tier — paying users get the same odds, not better ones.
 
 ### Neural Clock
 
@@ -59,23 +57,19 @@ Rewards shift with the time of day. A 12AM–5AM REDZONE halves XP (Guardian Log
 
 ### Skill system
 
-12 independent skills (Logic Flow, Resolve, Vitality, Creativity, and more), each with its own XP bar from level 1–99. At 99, prestige resets the skill to level 1 and grants a permanent +10% XP multiplier to that skill. Prestige stacks.
+12 independent skills (Logic Flow, Resolve, Vitality, Creativity, and more), each with its own XP bar from level 1–99. XP required per level follows `100 × level^1.6` — roughly 6.7M total XP to max a skill, tuned for ~18 months of regular use. PRO users can Prestige at 99: the skill resets to 1 and grants a permanent +10% XP multiplier to that skill. Prestige stacks.
 
 ### Streak system
 
-A streak multiplier accumulates with consecutive days of completed sessions. The multiplier feeds into skill XP calculation alongside the prestige and time-of-day multipliers. Missing a day resets the streak — no streak shields, no soft resets.
-
-### Shatter
-
-PRO+ users can split a 120-minute session into 4 × 30-minute sub-tasks. Each sub-task is tracked independently, preventing the paralysis that comes from staring at a single two-hour block.
+A streak multiplier accumulates with consecutive days of completed sessions. The multiplier feeds into skill XP calculation alongside the prestige and time-of-day multipliers. Missing a day resets the streak. PRO users get a streak shield — a one-time absorber that burns on a missed day instead of resetting the streak. ELITE users have their shield auto-replenish after use.
 
 ### Daily challenges
 
-A rotating daily challenge (e.g. "complete 3 sessions", "train two different skills"). Completing it unlocks a 50 CR claim. The claim button disappears immediately on tap via optimistic local state — the DB prevents double-claim independently.
+A rotating daily challenge (e.g. "complete 3 sessions", "train two different skills"). Completing it unlocks a 150 CR claim. The claim button disappears immediately on tap via optimistic local state — the DB prevents double-claim independently.
 
 ### Loot drops + shop
 
-Finishing a session has a tier-based chance to drop a cosmetic item (rarity: Common → Legendary). Credits are spent in the shop on sky themes that change the entire visual backdrop. PRO and ELITE unlock additional theme categories.
+Finishing a session has a 25% chance to drop a cosmetic item (rarity: Common → Legendary). Credits are spent in the shop on sky themes that change the entire visual backdrop. All themes are available to every user regardless of tier.
 
 ### Solar backdrop
 
@@ -85,13 +79,13 @@ The app background renders a real-time sky gradient that transitions through daw
 
 ## Monetization
 
-| Tier  | Price     | XP multiplier | Loot drop rate |
-|-------|-----------|---------------|----------------|
-| FREE  | —         | 1×            | 25%            |
-| PRO   | €4.99/mo  | 1.5×          | 50%            |
-| ELITE | €9.99/mo  | 2×            | 75%            |
+| Tier  | Price     | Task slots | History depth | Prestige | Streak shield       | CSV export |
+|-------|-----------|------------|---------------|----------|---------------------|------------|
+| FREE  | —         | 5          | 7 days        | —        | —                   | —          |
+| PRO   | €4.99/mo  | 15         | 6 months      | Yes      | One-time            | Yes        |
+| ELITE | €9.99/mo  | Unlimited  | All time      | Yes      | Auto-replenishes    | Yes        |
 
-Paying buys comfort and capacity — never a hard advantage. Free users progress on the same rarity tables. No paywalled XP, no experience gates, no pay-to-win mechanics.
+Paying buys depth and capacity — never a gameplay advantage. Drop rates, XP speed, and loot rarity are identical across all tiers. No pay-to-win mechanics.
 
 Billing is hybrid: web subscriptions go through Stripe (full portal, invoice history, cancel anytime), mobile through Apple IAP. Backend reconciles both into a single `role` field.
 

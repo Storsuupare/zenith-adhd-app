@@ -42,6 +42,7 @@ export const claimLoot      = (item, equipNow) => api.post("/api/inventory/claim
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export const fetchSummitHistory = (limit) => api.get(`/api/stats/summit-history?limit=${limit ?? 20}`);
+export const exportSessionsCsv  = ()      => api.get("/api/stats/export-csv", { responseType: "blob" });
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 export const prestigeSkill = (skillName) => api.post("/skills/prestige", { skillName });

@@ -15,7 +15,7 @@ const CONSUMABLES = [
   {
     id:          "streak_rescue",
     label:       "Streak Rescue",
-    description: "Sets your broken streak back to 1. You then have 24h to complete a session or it resets again. Only works when your streak is already at zero.",
+    description: "Revives a broken streak to 1. Complete a session within 24h or it resets.",
     price:       1500,
     icon:        "◈",
   },

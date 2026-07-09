@@ -67,7 +67,7 @@ export default function SettingsScreen({ navigation }) {
     setSubscriptionLoading(true);
     try {
       if (process.env.EXPO_PUBLIC_REVENUECAT_KEY) {
-        const customerInfo       = await Purchases.getCustomerInfo();
+        const customerInfo        = await Purchases.getCustomerInfo();
         const hasAppleEntitlement = Object.keys(customerInfo.entitlements.active).length > 0;
         if (hasAppleEntitlement) {
           await Purchases.showManageSubscriptions();
@@ -84,6 +84,24 @@ export default function SettingsScreen({ navigation }) {
       }
     } catch {
       Alert.alert("Error", "Could not open subscription management. Please try again.");
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_KEY) return;
+    setSubscriptionLoading(true);
+    try {
+      const customerInfo = await Purchases.restorePurchases();
+      if (Object.keys(customerInfo.entitlements.active).length > 0) {
+        await fetchUser();
+        Alert.alert("Restored", "Your subscription has been restored.");
+      } else {
+        Alert.alert("Nothing to restore", "No active subscription found for this Apple ID.");
+      }
+    } catch {
+      Alert.alert("Error", "Could not restore purchases. Please try again.");
     } finally {
       setSubscriptionLoading(false);
     }
@@ -193,6 +211,13 @@ export default function SettingsScreen({ navigation }) {
                   </TouchableOpacity>
                 </>
               )}
+              <TouchableOpacity
+                style={[styles.restoreBtn, subscriptionLoading && { opacity: 0.5 }]}
+                onPress={handleRestorePurchases}
+                disabled={subscriptionLoading}
+              >
+                <Text style={styles.restoreBtnText}>Restore purchases</Text>
+              </TouchableOpacity>
             </>
           )}
         </View>
@@ -385,6 +410,17 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     letterSpacing: 0.3,
   },
+  restoreBtn: {
+    paddingVertical: 10,
+    alignItems:      "center",
+    marginTop:       4,
+  },
+  restoreBtnText: {
+    color:         "rgba(255,255,255,0.25)",
+    fontSize:      12,
+    fontFamily:    FONTS.regular,
+    letterSpacing: 0.5,
+  },
   signOutBtn: {
     backgroundColor: "rgba(255,34,68,0.12)",
     borderWidth: 1,
@@ -395,9 +431,9 @@ const styles = StyleSheet.create({
   },
   signOutText: { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
   dangerCard: {
-    backgroundColor: "rgba(255,34,68,0.06)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     borderWidth: 1,
-    borderColor: "rgba(255,34,68,0.3)",
+    borderColor: "rgba(255,34,68,0.65)",
     borderRadius: 16,
     padding: 18,
     gap: 10,

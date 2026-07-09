@@ -62,7 +62,7 @@ const STEPS = [
     scrollToCenter: true,  // brings skills to mid-screen so card fits above
     icon: "⬢",
     title: "12 skills to grow",
-    body: "You pick the skill before each session. Focus, Logic, Creativity and more. Hit level 99 to Prestige — the skill resets but you keep a permanent XP bonus.",
+    body: "You pick the skill before each session — Logic Flow, Vitality, Creativity and 9 more. Hit level 99 and PRO users can Prestige: the skill resets but leaves a permanent XP bonus.",
   },
   {
     id: "shop",
@@ -70,15 +70,15 @@ const STEPS = [
     crossTabSpotlightKey: "shopContent",
     icon: "◈",
     title: "The shop",
-    body: "Spend credits on themes. Each one changes the entire sky — from cosmic Nebula to cyberpunk Neon. PRO and ELITE unlock the full catalog.",
+    body: "Spend credits on themes. Each one changes the entire look — from cosmic Nebula to cyberpunk Neon. Every theme is available to every user.",
   },
   {
     id: "guardian",
-    navigateTo: "Profile",
+    navigateTo: "Settings",
     crossTabSpotlightKey: "neuralClock",
     icon: "▲",
     title: "Neural Clock",
-    body: "Rewards shift with the time of day. Late nights (12AM–7AM) pay half. Your sharpest hours (8–11AM) give peak XP. The 10PM–12AM window is your hyperfocus zone.",
+    body: "Rewards shift with the time of day. Red Zone (12AM–5AM) pays half. Peak window (8–11AM) gives ×1.25 XP. Hyperfocus (10PM–12AM) gives ×1.5. Your multiplier shows on the reward screen after each session.",
   },
   {
     id: "done",

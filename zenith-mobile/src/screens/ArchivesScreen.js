@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
-  SafeAreaView, ActivityIndicator, RefreshControl,
+  SafeAreaView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert, Share,
 } from "react-native";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
-import { fetchSummitHistory } from "../services/api";
+import { fetchSummitHistory, exportSessionsCsv } from "../services/api";
 
 const SKILL_ICONS = {
   "LOGIC FLOW":  "⬡",
@@ -49,9 +49,15 @@ function StatGrid({ tiles, accentColor }) {
 export default function ArchivesScreen() {
   const { user } = useUser();
   const { accentColor } = useTheme();
-  const [sessions,   setSessions]   = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [sessions,      setSessions]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [exporting,     setExporting]     = useState(false);
+
+  const userRole       = user?.role ?? "FREE";
+  const accountTier    = user?.account_tier ?? 0;
+  const isPro          = accountTier >= 1;
+  const historyLabel   = accountTier >= 2 ? "All time" : accountTier >= 1 ? "Last 6 months" : "Last 7 days";
 
   const loadSessions = () =>
     fetchSummitHistory(50)
@@ -65,6 +71,19 @@ export default function ArchivesScreen() {
     setRefreshing(true);
     await loadSessions();
     setRefreshing(false);
+  };
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const response = await exportSessionsCsv();
+      const csvText  = await response.data.text();
+      await Share.share({ message: csvText, title: "zenith-sessions.csv" });
+    } catch {
+      Alert.alert("Export failed", "Could not export session data. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const skills        = user?.mastery ?? [];
@@ -97,6 +116,17 @@ export default function ArchivesScreen() {
     <SafeAreaView style={styles.root}>
       <View style={styles.topBar}>
         <Text style={styles.pageTitle}>History</Text>
+        {isPro && (
+          <TouchableOpacity
+            style={[styles.exportBtn, { borderColor: accentColor + "55" }]}
+            onPress={handleExportCsv}
+            disabled={exporting}
+          >
+            <Text style={[styles.exportBtnText, { color: accentColor }]}>
+              {exporting ? "Exporting..." : "Export CSV"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -115,7 +145,7 @@ export default function ArchivesScreen() {
         ]} />
 
         {/* ── Performance ──────────────────────────────────────────────── */}
-        <SectionLabel text="Performance" sub="Last 7 days" />
+        <SectionLabel text="Performance" sub={historyLabel} />
         {loading ? (
           <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />
         ) : (
@@ -163,7 +193,7 @@ export default function ArchivesScreen() {
         )}
 
         {/* ── Recent Sessions ──────────────────────────────────────────── */}
-        <SectionLabel text="Recent Sessions" sub="Last 7 days" />
+        <SectionLabel text="Recent Sessions" sub={historyLabel} />
         {loading ? (
           <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />
         ) : sessions.length === 0 ? (
@@ -199,6 +229,14 @@ export default function ArchivesScreen() {
           </View>
         )}
 
+        {!isPro && (
+          <View style={styles.upgradeNotice}>
+            <Text style={styles.upgradeNoticeText}>
+              PRO unlocks 6 months of history, prestige, and CSV export. ELITE unlocks all-time history and auto-replenishing streak shield.
+            </Text>
+          </View>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -207,12 +245,41 @@ export default function ArchivesScreen() {
 const styles = StyleSheet.create({
   root:      { flex: 1, backgroundColor: "transparent" },
   topBar: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
     paddingHorizontal: 16,
     paddingVertical:   12,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.06)",
   },
   pageTitle: { color: COLORS.text, fontSize: 20, fontFamily: FONTS.bold },
+  exportBtn: {
+    borderWidth:       1,
+    borderRadius:      8,
+    paddingHorizontal: 12,
+    paddingVertical:   6,
+  },
+  exportBtnText: {
+    fontSize:   11,
+    fontFamily: FONTS.monoBold,
+    letterSpacing: 1,
+  },
+  upgradeNotice: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.07)",
+    borderRadius:    12,
+    padding:         14,
+    marginTop:       4,
+  },
+  upgradeNoticeText: {
+    color:      "rgba(255,255,255,0.3)",
+    fontSize:   12,
+    fontFamily: FONTS.regular,
+    lineHeight: 18,
+    textAlign:  "center",
+  },
   content:   { padding: 16, paddingBottom: 40, gap: 12 },
 
   // ── Section header ────────────────────────────────────────────

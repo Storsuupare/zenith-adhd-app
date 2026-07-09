@@ -447,36 +447,9 @@ async function pushUserPatch(externalId) {
   } catch { /* stream already closed or DB hiccup — silent */ }
 }
 
-const TIER_PERK_SLOTS     = { 0: 1,    1: 2,   2: 4        };
-const TIER_MAX_TASKS      = { 0: 5,    1: 15,  2: Infinity };
-// Chance of getting a loot drop at all — separate from rarity.
-// FREE: 1-in-4 sessions. PRO: 2-in-4 (2× base). ELITE: 3-in-4 (3× base).
-const TIER_DROP_CHANCE    = { 0: 0.25, 1: 0.50, 2: 0.75   };
-// How many items the vault can hold before scrapping extras.
-const TIER_VAULT_CAP      = { 0: 10,   1: 20,  2: 40       };
-
-
-// Per-tier rarity thresholds — all tiers can roll any rarity.
-// Higher tiers just have better odds (lower cutoffs), not exclusive access.
-// Probabilities per tier (approximate):
-//   FREE:  Mythic 0.2% | Legendary 0.8% | Epic 7% | Rare 14% | Uncommon 33% | Junk 45%
-//   PRO:   Mythic 0.5% | Legendary 2.5% | Epic 7% | Rare 16% | Uncommon 34% | Junk 40%
-//   ELITE: Mythic 0.5% | Legendary 4.5% | Epic 8% | Rare 17% | Uncommon 35% | Junk 35%
-const RARITY_THRESHOLDS = {
-  0: { Mythic: 99.8, Legendary: 99.0, Epic: 92, Rare: 78, Uncommon: 45 },
-  1: { Mythic: 99.5, Legendary: 97.0, Epic: 90, Rare: 74, Uncommon: 40 },
-  2: { Mythic: 99.5, Legendary: 95.0, Epic: 87, Rare: 70, Uncommon: 35 },
-};
-
-function getTierRarity(roll, accountTier) {
-  const rarityThresholdTable = RARITY_THRESHOLDS[accountTier] ?? RARITY_THRESHOLDS[0];
-  if (roll > rarityThresholdTable.Mythic)    return "Mythic";
-  if (roll > rarityThresholdTable.Legendary) return "Legendary";
-  if (roll > rarityThresholdTable.Epic)      return "Epic";
-  if (roll > rarityThresholdTable.Rare)      return "Rare";
-  if (roll > rarityThresholdTable.Uncommon)  return "Uncommon";
-  return "Junk";
-}
+const TIER_MAX_TASKS = { 0: 5, 1: 15, 2: Infinity };
+const LOOT_DROP_CHANCE = 0.25; // Flat 1-in-4 chance for all tiers
+const EQUIP_SLOT_LIMIT = 4;    // Flat equip slots for all tiers
 
 
 // Server-side cosmetic prices for purchase validation.
@@ -485,9 +458,9 @@ function getTierRarity(roll, accountTier) {
 // Classic is free (not listed — purchase attempt returns COSMETIC_NOT_FOUND).
 // PRO/ELITE themes require the matching subscription tier before the credit purchase is allowed.
 const COSMETICS_PRICES = {
-  cobalt: 1500, amber: 1500, crimson: 2000, violet: 2500, jade: 3000,
-  neon: 2000, arctic: 2000, solar: 2500,
-  nebula: 3000, obsidian: 3000, ember: 3500,
+  cobalt: 4500, amber: 4500, crimson: 6000, violet: 7500, jade: 9000,
+  neon: 6000, arctic: 6000, solar: 7500,
+  nebula: 9000, obsidian: 9000, ember: 10500,
   rain: 600, library: 600, lofi: 900, cyberpunk: 1200,
   deepspace: null, spacestation: null, deepsea: null,
 };
@@ -842,12 +815,6 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
       [internalUserId],
     );
     const { account_tier: cTier, role: cRole } = taskTierRow.rows[0];
-
-    // 120 min sessions are PRO+ only
-    if (Number(durationMinutes) === 120 && cTier < 1) {
-      await taskClient.query("ROLLBACK");
-      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "120 min sessions require PRO." });
-    }
 
     const taskMaxLimit = cRole === "ADMIN" ? Infinity : (TIER_MAX_TASKS[cTier] ?? 5);
     if (taskMaxLimit !== Infinity) {
@@ -1296,7 +1263,7 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     }
 
     // Loot drop: guaranteed Epic on first ever session, normal RNG after that.
-    const dropChance = TIER_DROP_CHANCE[account_tier] ?? 0.25;
+    const dropChance = LOOT_DROP_CHANCE;
     let drop = null;
     if (!first_task_completed || Math.random() < dropChance) {
       const rarity      = !first_task_completed ? "Epic" : rollRarity(Math.random() * 100);
@@ -1370,7 +1337,9 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
 
     const contractRes = await client.query(
       `SELECT t.stake_amount, t.user_id, t.status, t.created_at,
-              (NOW() >= t.deadline) AS deadline_passed
+              (NOW() >= t.deadline) AS deadline_passed,
+              u.streak_shield,
+              COALESCE(u.role, 'FREE') AS role
        FROM tasks t
        JOIN users u ON t.user_id::text = u.id::text
        WHERE t.id::text = $1 AND u.external_id::text = $2`,
@@ -1381,7 +1350,7 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
       await client.query("ROLLBACK");
       return res.status(404).send("Mission not found");
     }
-    const { stake_amount, user_id, status, created_at, deadline_passed } = contractRes.rows[0];
+    const { stake_amount, user_id, status, created_at, deadline_passed, streak_shield, role } = contractRes.rows[0];
 
     if (status !== "ACTIVE") {
       await client.query("ROLLBACK");
@@ -1399,6 +1368,24 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
       presenceMap.delete(externalId);
       broadcastPresence();
       return res.json({ streak_shield_used: false, grace_period: true });
+    }
+
+    // Shield absorbs the streak break — ELITE gets it auto-restored immediately.
+    if (streak_shield) {
+      const eliteAutoReplenish = role === "ELITE";
+      const userUpdate = await client.query(
+        `UPDATE users
+         SET streak_shield = $1,
+             strikes = COALESCE(strikes, 0) + 1
+         WHERE id = $2
+         RETURNING *`,
+        [eliteAutoReplenish, user_id],
+      );
+      await client.query("COMMIT");
+      pushUserPatch(externalId).catch(() => {});
+      presenceMap.delete(externalId);
+      broadcastPresence();
+      return res.json({ ...userUpdate.rows[0], streak_shield_used: true, shield_replenished: eliteAutoReplenish });
     }
 
     const userUpdate = await client.query(
@@ -1436,9 +1423,13 @@ app.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) => {
     await client.query("BEGIN");
 
     const prestigeUserRes = await client.query(
-      "SELECT id FROM users WHERE external_id = $1 FOR UPDATE",
+      "SELECT id, COALESCE(account_tier, 0) AS account_tier FROM users WHERE external_id = $1 FOR UPDATE",
       [externalId],
     );
+    if (prestigeUserRes.rows.length > 0 && prestigeUserRes.rows[0].account_tier < 1) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Prestige requires PRO." });
+    }
     if (prestigeUserRes.rows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "USER_NOT_FOUND" });
@@ -1517,7 +1508,7 @@ app.post("/api/inventory/equip", requireAuth, mutationLimiter, async (req, res) 
       role: eRole,
     } = equipUserRes.rows[0];
 
-    const slotLimit = eRole === "ADMIN" ? 999 : (TIER_PERK_SLOTS[eTier] ?? 1);
+    const slotLimit = eRole === "ADMIN" ? 999 : EQUIP_SLOT_LIMIT;
 
     const itemInfo = await equipDbClient.query(
       "SELECT name, category, is_equipped FROM inventory WHERE id = $1 AND user_id = $2",
@@ -1816,11 +1807,21 @@ app.get("/api/stats/summit-history", requireAuth, async (req, res) => {
   const clerk_id = req.auth.userId;
   const { limit = 12 } = req.query;
 
-  // Hard cap: never send more than 50 rows — prevents low-tier phones from
-  // receiving a massive payload if the query param is tampered with.
-  const safeLimit = Math.min(parseInt(limit) || 12, 50);
-
   try {
+    const tierRes = await pool.query(
+      "SELECT COALESCE(account_tier, 0) AS account_tier FROM users WHERE external_id = $1",
+      [clerk_id],
+    );
+    const accountTier = tierRes.rows[0]?.account_tier ?? 0;
+
+    // History depth and row cap scale with tier.
+    // FREE: 7 days / 50 rows. PRO: 6 months / 200 rows. ELITE: all time / 500 rows.
+    const intervalClause = accountTier >= 2 ? "" : accountTier >= 1
+      ? "AND t.completed_at >= NOW() - INTERVAL '6 months'"
+      : "AND t.completed_at >= NOW() - INTERVAL '7 days'";
+    const rowCap = accountTier >= 2 ? 500 : accountTier >= 1 ? 200 : 50;
+    const safeLimit = Math.min(parseInt(limit) || 12, rowCap);
+
     const summitRes = await pool.query(
       `SELECT
          t.id,
@@ -1835,7 +1836,7 @@ app.get("/api/stats/summit-history", requireAuth, async (req, res) => {
        WHERE u.external_id = $1
          AND t.status       = 'SUCCESS'
          AND t.completed_at IS NOT NULL
-         AND t.completed_at >= NOW() - INTERVAL '7 days'
+         ${intervalClause}
          AND t.duration_minutes BETWEEN 1 AND 180
        ORDER BY t.completed_at DESC
        LIMIT $2`,
@@ -1844,6 +1845,50 @@ app.get("/api/stats/summit-history", requireAuth, async (req, res) => {
     res.json(summitRes.rows.reverse());
   } catch (err) {
     console.error("SUMMIT_HISTORY_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Session history CSV export — PRO/ELITE only ───────────────────────────────
+app.get("/api/stats/export-csv", requireAuth, async (req, res) => {
+  const clerk_id = req.auth.userId;
+  try {
+    const tierRes = await pool.query(
+      "SELECT COALESCE(account_tier, 0) AS account_tier FROM users WHERE external_id = $1",
+      [clerk_id],
+    );
+    if ((tierRes.rows[0]?.account_tier ?? 0) < 1) {
+      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "CSV export requires PRO." });
+    }
+
+    const exportRes = await pool.query(
+      `SELECT
+         TO_CHAR(t.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS date,
+         COALESCE(t.title, 'Mission')                                      AS title,
+         COALESCE(s.name, '')                                              AS skill,
+         t.duration_minutes::int                                           AS duration_minutes,
+         t.stake_amount::int                                               AS xp_earned
+       FROM tasks t
+       JOIN users u ON u.id::text = t.user_id::text
+       LEFT JOIN skills s ON s.id = t.skill_id
+       WHERE u.external_id = $1
+         AND t.status       = 'SUCCESS'
+         AND t.completed_at IS NOT NULL
+       ORDER BY t.completed_at DESC
+       LIMIT 5000`,
+      [clerk_id],
+    );
+
+    const header = "date,title,skill,duration_minutes,xp_earned\n";
+    const rows   = exportRes.rows.map(row =>
+      `${row.date},"${String(row.title).replace(/"/g, '""')}",${row.skill},${row.duration_minutes},${row.xp_earned}`
+    ).join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=\"zenith-sessions.csv\"");
+    res.send(header + rows);
+  } catch (err) {
+    console.error("CSV_EXPORT_ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
