@@ -71,11 +71,27 @@ export default function HomePage() {
             <h1 className="hero-headline hero-anim hero-anim--2">Your Brain Has<br />a Skill Tree.</h1>
             <p className="hero-sub hero-anim hero-anim--3">Turn daily tasks into XP, loot drops, and real momentum! Built for the way your brain actually works.</p>
             <div className="hero-cta-row hero-anim hero-anim--4">
+              <a
+                className="btn btn--primary"
+                href="https://discord.gg/Ur75YjyN"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Join the Community
+              </a>
             </div>
           </div>
           <div className="hero-mockup hero-anim hero-anim--3" aria-hidden="true">
             <div className="mockup-frame">
-              <img src="/image22.webp" alt="Zenith app — mission creation screen" className="phone-screenshot" loading="lazy" decoding="async" />
+              <video
+                src="/hero-video.mp4"
+                className="phone-screenshot"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+              />
             </div>
           </div>
         </div>
@@ -104,16 +120,6 @@ export default function HomePage() {
           <span className="eyebrow" data-reveal>◉ COMMUNITY</span>
           <h2 className="section-headline" data-reveal data-delay="1">Shape What<br />Comes Next.</h2>
           <p className="section-sub" data-reveal data-delay="2">Got a feature idea, a bug report, or just want to share how Zenith fits into your routine? Send us a message! Every submission gets read.</p>
-          <a
-            className="btn btn--primary"
-            href="https://discord.gg/Ur75YjyN"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-reveal
-            data-delay="3"
-          >
-            Join the Community
-          </a>
         </div>
       </section>
 

@@ -424,32 +424,23 @@ async function pushUserPatch(externalId) {
     if (!userDataResult.rows[0]) return;
 
     const masteryResult = await pool.query(
-      `SELECT us.id, us.skill_id, s.name AS skill_name, us.xp AS current_xp,
-              us.level AS current_level, us.next_level_xp, us.prestige_level,
-              us.prestige_boost_until
-       FROM user_skills us
-       JOIN skills s ON us.skill_id = s.id
-       WHERE us.user_id = $1
-       ORDER BY s.name`,
+      `SELECT user_skills.id, user_skills.skill_id, skills.name AS skill_name, user_skills.xp AS current_xp,
+              user_skills.level AS current_level, user_skills.next_level_xp, user_skills.prestige_level,
+              user_skills.prestige_boost_until
+       FROM user_skills
+       JOIN skills ON user_skills.skill_id = skills.id
+       WHERE user_skills.user_id = $1
+       ORDER BY skills.name`,
       [userDataResult.rows[0].id],
     );
 
-    const inventoryResult = await pool.query(
-      `SELECT id, id AS "instanceId", name, category, rarity, description,
-              is_equipped, color_hex, effect_value
-       FROM inventory WHERE user_id = $1
-       ORDER BY id`,
-      [userDataResult.rows[0].id],
-    );
-
-    const data = { ...userDataResult.rows[0], mastery: masteryResult.rows, inventory: inventoryResult.rows };
+    const data = { ...userDataResult.rows[0], mastery: masteryResult.rows };
     stream.write(`data: ${JSON.stringify({ type: "user_patch", data })}\n\n`);
   } catch { /* stream already closed or DB hiccup — silent */ }
 }
 
 const TIER_MAX_TASKS = { 0: 5, 1: 15, 2: Infinity };
 const LOOT_DROP_CHANCE = 0.25; // Flat 1-in-4 chance for all tiers
-const EQUIP_SLOT_LIMIT = 4;    // Flat equip slots for all tiers
 
 
 // Server-side cosmetic prices for purchase validation.
@@ -622,35 +613,42 @@ app.post("/user", requireAuth, async (req, res) => {
     });
   }
 
+  const creationClient = await pool.connect();
   try {
-    const userCreationRes = await pool.query(
+    await creationClient.query("BEGIN");
+
+    const userCreationRes = await creationClient.query(
       "INSERT INTO users (external_id, username, email_address, level, xp, streak, total_xp, current_level) VALUES ($1, $2, $3, 1, 0, 0, 0, 1) RETURNING *",
       [clerkId, username, email],
     );
 
     const newUser = userCreationRes.rows[0];
 
-    await pool.query(
+    await creationClient.query(
       `INSERT INTO user_skills (user_id, skill_id, xp, level, next_level_xp, prestige_level)
        SELECT $1, id, 0, 1, 500, 0 FROM skills`,
       [newUser.id],
     );
 
-    const postUserMasteryRes = await pool.query(
-      `SELECT us.id, us.skill_id, s.name AS skill_name, us.xp AS current_xp,
-              us.level AS current_level, us.next_level_xp, us.prestige_level
-       FROM user_skills us
-       JOIN skills s ON us.skill_id = s.id
-       WHERE us.user_id = $1
-       ORDER BY s.name`,
+    const postUserMasteryRes = await creationClient.query(
+      `SELECT user_skills.id, user_skills.skill_id, skills.name AS skill_name, user_skills.xp AS current_xp,
+              user_skills.level AS current_level, user_skills.next_level_xp, user_skills.prestige_level
+       FROM user_skills
+       JOIN skills ON user_skills.skill_id = skills.id
+       WHERE user_skills.user_id = $1
+       ORDER BY skills.name`,
       [newUser.id],
     );
     newUser.mastery = postUserMasteryRes.rows;
 
+    await creationClient.query("COMMIT");
     res.status(201).json(newUser);
   } catch (err) {
+    await creationClient.query("ROLLBACK");
     console.error("INITIALIZATION_FATAL:", err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    creationClient.release();
   }
 });
 
@@ -686,13 +684,13 @@ app.get("/user/:externalId", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "USER_BANNED", reason: activeUser.ban_reason || "Your account has been banned." });
 
     const activeMasteryRes = await pool.query(
-      `SELECT us.id, us.skill_id, s.name AS skill_name, us.xp AS current_xp,
-              us.level AS current_level, us.next_level_xp, us.prestige_level,
-              us.prestige_boost_until
-       FROM user_skills us
-       JOIN skills s ON us.skill_id = s.id
-       WHERE us.user_id = $1
-       ORDER BY s.name`,
+      `SELECT user_skills.id, user_skills.skill_id, skills.name AS skill_name, user_skills.xp AS current_xp,
+              user_skills.level AS current_level, user_skills.next_level_xp, user_skills.prestige_level,
+              user_skills.prestige_boost_until
+       FROM user_skills
+       JOIN skills ON user_skills.skill_id = skills.id
+       WHERE user_skills.user_id = $1
+       ORDER BY skills.name`,
       [activeUser.id],
     );
     activeUser.mastery = activeMasteryRes.rows;
@@ -751,22 +749,11 @@ const VALID_SKILLS    = new Set([
 ]);
 
 app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
-  const { taskName, durationMinutes, stakeAmount, skillName, sub_tasks } = req.body;
+  const { taskName, durationMinutes, stakeAmount, skillName } = req.body;
   const externalId = req.auth.userId;
 
   if (!taskName || typeof taskName !== "string" || taskName.trim().length === 0 || taskName.length > 200)
     return res.status(400).json({ error: "Task name must be 1–200 characters" });
-
-  if (sub_tasks !== undefined && sub_tasks !== null) {
-    if (!Array.isArray(sub_tasks) || sub_tasks.length > 20) {
-      return res.status(400).json({ error: "sub_tasks must be an array of at most 20 items" });
-    }
-    for (const subTask of sub_tasks) {
-      if (typeof subTask !== "string" || subTask.length > 200) {
-        return res.status(400).json({ error: "Each sub-task must be a string under 200 characters" });
-      }
-    }
-  }
 
   const parsedDuration = parseInt(durationMinutes);
   if (!VALID_DURATIONS.has(parsedDuration)) {
@@ -786,29 +773,6 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
       return res.status(404).json({ error: "USER_NOT_FOUND" });
     }
     const internalUserId = taskUserRes.rows[0].id;
-
-   
-    let pythonGateChecked = false;
-    try {
-      const pythonPort = process.env.PYTHON_PORT || 8000;
-      const gateRes = await fetch(
-        `http://localhost:${pythonPort}/security/check?external_id=${encodeURIComponent(externalId)}`
-      );
-      if (gateRes.ok) {
-        pythonGateChecked = true;
-        const gate = await gateRes.json();
-        if (gate.allowed === false) {
-          await taskClient.query("ROLLBACK");
-          if (gate.reason === "ACTIVE_SESSION_EXISTS") {
-            return res.status(409).json({ error: "ACTIVE_SESSION_EXISTS" });
-          }
-        }
-      } else {
-        console.warn(`[SECURITY GATE] Python returned ${gateRes.status} — using local check`);
-      }
-    } catch (secErr) {
-      console.warn("[SECURITY GATE] Python unreachable:", secErr.message, "— using local check");
-    }
 
     const taskTierRow = await taskClient.query(
       "SELECT COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role FROM users WHERE id = $1",
@@ -871,8 +835,8 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
     const serverStake = calculateStake(parsedDuration);
 
     const newTask = await taskClient.query(
-      `INSERT INTO tasks (user_id, title, duration_minutes, stake_amount, status, deadline, skill_id, sub_tasks)
-        VALUES ($1, $2, $3, $4, 'ACTIVE', NOW() + ($5 || ' minutes')::interval, $6, $7)
+      `INSERT INTO tasks (user_id, title, duration_minutes, stake_amount, status, deadline, skill_id)
+        VALUES ($1, $2, $3, $4, 'ACTIVE', NOW() + ($5 || ' minutes')::interval, $6)
         RETURNING *, NOW() AS server_now`,
       [
         internalUserId,
@@ -881,7 +845,6 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
         serverStake,
         String(parseFloat(durationMinutes)),
         targetSkillId,
-        sub_tasks?.length ? JSON.stringify(sub_tasks) : null,
       ],
     );
 
@@ -910,99 +873,6 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
   }
 });
 
-app.post("/api/tasks/batch", requireAuth, mutationLimiter, async (req, res) => {
-  const { tasks } = req.body;
-  const externalId = req.auth.userId;
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    return res.status(400).json({ error: "No tasks provided" });
-  }
-  if (tasks.length > 4) {
-    return res.status(400).json({ error: "Batch limited to 4 tasks" });
-  }
-  const batchClient = await pool.connect();
-  try {
-    await batchClient.query("BEGIN");
-
-    const batchUserRes = await batchClient.query(
-      "SELECT id FROM users WHERE external_id = $1",
-      [externalId],
-    );
-    if (batchUserRes.rows.length === 0) {
-      await batchClient.query("ROLLBACK");
-      return res.status(404).json({ error: "USER_NOT_FOUND" });
-    }
-    const { id: userId } = batchUserRes.rows[0];
-
-    const batchTierRow = await batchClient.query(
-      "SELECT COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role FROM users WHERE id = $1",
-      [userId],
-    );
-    const { account_tier: cTier, role: cRole } = batchTierRow.rows[0];
-
-    // Split (batch) is PRO+ only
-    if (cTier < 1) {
-      await batchClient.query("ROLLBACK");
-      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Shatter requires PRO." });
-    }
-
-    const batchMaxLimit = cRole === "ADMIN" ? Infinity : (TIER_MAX_TASKS[cTier] ?? 5);
-    if (batchMaxLimit !== Infinity) {
-      const batchActiveCount = await batchClient.query(
-        "SELECT COUNT(*) FROM tasks WHERE user_id = $1 AND status = 'ACTIVE'",
-        [userId],
-      );
-      const activeNum = parseInt(batchActiveCount.rows[0].count);
-      if (activeNum + tasks.length > batchMaxLimit) {
-        await batchClient.query("ROLLBACK");
-        return res.status(403).json({
-          error: "TASK LIMIT REACHED",
-          message: `Not enough task slots. ${batchMaxLimit - activeNum} slot(s) remaining — upgrade to run more missions.`,
-        });
-      }
-    }
-
-    const inserted = [];
-    for (const batchTask of tasks) {
-      if (!batchTask.taskName || typeof batchTask.taskName !== "string" || batchTask.taskName.trim().length === 0 || batchTask.taskName.length > 200) {
-        await batchClient.query("ROLLBACK");
-        return res.status(400).json({ error: "Each task name must be 1–200 characters" });
-      }
-      const parsedBatchDuration = parseInt(batchTask.durationMinutes);
-      if (!VALID_DURATIONS.has(parsedBatchDuration)) {
-        await batchClient.query("ROLLBACK");
-        return res.status(400).json({ error: "Duration must be 5, 15, 30, 60, 90, or 120 minutes" });
-      }
-
-      let batchSkillId = null;
-      if (batchTask.skillName) {
-        const batchSkillRes = await batchClient.query(
-          "SELECT id FROM skills WHERE LOWER(name) = LOWER($1)",
-          [batchTask.skillName],
-        );
-        batchSkillId = batchSkillRes.rows[0]?.id || null;
-      }
-      const deadline = new Date(Date.now() + parsedBatchDuration * 60 * 1000);
-      const batchStake = calculateStake(parsedBatchDuration);
-      const batchInsertResult = await batchClient.query(
-        `INSERT INTO tasks (user_id, title, duration_minutes, stake_amount, status, deadline, skill_id)
-          VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6)
-          RETURNING *`,
-        [userId, batchTask.taskName.trim(), parsedBatchDuration, batchStake, deadline.toISOString(), batchSkillId],
-      );
-      inserted.push(batchInsertResult.rows[0]);
-    }
-
-    await batchClient.query("COMMIT");
-    res.status(201).json(inserted);
-  } catch (err) {
-    await batchClient.query("ROLLBACK");
-    console.error("BATCH_TASK_ERROR:", err.message);
-    res.status(500).json({ error: err.message });
-  } finally {
-    batchClient.release();
-  }
-});
-
 app.get("/api/tasks", requireAuth, async (req, res) => {
   const externalId = req.auth.userId;
   try {
@@ -1013,15 +883,15 @@ app.get("/api/tasks", requireAuth, async (req, res) => {
     if (tasksUserRes.rows.length === 0) return res.json([]);
 
     const tasksListRes = await pool.query(
-      `SELECT t.*,
-              s.name                        AS skill_name,
-              COALESCE(us.prestige_level, 0) AS prestige_level,
-              NOW()                          AS server_now
-       FROM tasks t
-       LEFT JOIN skills s      ON s.id = t.skill_id
-       LEFT JOIN user_skills us ON us.skill_id = t.skill_id
-                                AND us.user_id  = t.user_id::integer
-       WHERE t.user_id = $1 AND t.status = 'ACTIVE'`,
+      `SELECT tasks.*,
+              skills.name                              AS skill_name,
+              COALESCE(user_skills.prestige_level, 0)   AS prestige_level,
+              NOW()                                     AS server_now
+       FROM tasks
+       LEFT JOIN skills      ON skills.id = tasks.skill_id
+       LEFT JOIN user_skills ON user_skills.skill_id = tasks.skill_id
+                             AND user_skills.user_id  = tasks.user_id::integer
+       WHERE tasks.user_id = $1 AND tasks.status = 'ACTIVE'`,
       [tasksUserRes.rows[0].id],
     );
     res.json(tasksListRes.rows);
@@ -1066,19 +936,19 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     await completeClient.query("BEGIN");
 
     const taskRes = await completeClient.query(
-      `SELECT t.id,
-              t.title            AS "taskName",
-              t.duration_minutes AS "durationMinutes",
-              t.stake_amount     AS "stakeAmount",
-              t.user_id          AS "userId",
-              t.status,
-              t.skill_id         AS "skillId",
-              t.deadline,
-              (NOW() >= t.deadline)       AS "deadlinePassed",
-              EXTRACT(EPOCH FROM (t.deadline - NOW()))::int AS "secondsRemaining"
-       FROM tasks t
-       JOIN users u ON t.user_id::text = u.id::text
-       WHERE t.id::text = $1 AND u.external_id::text = $2`,
+      `SELECT tasks.id,
+              tasks.title            AS "taskName",
+              tasks.duration_minutes AS "durationMinutes",
+              tasks.stake_amount     AS "stakeAmount",
+              tasks.user_id          AS "userId",
+              tasks.status,
+              tasks.skill_id         AS "skillId",
+              tasks.deadline,
+              (NOW() >= tasks.deadline)       AS "deadlinePassed",
+              EXTRACT(EPOCH FROM (tasks.deadline - NOW()))::int AS "secondsRemaining"
+       FROM tasks
+       JOIN users ON tasks.user_id::text = users.id::text
+       WHERE tasks.id::text = $1 AND users.external_id::text = $2`,
       [String(id), String(externalId)],
     );
 
@@ -1126,11 +996,11 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
     let returnedSkillLevel = null;
     if (task.skillId) {
       const skillRow = await completeClient.query(
-        `SELECT us.id, us.xp, us.level, us.next_level_xp, us.prestige_level,
-                us.prestige_boost_until, s.name AS skill_name
-         FROM user_skills us
-         JOIN skills s ON us.skill_id = s.id
-         WHERE us.user_id = $1 AND us.skill_id = $2`,
+        `SELECT user_skills.id, user_skills.xp, user_skills.level, user_skills.next_level_xp, user_skills.prestige_level,
+                user_skills.prestige_boost_until, skills.name AS skill_name
+         FROM user_skills
+         JOIN skills ON user_skills.skill_id = skills.id
+         WHERE user_skills.user_id = $1 AND user_skills.skill_id = $2`,
         [task.userId, task.skillId],
       );
       if (skillRow.rows.length > 0) {
@@ -1336,13 +1206,13 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
     await client.query("BEGIN");
 
     const contractRes = await client.query(
-      `SELECT t.stake_amount, t.user_id, t.status, t.created_at,
-              (NOW() >= t.deadline) AS deadline_passed,
-              u.streak_shield,
-              COALESCE(u.role, 'FREE') AS role
-       FROM tasks t
-       JOIN users u ON t.user_id::text = u.id::text
-       WHERE t.id::text = $1 AND u.external_id::text = $2`,
+      `SELECT tasks.stake_amount, tasks.user_id, tasks.status, tasks.created_at,
+              (NOW() >= tasks.deadline) AS deadline_passed,
+              users.streak_shield,
+              COALESCE(users.role, 'FREE') AS role
+       FROM tasks
+       JOIN users ON tasks.user_id::text = users.id::text
+       WHERE tasks.id::text = $1 AND users.external_id::text = $2`,
       [String(id), String(externalId)],
     );
 
@@ -1437,17 +1307,17 @@ app.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) => {
     const userId = prestigeUserRes.rows[0].id;
 
     const skillRes = await client.query(
-      `UPDATE user_skills us
+      `UPDATE user_skills
        SET level = 1, xp = 0,
-           prestige_level      = COALESCE(us.prestige_level, 0) + 1,
+           prestige_level      = COALESCE(user_skills.prestige_level, 0) + 1,
            next_level_xp       = 500,
            prestige_boost_until = NOW() + INTERVAL '24 hours'
-       FROM skills s
-       WHERE us.skill_id = s.id
-         AND us.user_id = $1
-         AND LOWER(s.name) = LOWER($2)
-         AND us.level >= 99
-       RETURNING us.*, s.name AS skill_name`,
+       FROM skills
+       WHERE user_skills.skill_id = skills.id
+         AND user_skills.user_id = $1
+         AND LOWER(skills.name) = LOWER($2)
+         AND user_skills.level >= 99
+       RETURNING user_skills.*, skills.name AS skill_name`,
       [userId, skillName],
     );
 
@@ -1490,97 +1360,6 @@ app.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) => {
 // A standalone roll endpoint with no task gate allowed unlimited free credit farming.
 
 
-app.post("/api/inventory/equip", requireAuth, mutationLimiter, async (req, res) => {
-  const { instanceId } = req.body;
-  const externalId = req.auth.userId;
-
-  const equipDbClient = await pool.connect();
-  try {
-    const equipUserRes = await equipDbClient.query(
-      `SELECT id, COALESCE(account_tier,0) AS account_tier, COALESCE(role,'FREE') AS role
-       FROM users WHERE external_id = $1`,
-      [externalId],
-    );
-    if (equipUserRes.rows.length === 0) throw new Error("USER_NOT_FOUND");
-    const {
-      id: internalId,
-      account_tier: eTier,
-      role: eRole,
-    } = equipUserRes.rows[0];
-
-    const slotLimit = eRole === "ADMIN" ? 999 : EQUIP_SLOT_LIMIT;
-
-    const itemInfo = await equipDbClient.query(
-      "SELECT name, category, is_equipped FROM inventory WHERE id = $1 AND user_id = $2",
-      [instanceId, internalId],
-    );
-    if (itemInfo.rows.length === 0)
-      throw new Error("ITEM_NOT_FOUND_IN_INVENTORY");
-    const { name: itemName, category, is_equipped: alreadyEquipped } = itemInfo.rows[0];
-
-    await equipDbClient.query("BEGIN");
-
-    if (alreadyEquipped) {
-      await equipDbClient.query(
-        "UPDATE inventory SET is_equipped = false WHERE id = $1 AND user_id = $2",
-        [instanceId, internalId],
-      );
-    } else {
-      // Prevent equipping two copies of the same perk
-      const dupRes = await equipDbClient.query(
-        "SELECT 1 FROM inventory WHERE user_id = $1 AND name = $2 AND is_equipped = true AND id != $3 LIMIT 1",
-        [internalId, itemName, instanceId],
-      );
-      if (dupRes.rows.length > 0) {
-        await equipDbClient.query("ROLLBACK");
-        return res.status(400).json({
-          code: "DUPLICATE_PERK_EQUIPPED",
-          message: `You can't equip two ${itemName}s at once.`,
-        });
-      }
-
-      const equippedCount = await equipDbClient.query(
-        "SELECT COUNT(*) FROM inventory WHERE user_id = $1 AND is_equipped = true",
-        [internalId],
-      );
-      if (parseInt(equippedCount.rows[0].count) >= slotLimit) {
-        await equipDbClient.query("ROLLBACK");
-        return res.status(403).json({
-          code: "SLOT_LIMIT_REACHED",
-          message: `You can only equip ${slotLimit} perk${slotLimit === 1 ? "" : "s"} on your current plan. Upgrade to unlock more slots!`,
-          slot_limit: slotLimit,
-        });
-      }
-      if (slotLimit === 1) {
-        await equipDbClient.query(
-          "UPDATE inventory SET is_equipped = false WHERE user_id = $1",
-          [internalId],
-        );
-      }
-      await equipDbClient.query(
-        "UPDATE inventory SET is_equipped = true WHERE id = $1 AND user_id = $2",
-        [instanceId, internalId],
-      );
-    }
-
-    await equipDbClient.query("COMMIT");
-
-    const equippedResult = await equipDbClient.query(
-      "SELECT id FROM inventory WHERE user_id = $1 AND is_equipped = true",
-      [internalId],
-    );
-    const equipped_ids = equippedResult.rows.map((equippedItem) => String(equippedItem.id));
-
-    res.json({ success: true, equipped_ids });
-  } catch (err) {
-    if (equipDbClient) await equipDbClient.query("ROLLBACK");
-    console.error("EQUIP ERROR:", err.message);
-    res.status(500).json({ error: err.message });
-  } finally {
-    equipDbClient.release();
-  }
-});
-
 app.get("/modules", async (req, res) => {
   try {
     const modulesResult = await pool.query(
@@ -1590,70 +1369,6 @@ app.get("/modules", async (req, res) => {
   } catch (err) {
     console.error("DATABASE_ERROR:", err.message);
     res.status(500).json({ error: "COULD_NOT_FETCH_INTEL" });
-  }
-});
-
-app.get("/api/inventory/:externalId", requireAuth, async (req, res) => {
-  const externalId = req.auth.userId;
-  try {
-    const vaultUserRes = await pool.query(
-      "SELECT id FROM users WHERE external_id = $1",
-      [externalId],
-    );
-
-    if (vaultUserRes.rows.length === 0) {
-      return res.json([]);
-    }
-
-    const vaultInventoryResult = await pool.query(
-      'SELECT id AS "instanceId", name, rarity, category, description, is_equipped, color_hex, effect_value FROM inventory WHERE user_id = $1',
-      [vaultUserRes.rows[0].id],
-    );
-
-    res.json(vaultInventoryResult.rows);
-  } catch (err) {
-    console.error("INVENTORY_FETCH_ERROR:", err.message);
-    res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
-  }
-});
-
-app.post("/api/inventory/claim", requireAuth, mutationLimiter, async (req, res) => {
-  const { item, equipNow } = req.body;
-  const externalId = req.auth.userId;
-
-  try {
-    const claimUserQueryResult = await pool.query(
-      "SELECT id FROM users WHERE external_id = $1",
-      [externalId],
-    );
-
-    if (claimUserQueryResult.rows.length === 0)
-      return res.status(404).json({ error: "USER_NOT_FOUND_IN_DB" });
-
-    const internalId = claimUserQueryResult.rows[0].id;
-
-    if (equipNow) {
-      // Unequip anything currently equipped, then equip the claimed item
-      await pool.query(
-        "UPDATE inventory SET is_equipped = false WHERE user_id = $1 AND is_equipped = true",
-        [internalId],
-      );
-      await pool.query(
-        "UPDATE inventory SET is_equipped = true WHERE id = $1 AND user_id = $2",
-        [item.instanceId, internalId],
-      );
-    }
-
-    const updatedItem = await pool.query(
-      `SELECT id AS "instanceId", name, rarity, category, description, is_equipped, color_hex, effect_value
-       FROM inventory WHERE id = $1 AND user_id = $2`,
-      [item.instanceId, internalId],
-    );
-
-    res.json({ success: true, item: updatedItem.rows[0] });
-  } catch (err) {
-    console.error("CLAIM_ERROR:", err.message);
-    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1778,21 +1493,21 @@ app.get("/api/stats/elevation", requireAuth, async (req, res) => {
   try {
     const elevRes = await pool.query(
       `SELECT
-         gs.day::date                              AS date,
-         TO_CHAR(gs.day, 'Dy')                    AS day,
-         COALESCE(SUM(t.duration_minutes)::int, 0) AS minutes
+         date_series.day::date                            AS date,
+         TO_CHAR(date_series.day, 'Dy')                    AS day,
+         COALESCE(SUM(tasks.duration_minutes)::int, 0)     AS minutes
        FROM generate_series(
          CURRENT_DATE - INTERVAL '6 days',
          CURRENT_DATE,
          INTERVAL '1 day'
-       ) AS gs(day)
-       LEFT JOIN tasks t ON (
-         t.completed_at::date = gs.day::date
-         AND t.user_id::text  = (SELECT id::text FROM users WHERE external_id = $1)
-         AND t.status         = 'SUCCESS'
+       ) AS date_series(day)
+       LEFT JOIN tasks ON (
+         tasks.completed_at::date = date_series.day::date
+         AND tasks.user_id::text  = (SELECT id::text FROM users WHERE external_id = $1)
+         AND tasks.status         = 'SUCCESS'
        )
-       GROUP BY gs.day
-       ORDER BY gs.day ASC`,
+       GROUP BY date_series.day
+       ORDER BY date_series.day ASC`,
       [clerk_id],
     );
     res.json(elevRes.rows);
@@ -1817,28 +1532,28 @@ app.get("/api/stats/summit-history", requireAuth, async (req, res) => {
     // History depth and row cap scale with tier.
     // FREE: 7 days / 50 rows. PRO: 6 months / 200 rows. ELITE: all time / 500 rows.
     const intervalClause = accountTier >= 2 ? "" : accountTier >= 1
-      ? "AND t.completed_at >= NOW() - INTERVAL '6 months'"
-      : "AND t.completed_at >= NOW() - INTERVAL '7 days'";
+      ? "AND tasks.completed_at >= NOW() - INTERVAL '6 months'"
+      : "AND tasks.completed_at >= NOW() - INTERVAL '7 days'";
     const rowCap = accountTier >= 2 ? 500 : accountTier >= 1 ? 200 : 50;
     const safeLimit = Math.min(parseInt(limit) || 12, rowCap);
 
     const summitRes = await pool.query(
       `SELECT
-         t.id,
-         t.duration_minutes::int                        AS minutes,
-         TO_CHAR(t.completed_at, 'Mon DD')              AS label,
-         COALESCE(t.title, 'Mission')                   AS title,
-         COALESCE(s.name, '')                           AS skill_name,
-         t.completed_at
-       FROM tasks t
-       JOIN users u ON u.id::text = t.user_id::text
-       LEFT JOIN skills s ON s.id = t.skill_id
-       WHERE u.external_id = $1
-         AND t.status       = 'SUCCESS'
-         AND t.completed_at IS NOT NULL
+         tasks.id,
+         tasks.duration_minutes::int                    AS minutes,
+         TO_CHAR(tasks.completed_at, 'Mon DD')          AS label,
+         COALESCE(tasks.title, 'Mission')               AS title,
+         COALESCE(skills.name, '')                      AS skill_name,
+         tasks.completed_at
+       FROM tasks
+       JOIN users ON users.id::text = tasks.user_id::text
+       LEFT JOIN skills ON skills.id = tasks.skill_id
+       WHERE users.external_id = $1
+         AND tasks.status       = 'SUCCESS'
+         AND tasks.completed_at IS NOT NULL
          ${intervalClause}
-         AND t.duration_minutes BETWEEN 1 AND 180
-       ORDER BY t.completed_at DESC
+         AND tasks.duration_minutes BETWEEN 1 AND 180
+       ORDER BY tasks.completed_at DESC
        LIMIT $2`,
       [clerk_id, safeLimit],
     );
@@ -1863,18 +1578,18 @@ app.get("/api/stats/export-csv", requireAuth, async (req, res) => {
 
     const exportRes = await pool.query(
       `SELECT
-         TO_CHAR(t.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS date,
-         COALESCE(t.title, 'Mission')                                      AS title,
-         COALESCE(s.name, '')                                              AS skill,
-         t.duration_minutes::int                                           AS duration_minutes,
-         t.stake_amount::int                                               AS xp_earned
-       FROM tasks t
-       JOIN users u ON u.id::text = t.user_id::text
-       LEFT JOIN skills s ON s.id = t.skill_id
-       WHERE u.external_id = $1
-         AND t.status       = 'SUCCESS'
-         AND t.completed_at IS NOT NULL
-       ORDER BY t.completed_at DESC
+         TO_CHAR(tasks.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS date,
+         COALESCE(tasks.title, 'Mission')                                    AS title,
+         COALESCE(skills.name, '')                                           AS skill,
+         tasks.duration_minutes::int                                         AS duration_minutes,
+         tasks.stake_amount::int                                             AS xp_earned
+       FROM tasks
+       JOIN users ON users.id::text = tasks.user_id::text
+       LEFT JOIN skills ON skills.id = tasks.skill_id
+       WHERE users.external_id = $1
+         AND tasks.status       = 'SUCCESS'
+         AND tasks.completed_at IS NOT NULL
+       ORDER BY tasks.completed_at DESC
        LIMIT 5000`,
       [clerk_id],
     );
@@ -2292,16 +2007,22 @@ app.post("/api/push/register-token", requireAuth, async (req, res) => {
     ? timezone
     : "UTC";
 
+  const tokenClient = await pool.connect();
   try {
-    const userRes = await pool.query(
+    await tokenClient.query("BEGIN");
+
+    const userRes = await tokenClient.query(
       "SELECT id FROM users WHERE external_id = $1",
       [req.auth.userId],
     );
-    if (!userRes.rows.length) return res.status(404).json({ error: "User not found" });
+    if (!userRes.rows.length) {
+      await tokenClient.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found" });
+    }
 
     const userId = userRes.rows[0].id;
 
-    await pool.query(
+    await tokenClient.query(
       `INSERT INTO expo_push_tokens (user_id, token)
        VALUES ($1, $2)
        ON CONFLICT (token) DO NOTHING`,
@@ -2309,15 +2030,19 @@ app.post("/api/push/register-token", requireAuth, async (req, res) => {
     );
 
     // Keep the user's timezone up to date (device may change timezone)
-    await pool.query(
+    await tokenClient.query(
       "UPDATE users SET timezone = $1 WHERE id = $2",
       [safeTimezone, userId],
     );
 
+    await tokenClient.query("COMMIT");
     res.json({ ok: true });
   } catch (err) {
+    await tokenClient.query("ROLLBACK");
     console.error("register-token error:", err.message);
     res.status(500).json({ error: "Failed to save token" });
+  } finally {
+    tokenClient.release();
   }
 });
 
@@ -2417,17 +2142,21 @@ cron.schedule("0 * * * *", async () => {
     }
 
     for (const expiredUser of expired.rows) {
-      pushUserPatch(expiredUser.external_id).catch(() => {});
-      if (expiredUser.streak_shield) {
-        await sendExpoPushToUser(expiredUser.id, {
-          title: "Streak Shield used",
-          body:  `Your ${expiredUser.streak}-day streak was protected. Complete a session today to keep it.`,
-        });
-      } else {
-        await sendExpoPushToUser(expiredUser.id, {
-          title: "Streak lost",
-          body:  `Your ${expiredUser.streak}-day streak has ended. Start fresh today.`,
-        });
+      try {
+        pushUserPatch(expiredUser.external_id).catch(() => {});
+        if (expiredUser.streak_shield) {
+          await sendExpoPushToUser(expiredUser.id, {
+            title: "Streak Shield used",
+            body:  `Your ${expiredUser.streak}-day streak was protected. Complete a session today to keep it.`,
+          });
+        } else {
+          await sendExpoPushToUser(expiredUser.id, {
+            title: "Streak lost",
+            body:  `Your ${expiredUser.streak}-day streak has ended. Start fresh today.`,
+          });
+        }
+      } catch (perUserErr) {
+        console.error(`Streak reaper: notify failed for user ${expiredUser.id}:`, perUserErr.message);
       }
     }
 
@@ -2444,12 +2173,12 @@ cron.schedule("*/5 * * * *", async () => {
   try {
     // ── Warning: deadline passed 23–27 min ago (5-min window centred on 25 min) ──
     const warned = await pool.query(
-      `SELECT t.id, t.title, t.user_id, u.id AS db_user_id
-       FROM tasks t
-       JOIN users u ON u.id::text = t.user_id::text
-       WHERE t.status  = 'ACTIVE'
-         AND t.deadline < NOW() - INTERVAL '23 minutes'
-         AND t.deadline > NOW() - INTERVAL '27 minutes'`,
+      `SELECT tasks.id, tasks.title, tasks.user_id, users.id AS db_user_id
+       FROM tasks
+       JOIN users ON users.id::text = tasks.user_id::text
+       WHERE tasks.status  = 'ACTIVE'
+         AND tasks.deadline < NOW() - INTERVAL '23 minutes'
+         AND tasks.deadline > NOW() - INTERVAL '27 minutes'`,
     );
     for (const task of warned.rows) {
       await sendExpoPushToUser(task.db_user_id, {
@@ -2457,7 +2186,7 @@ cron.schedule("*/5 * * * *", async () => {
         body:  `"${task.title}" — 5 minutes to collect your reward before it's gone.`,
       });
     }
-
+      
     // ── Auto-fail: deadline passed more than 30 min ago ──
     const abandoned = await pool.query(
       `UPDATE tasks
@@ -2469,11 +2198,16 @@ cron.schedule("*/5 * * * *", async () => {
                  (SELECT external_id FROM users WHERE id::text = user_id::text) AS external_id`,
     );
     for (const task of abandoned.rows) {
-      pushUserPatch(task.external_id).catch(() => {});
-      await sendExpoPushToUser(task.db_user_id, {
-        title: "❌ Session abandoned",
-        body:  `"${task.title}" was not collected in time and has been marked as failed.`,
-      });
+      try {
+        await pool.query("UPDATE users SET strikes = COALESCE(strikes, 0) + 1 WHERE id = $1", [task.db_user_id]);
+        pushUserPatch(task.external_id).catch(() => {});
+        await sendExpoPushToUser(task.db_user_id, {
+          title: "❌ Session abandoned",
+          body:  `"${task.title}" was not collected in time and has been marked as failed.`,
+        });
+      } catch (perTaskErr) {
+        console.error(`Session expiry: strike/notify failed for task ${task.id}:`, perTaskErr.message);
+      }
     }
 
     if (warned.rows.length || abandoned.rows.length) {
@@ -2490,14 +2224,14 @@ cron.schedule("*/5 * * * *", async () => {
 cron.schedule("0 * * * *", async () => {
   try {
     const atRisk = await pool.query(
-      `SELECT u.id, u.streak
-       FROM users u
-       WHERE u.streak > 0
-         AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 19
+      `SELECT users.id, users.streak
+       FROM users
+       WHERE users.streak > 0
+         AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(users.timezone, 'UTC'))) = 19
          AND NOT EXISTS (
-           SELECT 1 FROM tasks t
-           WHERE t.user_id = u.id::text
-             AND t.completed_at >= (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(u.timezone, 'UTC'))::date
+           SELECT 1 FROM tasks
+           WHERE tasks.user_id = users.id::text
+             AND tasks.completed_at >= (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(users.timezone, 'UTC'))::date
          )`,
     );
     if (!atRisk.rows.length) return;
@@ -2521,30 +2255,30 @@ cron.schedule("0 * * * *", async () => {
   try {
     const results = await pool.query(
       `SELECT
-         u.id,
-         COUNT(t.id)::int                          AS session_count,
-         COALESCE(SUM(t.duration_minutes), 0)::int AS total_minutes,
-         s.name                                    AS top_skill
-       FROM users u
-       JOIN tasks t ON t.user_id = u.id::text
-         AND t.completed_at >= NOW() - INTERVAL '7 days'
-         AND t.status = 'SUCCESS'
+         users.id,
+         COUNT(tasks.id)::int                          AS session_count,
+         COALESCE(SUM(tasks.duration_minutes), 0)::int AS total_minutes,
+         top_skill.name                                AS top_skill
+       FROM users
+       JOIN tasks ON tasks.user_id = users.id::text
+         AND tasks.completed_at >= NOW() - INTERVAL '7 days'
+         AND tasks.status = 'SUCCESS'
        LEFT JOIN LATERAL (
-         SELECT sk.name
-         FROM tasks t2
-         JOIN skills sk ON sk.id = t2.skill_id
-         WHERE t2.user_id = u.id::text
-           AND t2.completed_at >= NOW() - INTERVAL '7 days'
-           AND t2.status = 'SUCCESS'
-           AND t2.skill_id IS NOT NULL
-         GROUP BY sk.name
-         ORDER BY COUNT(t2.id) DESC
+         SELECT skills.name
+         FROM tasks
+         JOIN skills ON skills.id = tasks.skill_id
+         WHERE tasks.user_id = users.id::text
+           AND tasks.completed_at >= NOW() - INTERVAL '7 days'
+           AND tasks.status = 'SUCCESS'
+           AND tasks.skill_id IS NOT NULL
+         GROUP BY skills.name
+         ORDER BY COUNT(tasks.id) DESC
          LIMIT 1
-       ) s ON true
-       WHERE EXTRACT(DOW  FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 0
-         AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = 18
-       GROUP BY u.id, s.name
-       HAVING COUNT(t.id) > 0`,
+       ) top_skill ON true
+       WHERE EXTRACT(DOW  FROM (NOW() AT TIME ZONE COALESCE(users.timezone, 'UTC'))) = 0
+         AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(users.timezone, 'UTC'))) = 18
+       GROUP BY users.id, top_skill.name
+       HAVING COUNT(tasks.id) > 0`,
     );
     if (!results.rows.length) return;
 

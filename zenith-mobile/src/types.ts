@@ -18,19 +18,6 @@ export type UserSkill = {
   prestige_boost_until: string | null;
 };
 
-// ── Inventory item (cosmetic drop or purchased theme) ────────────────────────
-export type InventoryItem = {
-  id: number;
-  instanceId: number;
-  name: string;
-  category: string;
-  rarity: Rarity;
-  description: string;
-  is_equipped: boolean;
-  color_hex: string | null;
-  effect_value: number | null;
-};
-
 // ── User (full object returned by the API and SSE patch) ─────────────────────
 export type User = {
   id: number;
@@ -45,7 +32,6 @@ export type User = {
   daily_challenge_claimed_date: string | null;
   has_seen_onboarding: boolean;
   mastery: UserSkill[];
-  inventory: InventoryItem[];
 };
 
 // ── Task (active session contract) ───────────────────────────────────────────
@@ -61,14 +47,6 @@ export type Task = {
   deadline: string;
   deadlinePassed: boolean;
   secondsRemaining: number;
-  sub_tasks: SubTask[] | null;
-};
-
-// ── Shatter sub-task ─────────────────────────────────────────────────────────
-export type SubTask = {
-  id: number;
-  text: string;
-  isDone: boolean;
 };
 
 // ── Loot drop (returned on session completion) ────────────────────────────────

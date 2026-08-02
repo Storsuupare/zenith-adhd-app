@@ -198,17 +198,21 @@ export default function SettingsScreen({ navigation }) {
                 ))
               ) : (
                 <>
+                  {[
+                    { label: "PRO", price: "€4.99 / month", perks: "15 task slots · 6 months history · Prestige · Streak shield" },
+                    { label: "ELITE", price: "€9.99 / month", perks: "Unlimited slots · All-time history · Auto-replenishing shield · CSV export" },
+                  ].map(plan => (
+                    <View key={plan.label} style={[styles.upgradeBtn, styles.upgradeBtnStatic]}>
+                      <View style={styles.planRow}>
+                        <Text style={[styles.upgradeBtnText, { color: "rgba(255,255,255,0.5)" }]}>{plan.label}</Text>
+                        <Text style={[styles.upgradePriceText, { color: "rgba(255,255,255,0.35)" }]}>{plan.price}</Text>
+                      </View>
+                      <Text style={styles.planPerks}>{plan.perks}</Text>
+                    </View>
+                  ))}
                   <Text style={styles.subscriptionNote}>
-                    Upgrade to PRO or ELITE to unlock advanced features. Plans start at €4.99/mo.
+                    Plans are pending App Store approval and will be purchasable here shortly. Already subscribed? Tap Restore purchases below.
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.upgradeBtn, { borderColor: accentColor + "55" }]}
-                    onPress={() => Linking.openURL(WEBSITE_URL)}
-                  >
-                    <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
-                      View plans at zenithapp.org ↗
-                    </Text>
-                  </TouchableOpacity>
                 </>
               )}
               <TouchableOpacity
@@ -383,6 +387,11 @@ const styles = StyleSheet.create({
     marginTop:         8,
     backgroundColor:   "rgba(255,255,255,0.03)",
   },
+  upgradeBtnStatic: {
+    borderStyle:     "dashed",
+    borderColor:     "rgba(255,255,255,0.12)",
+    backgroundColor: "transparent",
+  },
   upgradeBtnText: {
     fontSize:   13,
     fontFamily: FONTS.semiBold,
@@ -409,6 +418,18 @@ const styles = StyleSheet.create({
     fontSize:   13,
     fontFamily: FONTS.semiBold,
     letterSpacing: 0.3,
+  },
+  planRow: {
+    flexDirection:  "row",
+    justifyContent: "space-between",
+    alignItems:     "center",
+    width:          "100%",
+  },
+  planPerks: {
+    color:      "rgba(255,255,255,0.3)",
+    fontSize:   11,
+    fontFamily: FONTS.regular,
+    marginTop:  4,
   },
   restoreBtn: {
     paddingVertical: 10,

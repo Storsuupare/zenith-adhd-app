@@ -35,11 +35,6 @@ export const fetchShopState     = ()          => api.get("/api/shop/catalog");
 export const purchaseCosmetic   = (id)        => api.post("/api/shop/cosmetic-purchase", { cosmeticId: id });
 export const purchaseConsumable = (id)        => api.post("/api/shop/consumable-purchase", { consumableId: id });
 
-// ── Inventory ─────────────────────────────────────────────────────────────────
-export const fetchInventory = (clerkId) => api.get(`/api/inventory/${clerkId}`);
-export const equipItem      = (instanceId) => api.post("/api/inventory/equip", { instanceId });
-export const claimLoot      = (item, equipNow) => api.post("/api/inventory/claim", { item, equipNow });
-
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export const fetchSummitHistory = (limit) => api.get(`/api/stats/summit-history?limit=${limit ?? 20}`);
 export const exportSessionsCsv  = ()      => api.get("/api/stats/export-csv", { responseType: "blob" });

@@ -1,4 +1,4 @@
-const { calculateStake } = require("./server");
+const { calculateStake } = require("../server");
 
 describe("calculateStake", () => {
   afterEach(() => {

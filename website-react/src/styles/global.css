@@ -535,9 +535,12 @@ body::after {
 }
 
 /* ── Hero ── */
+.hero-section .section-inner {
+  max-width: 1180px;
+}
 .hero-inner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.15fr 1fr;
   gap: 60px;
   align-items: center;
 }
@@ -561,8 +564,13 @@ body::after {
 }
 .hero-cta-row {
   display: flex;
-  gap: 14px;
+  align-items: center;
+  gap: 18px;
   flex-wrap: wrap;
+}
+.hero-appstore-badge {
+  height: 48px;
+  width: auto;
 }
 
 @keyframes hero-in {
@@ -661,6 +669,7 @@ body::after {
 .mockup-frame {
   width: min(100%, 420px);
   height: auto;
+  aspect-ratio: 840 / 1746;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: #030712;
@@ -672,7 +681,8 @@ body::after {
 }
 .phone-screenshot {
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 .mockup-frame::after {
@@ -1966,7 +1976,8 @@ body::after {
     gap: 40px;
   }
   .mockup-frame {
-    width: min(100%, 360px);
+    height: min(50vh, 440px);
+    width: auto;
   }
   .features-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2013,7 +2024,8 @@ body::after {
     font-size: clamp(2.6rem, 4vw, 3.4rem);
   }
   .mockup-frame {
-    width: min(100%, 400px);
+    height: min(52vh, 470px);
+    width: auto;
   }
   .features-grid {
     gap: 18px;
@@ -2041,7 +2053,8 @@ body::after {
     font-size: clamp(2.8rem, 4vw, 3.7rem);
   }
   .mockup-frame {
-    width: min(100%, 420px);
+    height: min(54vh, 500px);
+    width: auto;
   }
   .features-grid {
     gap: 20px;
@@ -2072,7 +2085,8 @@ body::after {
     font-size: clamp(3rem, 4vw, 4.2rem);
   }
   .mockup-frame {
-    width: min(100%, 460px);
+    height: min(54vh, 520px);
+    width: auto;
   }
   .features-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2126,7 +2140,8 @@ body::after {
     font-size: clamp(2.4rem, 4vw, 4rem);
   }
   .mockup-frame {
-    width: min(100%, 520px);
+    height: min(56vh, 560px);
+    width: auto;
   }
   .features-grid {
     gap: 28px;
@@ -2178,7 +2193,8 @@ body::after {
     font-size: clamp(3rem, 4vw, 5rem);
   }
   .mockup-frame {
-    width: min(100%, 620px);
+    height: min(56vh, 620px);
+    width: auto;
   }
   .features-grid {
     gap: 32px;

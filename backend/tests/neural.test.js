@@ -1,4 +1,4 @@
-const { getNeuralMult } = require("./server");
+const { getNeuralMult } = require("../server");
 
 describe("getNeuralMult", () => {
   it("returns 0.5 during REDZONE", () => {

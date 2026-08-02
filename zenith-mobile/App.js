@@ -80,7 +80,7 @@ export default function App() {
 
   useEffect(() => {
     if (REVENUECAT_KEY) {
-      Purchases.configure({ apiKey: REVENUECAT_KEY });
+      try { Purchases.configure({ apiKey: REVENUECAT_KEY }); } catch {}
     }
     requestNotificationPermissions().then(granted => {
       if (granted) scheduleNotifications();
