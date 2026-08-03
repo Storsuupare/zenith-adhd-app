@@ -120,13 +120,23 @@ export default function HomePage() {
           <span className="eyebrow" data-reveal>◉ COMMUNITY</span>
           <h2 className="section-headline" data-reveal data-delay="1">Shape What<br />Comes Next.</h2>
           <p className="section-sub" data-reveal data-delay="2">Got a feature idea, a bug report, or just want to share how Zenith fits into your routine? Send us a message! Every submission gets read.</p>
+          <a
+            className="btn btn--primary"
+            href="https://discord.gg/Ur75YjyN"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-reveal
+            data-delay="3"
+          >
+            Join the Community
+          </a>
         </div>
       </section>
 
       {/* ── FAQ ── */}
       <section className="section faq-section" id="faq">
         <div className="section-inner">
-          <p className="section-eyebrow">◈ FAQ</p>
+          <p className="eyebrow">◈ FAQ</p>
           <h2 className="section-title">Common questions</h2>
           <div className="faq-list">
             {FAQ.map((item, i) => (

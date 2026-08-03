@@ -24,7 +24,7 @@ export default function Nav() {
               style={{ height: '36px', width: 'auto' }}
             />
           </div>
-          {isSignedIn ? (
+          { isSignedIn ? (
             <>
               <Link to="/account" className="nav-link">My Account</Link>
               <Link to="/account" className="nav-avatar" aria-label="Account">

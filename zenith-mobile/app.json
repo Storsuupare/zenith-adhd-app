@@ -41,14 +41,7 @@
         "expo-notifications",
         {
           "icon": "./assets/logo2.png",
-          "color": "#090c13",
-<<<<<<< HEAD
-          "sounds": ["./assets/833599__subquire__bright-synth-ping-ui-bell-tone.wav"]
-=======
-          "sounds": [
-            "./assets/376749__zenithinfinitivestudios__fantasy_ui_button_5.wav"
-          ]
->>>>>>> df56289 (Add iOS widget extension with Live Activity support)
+          "color": "#090c13"
         }
       ]
     ],

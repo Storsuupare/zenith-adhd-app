@@ -511,7 +511,7 @@ body::after {
 .eyebrow {
   display: block;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.65rem;
+  font-size: clamp(0.78rem, 1.3vw, 0.92rem);
   font-weight: 900;
   letter-spacing: 0.22em;
   text-transform: uppercase;

@@ -288,6 +288,8 @@ const pool = new Pool({
 
 
 // ── DB migrations (run once on startup) ───────────────────────────────────
+// Guarded so requiring this file as a module (tests) never touches the live database.
+if (require.main === module) {
 pool.query(`
   ALTER TABLE users
     ADD COLUMN IF NOT EXISTS streak_last_updated TIMESTAMPTZ DEFAULT NOW()
@@ -365,6 +367,9 @@ pool.query(`
   )
 `).catch(() => {});
 
+pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS halfway_ping_sent BOOLEAN DEFAULT false`).catch(() => {});
+}
+
 const sseClients = new Map();
 
 // Anonymous presence: externalId → { sessionId, skillName, duration, startedAt, tier }
@@ -378,7 +383,7 @@ const sseTokens = new Map();
 // Stake amounts per duration — mirrors client getMissionStakes but is authoritative.
 // Red Zone (0–4am server time) halves the stake so the server, not the client, decides.
 const STAKE_BY_DURATION      = { 5: 250, 15: 1200, 30: 4000, 60: 10000, 90: 15800, 120: 30000 };
-const SESSION_CR_BY_DURATION = { 5:  25, 15:   60, 30:  120, 60:   220, 90:   320, 120:   420 };
+const SESSION_CR_BY_DURATION = { 5:  25, 15:   60, 30:  120, 60:   220, 90: 320, 120:   420 };
 
 function calculateStake(durationMinutes) {
   const base = STAKE_BY_DURATION[durationMinutes] ?? Math.floor(Number(durationMinutes) * 10);
@@ -1897,7 +1902,7 @@ app.post("/api/daily-challenge/claim", requireAuth, bonusLimiter, async (req, re
       return res.status(409).json({ error: "ALREADY_CLAIMED", message: "Challenge already claimed today." });
     }
     pushUserPatch(clerkId).catch(() => {});
-    res.json({ credits_earned: 50, system_credits: result.rows[0].system_credits });
+    res.json({ credits_earned: 150, system_credits: result.rows[0].system_credits });
   } catch (err) {
     console.error("DAILY_CHALLENGE_CLAIM_ERROR:", err.message);
     res.status(500).json({ error: "SERVER_ERROR" });
@@ -2106,8 +2111,8 @@ async function sendExpoPushToUser(userId, payload) {
 }
 
 // ── Streak reaper — runs every hour ──────────────────────────────────────────
-
-cron.schedule("0 * * * *", async () => {
+// Guarded so requiring this file as a module (tests) never starts real cron jobs.
+if (require.main === module) cron.schedule("0 * * * *", async () => {
   try {
     const expired = await pool.query(
       `SELECT id, external_id, username, streak, streak_shield
@@ -2168,8 +2173,7 @@ cron.schedule("0 * * * *", async () => {
 
 // ── Session expiry — runs every 5 minutes ────────────────────────────────────
 // 25 min after deadline: push warning. 30 min after: auto-fail.
-
-cron.schedule("*/5 * * * *", async () => {
+if (require.main === module) cron.schedule("*/5 * * * *", async () => {
   try {
     // ── Warning: deadline passed 23–27 min ago (5-min window centred on 25 min) ──
     const warned = await pool.query(
@@ -2182,11 +2186,35 @@ cron.schedule("*/5 * * * *", async () => {
     );
     for (const task of warned.rows) {
       await sendExpoPushToUser(task.db_user_id, {
-        title: "⚡ Session expiring",
+        title: "Session expiring...⚠️",
         body:  `"${task.title}" — 5 minutes to collect your reward before it's gone.`,
       });
     }
-      
+
+    // ── Halfway ping: soft check-in at the midpoint of sessions 15+ minutes long.
+    // 5-minute sessions are excluded — too short for a mid-session nudge to make sense.
+    // Not sent if ignored — this never fails or penalizes the session, it's a nudge only.
+    const halfway = await pool.query(
+      `UPDATE tasks
+       SET halfway_ping_sent = true
+       WHERE status = 'ACTIVE'
+         AND halfway_ping_sent = false
+         AND duration_minutes != 5
+         AND deadline - ((duration_minutes * 0.5)::text || ' minutes')::interval <= NOW()
+       RETURNING id, title, user_id,
+                 (SELECT id FROM users WHERE id::text = user_id::text) AS db_user_id`,
+    );
+    for (const task of halfway.rows) {
+      try {
+        await sendExpoPushToUser(task.db_user_id, {
+          title: "Still going?",
+          body:  `Halfway through "${task.title}" — checking in.`,
+        });
+      } catch (perTaskErr) {
+        console.error(`Session expiry: halfway ping failed for task ${task.id}:`, perTaskErr.message);
+      }
+    }
+
     // ── Auto-fail: deadline passed more than 30 min ago ──
     const abandoned = await pool.query(
       `UPDATE tasks
@@ -2202,16 +2230,16 @@ cron.schedule("*/5 * * * *", async () => {
         await pool.query("UPDATE users SET strikes = COALESCE(strikes, 0) + 1 WHERE id = $1", [task.db_user_id]);
         pushUserPatch(task.external_id).catch(() => {});
         await sendExpoPushToUser(task.db_user_id, {
-          title: "❌ Session abandoned",
-          body:  `"${task.title}" was not collected in time and has been marked as failed.`,
+          title: "Session Expired 😩 ",
+          body:  `"${task.title}" was not collected in time and has been marked as failed!`,
         });
       } catch (perTaskErr) {
         console.error(`Session expiry: strike/notify failed for task ${task.id}:`, perTaskErr.message);
       }
     }
 
-    if (warned.rows.length || abandoned.rows.length) {
-      console.log(`Session expiry: ${warned.rows.length} warned, ${abandoned.rows.length} auto-failed`);
+    if (warned.rows.length || abandoned.rows.length || halfway.rows.length) {
+      console.log(`Session expiry: ${halfway.rows.length} halfway pinged, ${warned.rows.length} warned, ${abandoned.rows.length} auto-failed`);
     }
   } catch (err) {
     console.error("Session expiry cron error:", err.message);
@@ -2220,8 +2248,7 @@ cron.schedule("*/5 * * * *", async () => {
 
 // ── Streak-at-risk alert — fires every hour, targets users where it is 7 PM locally ──
 // Only sent to users with an active streak who haven't logged a session today.
-
-cron.schedule("0 * * * *", async () => {
+if (require.main === module) cron.schedule("0 * * * *", async () => {
   try {
     const atRisk = await pool.query(
       `SELECT users.id, users.streak
@@ -2250,8 +2277,7 @@ cron.schedule("0 * * * *", async () => {
 });
 
 // ── Weekly summary — fires every hour, targets users where it is Sunday 6 PM locally ──
-
-cron.schedule("0 * * * *", async () => {
+if (require.main === module) cron.schedule("0 * * * *", async () => {
   try {
     const results = await pool.query(
       `SELECT
@@ -2359,5 +2385,7 @@ app.post("/contact", rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), async (req
 
 // ─────────────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`ZENITH ENGINE ONLINE ON PORT ${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`ZENITH ENGINE ONLINE ON PORT ${PORT}`));
+}
 module.exports = { getNeuralMult, calculateStake };
