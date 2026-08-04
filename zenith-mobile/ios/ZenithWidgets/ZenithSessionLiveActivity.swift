@@ -92,10 +92,3 @@ struct ZenithSessionLiveActivity: Widget {
         }
     }
 }
-
-#Preview("Lock Screen", as: .content, using: ZenithSessionAttributes(sessionName: "Morning Grind", skillName: "Strength")) {
-    ZenithSessionLiveActivity()
-} contentStates: {
-    ZenithSessionAttributes.ContentState(endTime: Date().addingTimeInterval(900))
-    ZenithSessionAttributes.ContentState(endTime: Date().addingTimeInterval(5400))
-}
