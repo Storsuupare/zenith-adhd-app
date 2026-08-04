@@ -88,6 +88,7 @@ struct ZenithSessionLiveActivity: Widget {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
     }
 }

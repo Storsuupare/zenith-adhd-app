@@ -2156,8 +2156,8 @@ if (require.main === module) cron.schedule("0 * * * *", async () => {
           });
         } else {
           await sendExpoPushToUser(expiredUser.id, {
-            title: "Streak lost",
-            body:  `Your ${expiredUser.streak}-day streak has ended. Start fresh today.`,
+            title: "Streak lost! 😨",
+            body:  `Your ${expiredUser.streak}-day streak has ended! Start fresh today.`,
           });
         }
       } catch (perUserErr) {
@@ -2204,10 +2204,34 @@ if (require.main === module) cron.schedule("*/5 * * * *", async () => {
        RETURNING id, title, user_id,
                  (SELECT id FROM users WHERE id::text = user_id::text) AS db_user_id`,
     );
+    // Cap actual pushes at 3 per user per day — tasks beyond the cap are still marked
+    // halfway_ping_sent above (so they're never re-checked), they just don't send a push.
+    // Prevents heavy users from getting buzzed every single session they run.
+    const HALFWAY_PING_DAILY_CAP = 3;
+    const halfwayUserIds = [...new Set(halfway.rows.map(halfwayTask => halfwayTask.db_user_id))];
+    const priorPingCounts = new Map();
+    if (halfwayUserIds.length) {
+      const priorCountsRes = await pool.query(
+        `SELECT user_id::int AS db_user_id, COUNT(*)::int AS ping_count
+         FROM tasks
+         WHERE halfway_ping_sent = true
+           AND deadline::date = CURRENT_DATE
+           AND user_id::int = ANY($1::int[])
+           AND id <> ALL($2::int[])
+         GROUP BY user_id`,
+        [halfwayUserIds, halfway.rows.map(halfwayTask => halfwayTask.id)],
+      );
+      for (const row of priorCountsRes.rows) priorPingCounts.set(row.db_user_id, row.ping_count);
+    }
+
     for (const task of halfway.rows) {
       try {
+        const pingsToday = priorPingCounts.get(task.db_user_id) ?? 0;
+        if (pingsToday >= HALFWAY_PING_DAILY_CAP) continue;
+        priorPingCounts.set(task.db_user_id, pingsToday + 1);
+
         await sendExpoPushToUser(task.db_user_id, {
-          title: "Still going?",
+          title: "Still Going? 😬",
           body:  `Halfway through "${task.title}" — checking in.`,
         });
       } catch (perTaskErr) {

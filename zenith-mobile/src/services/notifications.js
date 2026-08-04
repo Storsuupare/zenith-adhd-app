@@ -47,7 +47,7 @@ export async function scheduleNotifications() {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Zenith',
-      body: '🎯 Daily challenge is live. Complete it before midnight for bonus credits.',
+      body: 'Daily challenge is live! 🎯 Complete it before midnight for bonus credits.',
       sound: SOUND,
     },
     trigger: {
