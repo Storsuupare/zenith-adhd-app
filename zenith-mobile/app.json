@@ -34,7 +34,8 @@
         {
           "frequentUpdates": true,
           "widgetsFolder": "Widget-Extension",
-          "groupIdentifier": "group.org.zenithapp.mobile"
+          "groupIdentifier": "group.org.zenithapp.mobile",
+          "deploymentTarget": "17.0"
         }
       ],
       [

@@ -39,5 +39,6 @@ yarn-error.*
 *.tsbuildinfo
 
 # generated native folders
-/ios
+# /ios intentionally tracked — only buildable on macOS, committed as a stable
+# checkpoint so it doesn't need regenerating on every machine.
 /android
