@@ -2,7 +2,7 @@
 
 A productivity app that turns focus sessions into a live progression system — XP, skills, loot drops, and a streak multiplier that compounds the longer you stay consistent. Built for people who struggle to start and stay on task.
 
-Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store
+Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Soon...)
 
 ---
 
@@ -53,7 +53,7 @@ Every completed focus session earns XP and a flat credit reward based on duratio
 
 ### Neural Clock
 
-Rewards shift with the time of day. A 12AM–5AM REDZONE halves XP (Guardian Logic). Peak hours give the best multiplier. A late-night hyperfocus window opens at 10PM. This is not gamification decoration — it encodes a real sleep hygiene signal into the economy.
+Rewards shift with the time of day. A 12AM–5AM REDZONE halves XP (Sleeping Logic). Peak hours give the best multiplier. A late-night hyperfocus window opens at 10PM. This is not gamification decoration — it encodes a real sleep hygiene signal into the economy.
 
 ### Skill system
 
