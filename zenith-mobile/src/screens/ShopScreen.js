@@ -260,6 +260,7 @@ export default function ShopScreen() {
 
       <ScrollView
         ref={onboardingRefs.shopContent}
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
@@ -424,6 +425,7 @@ const styles = StyleSheet.create({
   },
   tabTxt: { color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: FONTS.bold, letterSpacing: 1 },
 
+  scroll:  { flex: 1 },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
 
   sectionLabel: {

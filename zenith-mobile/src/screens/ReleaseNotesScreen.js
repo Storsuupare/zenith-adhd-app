@@ -11,6 +11,20 @@ const TAG_COLORS = {
 
 const CHANGELOG = [
   {
+    version: "1.1.0",
+    date:    "Coming Soon",
+    title:   "Introducing iOS Widgets",
+    entries: [
+      { tag: "NEW",    text: "iOS Widgets — Countdown and Streak, right on your Home Screen or Lock Screen" },
+      { tag: "NEW",    text: "Refund Policy page, with Restore Purchases built right in" },
+      { tag: "NEW",    text: "Halfway check-in — a quick nudge at the midpoint of longer sessions, capped so it never gets spammy" },
+      { tag: "CHANGE", text: "Onboarding now clearly walks through starting a session, the shop, and your skills" },
+      { tag: "CHANGE", text: "Neural Clock guidance scrolls fully into view during onboarding" },
+      { tag: "CHANGE", text: "Shop and Skills sections scroll smoothly to show everything" },
+      { tag: "CHANGE", text: "Restore Purchases and your app version are always clearly visible in Settings" },
+    ],
+  },
+  {
     version: "1.0.0",
     date:    "May 2026",
     title:   "Initial Release",

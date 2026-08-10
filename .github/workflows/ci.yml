@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Run tests
+        working-directory: backend
+        # server.js opens a pool at import time; the startup queries swallow their own
+        # errors, so a throwaway URL keeps the suite offline instead of reaching Railway.
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+          NODE_ENV: test
+        run: npm test
+
+  website-build:
+    name: Website build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website-react/package-lock.json
+      - name: Install dependencies
+        working-directory: website-react
+        run: npm ci
+      - name: Build
+        working-directory: website-react
+        run: npm run build
+
+  mobile-typecheck:
+    name: Mobile typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: zenith-mobile/package-lock.json
+      - name: Install dependencies
+        working-directory: zenith-mobile
+        run: npm ci
+      - name: Typecheck
+        working-directory: zenith-mobile
+        run: npx tsc --noEmit

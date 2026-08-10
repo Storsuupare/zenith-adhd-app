@@ -32,7 +32,7 @@ const STEPS = [
   {
     id: "welcome",
     icon: "⬡",
-    title: "Welcome to Zenith",
+    title: "Welcome to Zenith!",
     body: "Turn what you're already doing into a game. Every session earns XP and credits. Maintain your streak to earn bonus credits and unlock milestone rewards.",
   },
   {
@@ -45,37 +45,42 @@ const STEPS = [
   {
     id: "missions",
     scrollTo: "mission",
+    maxSpotlightHeight: Math.round(SCREEN_HEIGHT * 0.65), // full form: name, skill picker, duration, start button
     icon: "▣",
-    title: "Start a session",
-    body: "Name what you're working on, pick a duration, and hit go. Longer sessions pay more. Quit early and your reward gets cut.",
+    title: "Start a session!",
+    body: "Name what you're working on, choose a specific skill, pick a duration, and hit go! Longer sessions pay more. Quit early and your reward gets cut.",
   },
   {
     id: "contracts",
     scrollTo: "contracts",
     icon: "◆",
-    title: "Active sessions",
+    title: "Active sessions!",
     body: "Running sessions show up with a live countdown. Hit Collect when the timer runs out. Finish one and you might earn a loot drop.",
   },
   {
     id: "skills",
     scrollTo: "skills",
     scrollToCenter: true,  // brings skills to mid-screen so card fits above
+    maxSpotlightHeight: Math.round(SCREEN_HEIGHT * 0.65), // full 12-skill grid, not just the first row
     icon: "⬢",
-    title: "12 skills to grow",
+    title: "12 skills to grow!",
     body: "You pick the skill before each session — Logic Flow, Vitality, Creativity and 9 more. Hit level 99 and PRO users can Prestige: the skill resets but leaves a permanent XP bonus.",
   },
   {
     id: "shop",
     navigateTo: "Shop",
     crossTabSpotlightKey: "shopContent",
+    maxSpotlightHeight: Math.round(SCREEN_HEIGHT * 0.65), // full shop content, not a 160px sliver
     icon: "◈",
     title: "The shop",
-    body: "Spend credits on themes. Each one changes the entire look — from cosmic Nebula to cyberpunk Neon. Every theme is available to every user.",
+    body: "Spend credits on themes and consumables. Themes change the entire background look — from cosmic Nebula to Neon — and every one is available to every user. Consumables like Streak Rescue and Extra Loot Pull can save a broken streak or roll extra loot on demand.",
   },
   {
     id: "guardian",
     navigateTo: "Settings",
     crossTabSpotlightKey: "neuralClock",
+    crossTabScrollKey:  "settingsScroll", // onboardingRefs key for the ScrollView to center the target in
+    crossTabScrollYKey: "neuralClockY",   // onboardingRefs key for the target's Y offset within that ScrollView
     icon: "▲",
     title: "Neural Clock",
     body: "Rewards shift with the time of day. Red Zone (12AM–5AM) pays half. Peak window (8–11AM) gives ×1.25 XP. Hyperfocus (10PM–12AM) gives ×1.5. Your multiplier shows on the reward screen after each session.",
@@ -83,7 +88,7 @@ const STEPS = [
   {
     id: "done",
     icon: "◌",
-    title: "You're set.",
+    title: "You're all set!",
     body: "Pick something to work on and start your first session. The rest you'll figure out as you go. Just start.",
   },
 ];
@@ -144,15 +149,30 @@ export default function OnboardingModal({
         const targetRef = onboardingRefs[currentStep.crossTabSpotlightKey];
         if (!targetRef?.current) return;
 
-        targetRef.current.measureInWindow((screenX, screenY, elementWidth, elementHeight) => {
-          if (elementWidth === 0 || elementHeight === 0) return;
-          setSpotlight({
-            x:      screenX,
-            y:      screenY,
-            width:  elementWidth,
-            height: Math.min(elementHeight, MAX_SPOTLIGHT_HEIGHT),
+        const measure = () => {
+          targetRef.current.measureInWindow((screenX, screenY, elementWidth, elementHeight) => {
+            if (elementWidth === 0 || elementHeight === 0) return;
+            setSpotlight({
+              x:      screenX,
+              y:      screenY,
+              width:  elementWidth,
+              height: Math.min(elementHeight, currentStep.maxSpotlightHeight ?? MAX_SPOTLIGHT_HEIGHT),
+            });
           });
-        });
+        };
+
+        // Some cross-tab targets (e.g. Neural Clock on Settings) sit below the fold on
+        // fresh navigation. If the step declares a scroll ref + Y offset, center the
+        // target at 50% screen height first so it's fully visible before measuring.
+        const scrollRef = currentStep.crossTabScrollKey  && onboardingRefs[currentStep.crossTabScrollKey];
+        const targetY    = currentStep.crossTabScrollYKey && onboardingRefs[currentStep.crossTabScrollYKey]?.current;
+
+        if (scrollRef?.current && targetY != null) {
+          scrollRef.current.scrollTo({ y: Math.max(0, targetY - SCREEN_HEIGHT * 0.5), animated: true });
+          setTimeout(measure, SCROLL_SETTLE_DELAY);
+        } else {
+          measure();
+        }
       }, SCROLL_SETTLE_DELAY + 200);
 
       return () => clearTimeout(crossTabTimer);
@@ -182,7 +202,7 @@ export default function OnboardingModal({
           x:      screenX,
           y:      screenY,
           width:  elementWidth,
-          height: Math.min(elementHeight, MAX_SPOTLIGHT_HEIGHT),
+          height: Math.min(elementHeight, currentStep.maxSpotlightHeight ?? MAX_SPOTLIGHT_HEIGHT),
         });
       });
     }, SCROLL_SETTLE_DELAY);

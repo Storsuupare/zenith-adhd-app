@@ -16,6 +16,7 @@ import SessionScreen        from "../screens/SessionScreen";
 import ReleaseNotesScreen   from "../screens/ReleaseNotesScreen";
 import PrivacyScreen        from "../screens/PrivacyScreen";
 import TermsScreen          from "../screens/TermsScreen";
+import RefundScreen         from "../screens/RefundScreen";
 import PaymentSuccessScreen from "../screens/PaymentSuccessScreen";
 import PaymentCancelScreen  from "../screens/PaymentCancelScreen";
 import SolarBackdrop        from "../components/SolarBackdrop";
@@ -89,6 +90,7 @@ function SettingsStack() {
       <Stack.Screen name="ReleaseNotes" component={ReleaseNotesScreen} />
       <Stack.Screen name="Privacy"      component={PrivacyScreen} />
       <Stack.Screen name="Terms"        component={TermsScreen} />
+      <Stack.Screen name="Refund"       component={RefundScreen} />
     </Stack.Navigator>
   );
 }

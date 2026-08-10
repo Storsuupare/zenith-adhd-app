@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import HomePage from './pages/HomePage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import TermsPage from './pages/TermsPage.jsx'
+import RefundPage from './pages/RefundPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import PaymentSuccessPage from './pages/PaymentSuccessPage.jsx'
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/"                index element={<HomePage />} />
       <Route path="/privacy"         element={<PrivacyPage />} />
       <Route path="/terms"           element={<TermsPage />} />
+      <Route path="/refund"          element={<RefundPage />} />
       <Route path="/login"           element={<LoginPage />} />
       <Route path="/login/*"         element={<LoginPage />} />
       <Route path="/signup"          element={<SignupPage />} />

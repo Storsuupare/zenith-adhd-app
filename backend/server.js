@@ -2156,8 +2156,8 @@ if (require.main === module) cron.schedule("0 * * * *", async () => {
           });
         } else {
           await sendExpoPushToUser(expiredUser.id, {
-            title: "Streak lost! 😨",
-            body:  `Your ${expiredUser.streak}-day streak has ended! Start fresh today.`,
+            title: "Streak reset 😤",
+            body:  `${expiredUser.streak} days was solid. Round two whenever you're ready.`,
           });
         }
       } catch (perUserErr) {
@@ -2231,8 +2231,8 @@ if (require.main === module) cron.schedule("*/5 * * * *", async () => {
         priorPingCounts.set(task.db_user_id, pingsToday + 1);
 
         await sendExpoPushToUser(task.db_user_id, {
-          title: "Still Going? 😬",
-          body:  `Halfway through "${task.title}" — checking in.`,
+          title: "Halfway there ⚡",
+          body:  `You're half done with "${task.title}" — keep going.`,
         });
       } catch (perTaskErr) {
         console.error(`Session expiry: halfway ping failed for task ${task.id}:`, perTaskErr.message);
@@ -2254,8 +2254,8 @@ if (require.main === module) cron.schedule("*/5 * * * *", async () => {
         await pool.query("UPDATE users SET strikes = COALESCE(strikes, 0) + 1 WHERE id = $1", [task.db_user_id]);
         pushUserPatch(task.external_id).catch(() => {});
         await sendExpoPushToUser(task.db_user_id, {
-          title: "Session Expired 😩 ",
-          body:  `"${task.title}" was not collected in time and has been marked as failed!`,
+          title: "Reward missed 😩",
+          body:  `"${task.title}" timed out before you collected it — grab the next one.`,
         });
       } catch (perTaskErr) {
         console.error(`Session expiry: strike/notify failed for task ${task.id}:`, perTaskErr.message);
@@ -2290,7 +2290,7 @@ if (require.main === module) cron.schedule("0 * * * *", async () => {
     for (const user of atRisk.rows) {
       await sendExpoPushToUser(user.id, {
         title: "Zenith",
-        body:  `🔥 Day ${user.streak} streak. You haven't logged a session yet — REDZONE starts in 5 hours.`,
+        body:  `🔥 Day ${user.streak} streak — still time to keep it alive before REDZONE in 5 hours.`,
       });
     }
 

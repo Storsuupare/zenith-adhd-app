@@ -20,6 +20,8 @@ export default function Footer() {
           <span>·</span>
           <Link to="/terms">Terms</Link>
           <span>·</span>
+          <Link to="/refund">Refund</Link>
+          <span>·</span>
           <Link to="/release-notes" className="footer-rn-link">
             Release Notes
             {hasUnread && <span className="footer-rn-dot" />}

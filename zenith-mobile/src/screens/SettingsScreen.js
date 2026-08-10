@@ -24,7 +24,7 @@ function getClockRows() {
 
 export default function SettingsScreen({ navigation }) {
   const { signOut } = useAuth();
-  const { user, fetchUser } = useUser();
+  const { user, fetchUser, restorePurchases, restoringPurchases } = useUser();
   const { accentColor } = useTheme();
   const [refreshing,          setRefreshing]          = useState(false);
   const [showDeleteModal,     setShowDeleteModal]     = useState(false);
@@ -89,24 +89,6 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  const handleRestorePurchases = async () => {
-    if (!process.env.EXPO_PUBLIC_REVENUECAT_KEY) return;
-    setSubscriptionLoading(true);
-    try {
-      const customerInfo = await Purchases.restorePurchases();
-      if (Object.keys(customerInfo.entitlements.active).length > 0) {
-        await fetchUser();
-        Alert.alert("Restored", "Your subscription has been restored.");
-      } else {
-        Alert.alert("Nothing to restore", "No active subscription found for this Apple ID.");
-      }
-    } catch {
-      Alert.alert("Error", "Could not restore purchases. Please try again.");
-    } finally {
-      setSubscriptionLoading(false);
-    }
-  };
-
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
@@ -138,7 +120,7 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}>
+      <ScrollView ref={onboardingRefs.settingsScroll} style={styles.scroll} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}>
         <Text style={styles.pageTitle}>Settings</Text>
 
         {/* Account */}
@@ -216,9 +198,9 @@ export default function SettingsScreen({ navigation }) {
                 </>
               )}
               <TouchableOpacity
-                style={[styles.restoreBtn, subscriptionLoading && { opacity: 0.5 }]}
-                onPress={handleRestorePurchases}
-                disabled={subscriptionLoading}
+                style={[styles.restoreBtn, restoringPurchases && { opacity: 0.5 }]}
+                onPress={restorePurchases}
+                disabled={restoringPurchases}
               >
                 <Text style={styles.restoreBtnText}>Restore purchases</Text>
               </TouchableOpacity>
@@ -227,7 +209,11 @@ export default function SettingsScreen({ navigation }) {
         </View>
 
         {/* Neural Clock */}
-        <View ref={onboardingRefs.neuralClock} style={styles.card}>
+        <View
+          ref={onboardingRefs.neuralClock}
+          style={styles.card}
+          onLayout={event => { onboardingRefs.neuralClockY.current = event.nativeEvent.layout.y; }}
+        >
           <Text style={styles.cardTitle}>◎ Neural Clock</Text>
           <View style={[styles.statusBadge, isRedzone && { borderColor: COLORS.red + "55" }]}>
             <View style={[styles.statusDot, { backgroundColor: isRedzone ? COLORS.red : COLORS.green }]} />
@@ -246,6 +232,7 @@ export default function SettingsScreen({ navigation }) {
           <NavRow label="Release Notes" screen="ReleaseNotes" />
           <NavRow label="Privacy Policy" screen="Privacy" />
           <NavRow label="Terms of Service" screen="Terms" />
+          <NavRow label="Refund Policy" screen="Refund" />
         </View>
 
         {/* Sign out */}
@@ -261,7 +248,9 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.versionText}>v1.0.0</Text>
+        <View style={styles.versionBadge}>
+          <Text style={styles.versionText}>v1.1.0</Text>
+        </View>
       </ScrollView>
 
       {/* Confirmation modal */}
@@ -319,6 +308,7 @@ const rowStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: "transparent" },
+  scroll:  { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 32 },
   pageTitle: { color: COLORS.text, fontSize: 22, fontFamily: FONTS.bold, marginBottom: 4 },
   card: {
@@ -432,12 +422,17 @@ const styles = StyleSheet.create({
     marginTop:  4,
   },
   restoreBtn: {
-    paddingVertical: 10,
-    alignItems:      "center",
-    marginTop:       4,
+    backgroundColor:   "rgba(5,8,15,0.7)",
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.15)",
+    borderRadius:      10,
+    paddingVertical:   10,
+    paddingHorizontal: 16,
+    alignItems:        "center",
+    marginTop:         4,
   },
   restoreBtnText: {
-    color:         "rgba(255,255,255,0.25)",
+    color:         "#ffffff",
     fontSize:      12,
     fontFamily:    FONTS.regular,
     letterSpacing: 0.5,
@@ -471,7 +466,17 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   deleteText:   { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
-  versionText:  { color: "rgba(255,255,255,0.18)", fontSize: 11, textAlign: "center", letterSpacing: 1, paddingBottom: 8 },
+  versionBadge: {
+    alignSelf:         "center",
+    backgroundColor:   "rgba(5,8,15,0.7)",
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.1)",
+    borderRadius:      20,
+    paddingHorizontal: 10,
+    paddingVertical:   4,
+    marginBottom:      8,
+  },
+  versionText: { color: "rgba(255,255,255,0.5)", fontSize: 11, textAlign: "center", letterSpacing: 1 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.75)",

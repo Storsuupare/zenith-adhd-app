@@ -14,6 +14,8 @@ import ContractCard     from "../components/ContractCard";
 import DailyChallenge   from "../components/DailyChallenge";
 import NotificationToast from "../components/NotificationToast";
 import OnboardingModal, { ONBOARDING_KEY } from "../components/OnboardingModal";
+import WhatsNewModal from "../components/WhatsNewModal";
+import { WHATS_NEW, WHATS_NEW_KEY } from "../constants/whatsNew";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
@@ -244,16 +246,27 @@ export default function DashboardScreen({ navigation }) {
   // Y offsets of key sections, populated by onLayout callbacks below
   const [sectionYs, setSectionYs] = useState({});
 
-  // Show onboarding once per user — starts false, set true only after AsyncStorage confirms new user.
-  // The ref ensures the check only fires once even if external_id re-evaluates.
+  // Show onboarding once per new user, or the "what's new" card once per update for returning
+  // users — never both. New users already get the current feature set via onboarding, so a
+  // redundant "what's new" popup right after would be noise, not signal. Sequenced in one
+  // effect (not two separate ones) to avoid a race between the onboarding-seen read and the
+  // whats-new-seen write for brand-new users.
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const onboardingChecked = useRef(false);
+  const [showWhatsNew,   setShowWhatsNew]   = useState(false);
+  const introChecked = useRef(false);
   useEffect(() => {
-    if (!user?.external_id || onboardingChecked.current) return;
-    onboardingChecked.current = true;
-    AsyncStorage.getItem(ONBOARDING_KEY(user.external_id)).then(val => {
-      if (!val) setShowOnboarding(true);
-    });
+    if (!user?.external_id || introChecked.current) return;
+    introChecked.current = true;
+    (async () => {
+      const onboardingSeen = await AsyncStorage.getItem(ONBOARDING_KEY(user.external_id));
+      if (!onboardingSeen) {
+        setShowOnboarding(true);
+        await AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version);
+        return;
+      }
+      const whatsNewSeenVersion = await AsyncStorage.getItem(WHATS_NEW_KEY);
+      if (whatsNewSeenVersion !== WHATS_NEW.version) setShowWhatsNew(true);
+    })();
   }, [user?.external_id]);
 
   // Track how far through the active session we are (updates every 10s)
@@ -387,6 +400,14 @@ export default function DashboardScreen({ navigation }) {
           mission:   missionRef,
           contracts: contractsRef,
           skills:    skillsRef,
+        }}
+      />
+
+      <WhatsNewModal
+        visible={showWhatsNew}
+        onClose={() => {
+          setShowWhatsNew(false);
+          AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version).catch(() => {});
         }}
       />
     </SafeAreaView>
