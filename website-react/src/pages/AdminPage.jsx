@@ -60,8 +60,8 @@ export default function AdminPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  async function toggleBan(username, currentlyBanned) {
-    const key = `${username}-ban`
+  async function toggleBan(externalId, username, currentlyBanned) {
+    const key = `${externalId}-ban`
     setPending(key)
     try {
       const token = await getToken()
@@ -72,7 +72,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username,
+          externalId,
           ban:    !currentlyBanned,
           reason: !currentlyBanned ? (banReason.trim() || 'Banned by admin.') : null,
         }),
@@ -80,7 +80,7 @@ export default function AdminPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setUsers(prev => prev.map(u =>
-        u.username === username ? { ...u, is_banned: data.is_banned } : u
+        u.external_id === externalId ? { ...u, is_banned: data.is_banned } : u
       ))
       showToast(`${username} ${data.is_banned ? 'banned' : 'unbanned'}`, data.is_banned ? 'error' : 'ok')
       setBanReason('')
@@ -91,8 +91,8 @@ export default function AdminPage() {
     }
   }
 
-  async function grantTier(username, tier) {
-    const key = `${username}-${tier}`
+  async function grantTier(externalId, username, tier) {
+    const key = `${externalId}-${tier}`
     setPending(key)
     try {
       const token = await getToken()
@@ -102,12 +102,12 @@ export default function AdminPage() {
           Authorization:  `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, tier }),
+        body: JSON.stringify({ externalId, tier }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setUsers(prev => prev.map(u =>
-        u.username === username ? { ...u, role: data.role, account_tier: data.tier } : u
+        u.external_id === externalId ? { ...u, role: data.role, account_tier: data.tier } : u
       ))
       showToast(`${username} → ${tier}`, 'ok')
     } catch (e) {
@@ -188,8 +188,8 @@ export default function AdminPage() {
                               <button
                                 key={t}
                                 className={`adm-tier-btn adm-tier-btn--${t.toLowerCase()}${u.role === t ? ' active' : ''}`}
-                                disabled={u.role === t || pending === `${u.username}-${t}`}
-                                onClick={() => grantTier(u.username, t)}
+                                disabled={u.role === t || pending === `${u.external_id}-${t}`}
+                                onClick={() => grantTier(u.external_id, u.username, t)}
                               >
                                 {t}
                               </button>
@@ -203,8 +203,8 @@ export default function AdminPage() {
                         ) : (
                           <button
                             className={`adm-ban-btn${u.is_banned ? ' adm-ban-btn--unban' : ''}`}
-                            disabled={pending === `${u.username}-ban`}
-                            onClick={() => toggleBan(u.username, u.is_banned)}
+                            disabled={pending === `${u.external_id}-ban`}
+                            onClick={() => toggleBan(u.external_id, u.username, u.is_banned)}
                           >
                             {u.is_banned ? 'Unban' : 'Ban'}
                           </button>

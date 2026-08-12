@@ -608,15 +608,34 @@ app.post("/api/daily-bonus/claim", requireAuth, bonusLimiter, async (req, res) =
 
 
 app.post("/user", requireAuth, async (req, res) => {
-  const { username, email } = req.body;
   const clerkId = req.auth.userId;
 
-  if (!username || isReservedUsername(username)) {
-    return res.status(403).json({
-      error: "USERNAME_RESERVED",
-      message: "That username is not available.",
-    });
+  // Identity is read from Clerk rather than the request body. The client can claim
+  // any username/email it likes, and the mobile app historically sent the Clerk ID
+  // as the username with an empty email — which left every row unidentifiable in
+  // the admin panel. req.auth.userId is already verified, so Clerk is authoritative.
+  let username = null;
+  let email    = null;
+  try {
+    const clerkUser = await clerkClient.users.getUser(clerkId);
+    email =
+      clerkUser.emailAddresses.find(address => address.id === clerkUser.primaryEmailAddressId)?.emailAddress ??
+      clerkUser.emailAddresses[0]?.emailAddress ??
+      null;
+    username =
+      clerkUser.username ||
+      [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
+      email?.split("@")[0] ||
+      clerkId;
+  } catch {
+    // Clerk unreachable — fall back to the ID rather than blocking account creation.
+    username = clerkId;
   }
+
+  // Derived names aren't user-chosen, so a reserved match falls back instead of
+  // rejecting — otherwise someone whose email happens to start with "admin"
+  // could never create an account.
+  if (isReservedUsername(username)) username = clerkId;
 
   const creationClient = await pool.connect();
   try {
@@ -1770,14 +1789,16 @@ app.post("/api/shop/consumable-purchase", requireAuth, shopLimiter, async (req, 
 // ── Admin: manually grant tier by username ────────────────────────────────────
 // Used for gifting PRO/ELITE to promoters, testers, etc.
 // Body: { username: string, tier: "FREE" | "PRO" | "ELITE" }
+// Targets external_id rather than username: usernames are derived from Clerk and
+// are not unique, so matching on them could update several accounts at once.
 app.post("/admin/grant-tier", requireAuth, requireAdmin, adminLimiter, async (req, res) => {
-  const { username, tier } = req.body;
+  const { externalId, tier } = req.body;
 
   const TIER_MAP = { FREE: 0, PRO: 1, ELITE: 2 };
   const ROLE_MAP = { FREE: "FREE", PRO: "PRO", ELITE: "ELITE" };
 
-  if (!username || typeof username !== "string")
-    return res.status(400).json({ error: "MISSING_USERNAME" });
+  if (!externalId || typeof externalId !== "string")
+    return res.status(400).json({ error: "MISSING_EXTERNAL_ID" });
   if (!(tier in TIER_MAP))
     return res.status(400).json({ error: "INVALID_TIER", valid: ["FREE", "PRO", "ELITE"] });
 
@@ -1789,13 +1810,13 @@ app.post("/admin/grant-tier", requireAuth, requireAdmin, adminLimiter, async (re
       `UPDATE users
        SET account_tier = $1,
            role         = $2
-       WHERE LOWER(username) = LOWER($3)
+       WHERE external_id = $3
        RETURNING external_id, username, role, account_tier`,
-      [newTier, newRole, username.trim()],
+      [newTier, newRole, externalId.trim()],
     );
 
     if (result.rowCount === 0)
-      return res.status(404).json({ error: "USER_NOT_FOUND", username });
+      return res.status(404).json({ error: "USER_NOT_FOUND", externalId });
 
     const updated = result.rows[0];
     pushUserPatch(updated.external_id).catch(() => {});
@@ -1811,19 +1832,20 @@ app.post("/admin/grant-tier", requireAuth, requireAdmin, adminLimiter, async (re
   }
 });
 
+// Also keyed on external_id — see the note on grant-tier above.
 app.post("/admin/ban-user", requireAuth, requireAdmin, adminLimiter, async (req, res) => {
-  const { username, ban, reason } = req.body;
-  if (!username || typeof username !== "string")
-    return res.status(400).json({ error: "MISSING_USERNAME" });
+  const { externalId, ban, reason } = req.body;
+  if (!externalId || typeof externalId !== "string")
+    return res.status(400).json({ error: "MISSING_EXTERNAL_ID" });
 
   try {
     const result = await pool.query(
       `UPDATE users
        SET is_banned  = $1,
            ban_reason = $2
-       WHERE LOWER(username) = LOWER($3) AND is_admin = false
+       WHERE external_id = $3 AND is_admin = false
        RETURNING external_id, username, is_banned`,
-      [!!ban, ban ? (reason?.trim() || "Banned by admin.") : null, username.trim()],
+      [!!ban, ban ? (reason?.trim() || "Banned by admin.") : null, externalId.trim()],
     );
     if (result.rowCount === 0)
       return res.status(404).json({ error: "USER_NOT_FOUND_OR_PROTECTED" });
