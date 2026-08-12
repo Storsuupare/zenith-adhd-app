@@ -1,6 +1,6 @@
 # Zenith
 
-A productivity app that turns focus sessions into a live progression system — XP, skills, loot drops, and a streak multiplier that compounds the longer you stay consistent. Built for people who struggle to start and stay on task.
+A productivity app that turns focus sessions into a live progression system — XP, skills, loot drops, and streaks that compound the longer you stay consistent. Built for people who struggle to start and stay on task.
 
 Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Soon...)
 
@@ -8,15 +8,18 @@ Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Soon.
 
 ## Stack
 
-| Layer       | Technology                                                  |
-|-------------|-------------------------------------------------------------|
-| Mobile      | React Native 0.76 + Expo SDK 54                             |
-| Web         | React 18 + Vite 5                                           |
-| Backend     | Node.js 20 + Express 4 + PostgreSQL 16                      |
-| Auth        | Clerk (JWT-based, webhook-verified role sync)               |
-| Payments    | Stripe (web subscriptions) + Apple IAP via RevenueCat (mobile) |
-| Email       | Resend                                                      |
-| Hosting     | Railway (API + DB) + Vercel (web)                           |
+| Layer       | Technology                                                   |
+|-------------|--------------------------------------------------------------|
+| Mobile      | React Native 0.81 + Expo SDK 54                              |
+| Web         | React 18 + Vite                                              |
+| Backend     | Node.js 22 + Express 4 + PostgreSQL 16                       |
+| Auth        | Clerk (JWT, verified server-side on every protected route)   |
+| Payments    | Apple IAP via RevenueCat (live) · Stripe (implemented, dormant) |
+| Native iOS  | Swift — WidgetKit widgets, ActivityKit Live Activities       |
+| Analytics   | PostHog (EU region), server-side events only                 |
+| Email       | Resend                                                       |
+| Hosting     | Railway (API + DB) + Vercel (web)                            |
+| CI          | GitHub Actions — Jest, build and typecheck gates             |
 
 ---
 
@@ -26,22 +29,27 @@ Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Soon.
 zenith-mobile/      React Native client (Expo managed workflow)
 website-react/      Marketing site + web billing portal
 backend/            Express REST API + PostgreSQL
+ios/                Swift widget + Live Activity extensions
 ```
 
-The backend is a single Express service sitting in front of PostgreSQL. All writes go through parameterised queries — no ORM, no query builder, full control over the SQL surface. The mobile and web clients talk to the same API; auth context flows through Clerk JWTs, validated server-side on every protected route.
+The backend is a single Express service in front of PostgreSQL. All writes go through parameterised queries — no ORM, no query builder, full control over the SQL surface. Mobile and web clients talk to the same API; auth flows through Clerk JWTs validated server-side on every protected route.
 
-Payments are split: Stripe handles web subscriptions, Apple IAP handles mobile purchases. A webhook listener on the backend reconciles both into the same `role` column in PostgreSQL and keeps the Clerk public metadata in sync. The client reads tier from the Clerk session, so there is no extra DB round-trip to gate features.
+The economy is deliberately server-authoritative. XP, credits, loot rolls and streak state are all computed on the backend — the client submits a request to complete a session and receives the result. A modified client cannot alter a balance, because it never calculates one.
 
 ---
 
 ## Security design
 
-- **Auth**: every protected route validates the Clerk JWT using the Clerk SDK — no custom JWT parsing.
-- **SQL injection**: 100% parameterised queries throughout the backend. No string interpolation into SQL.
-- **Idempotency**: the daily challenge claim route uses `WHERE daily_challenge_claimed_date < CURRENT_DATE` as the update predicate, making double-claim impossible at the database level — no application-level lock needed.
-- **Secrets**: all credentials live in `.env` / Railway environment variables. Nothing is hardcoded. The repository contains no private keys, Stripe secrets, or database URLs.
-- **Webhook verification**: Stripe webhooks are verified using the Stripe signature header before any data is trusted.
-- **Rate limiting**: planned before public launch — express-rate-limit on auth and payment endpoints.
+- **Auth**: every protected route validates the Clerk JWT via the Clerk SDK. No custom JWT parsing.
+- **IDOR**: user-scoped queries join on `external_id = req.auth.userId` rather than trusting any client-supplied identifier. Identity is read from the verified token, never the request body.
+- **SQL injection**: parameterised queries throughout. No string interpolation into SQL.
+- **Rate limiting**: six independent limiters scoped by operation — global abuse guard, mutations, shop purchases, daily bonus claims, admin routes, and payment session creation — rather than one blanket limit.
+- **Idempotency**: the daily challenge claim uses `WHERE daily_challenge_claimed_date < CURRENT_DATE` as its update predicate, making a double claim impossible at the database level with no application lock.
+- **Transactions**: session completion runs in a single transaction, with `SAVEPOINT` isolating streak-milestone processing so a failure there cannot roll back an already-earned session.
+- **Secrets**: all credentials live in `.env` or Railway environment variables. The repository contains no keys, tokens, or database URLs.
+- **Webhooks**: Stripe webhooks are signature-verified with `constructEvent` before any payload is trusted.
+- **Headers**: Helmet on the API; HSTS, nosniff, frame-deny, Referrer-Policy and Permissions-Policy on the web front end.
+- **Analytics privacy**: events are emitted server-side and carry only numbers and short enums — duration, skill, rarity, tier. A guard rejects any property whose name suggests user-authored content, recurses into nested objects, and refuses strings over 64 characters on the assumption that free text is not an identifier. Task titles are the user's own words and never leave the server. Covered by tests.
 
 ---
 
@@ -49,45 +57,55 @@ Payments are split: Stripe handles web subscriptions, Apple IAP handles mobile p
 
 ### Session economy
 
-Every completed focus session earns XP and a flat credit reward based on duration (5 min → 25 CR, 15 min → 60 CR, 30 min → 120 CR, 60 min → 220 CR, 90 min → 320 CR, 120 min → 420 CR). Sessions also have a flat 25% chance to drop a loot item regardless of tier — paying users get the same odds, not better ones.
+A completed session pays XP plus a fixed credit reward by duration (5 min → 25 CR, 15 → 60, 30 → 120, 60 → 220, 90 → 320, 120 → 420). Sessions have a flat 25% chance to drop loot, which pays credits by rarity: Junk 50, Uncommon 150, Rare 350, Epic 700, Legendary 1,500, Mythic 3,500. Drop odds are identical for every tier.
 
 ### Neural Clock
 
-Rewards shift with the time of day. A 12AM–5AM REDZONE halves XP (Sleeping Logic). Peak hours give the best multiplier. A late-night hyperfocus window opens at 10PM. This is not gamification decoration — it encodes a real sleep hygiene signal into the economy.
+Rewards shift with time of day. A 12AM–5AM REDZONE halves rewards, an 8–11AM peak window pays ×1.25 XP, and a 10PM–midnight hyperfocus window pays ×1.5. This encodes a sleep-hygiene signal into the economy rather than treating time as decoration.
 
 ### Skill system
 
-12 independent skills (Logic Flow, Resolve, Vitality, Creativity, and more), each with its own XP bar from level 1–99. XP required per level follows `100 × level^1.6` — roughly 6.7M total XP to max a skill, tuned for ~18 months of regular use. PRO users can Prestige at 99: the skill resets to 1 and grants a permanent +10% XP multiplier to that skill. Prestige stacks.
+12 independent skills — Resolve, Logic Flow, Creativity, Discipline, Vitality, Execution, Nutrition, Logistics, Presence, Recovery, Learning, Environment — each with its own XP bar from level 1 to 99, following `100 × level^1.6`. PRO users can Prestige at 99: the skill resets to level 1 and gains a permanent +10% XP multiplier. Prestige stacks.
 
 ### Streak system
 
-A streak multiplier accumulates with consecutive days of completed sessions. The multiplier feeds into skill XP calculation alongside the prestige and time-of-day multipliers. Missing a day resets the streak. PRO users get a streak shield — a one-time absorber that burns on a missed day instead of resetting the streak. ELITE users have their shield auto-replenish after use.
+Consecutive days of completed sessions build a streak, which pays a flat credit bonus and unlocks milestone rewards at 7, 14, 30, 60 and 100 days. Missing a day resets it. PRO users get a streak shield that absorbs one missed day; ELITE shields replenish automatically.
 
-### Daily challenges
+### Loot and shop
 
-A rotating daily challenge (e.g. "complete 3 sessions", "train two different skills"). Completing it unlocks a 150 CR claim. The claim button disappears immediately on tap via optimistic local state — the DB prevents double-claim independently.
-
-### Loot drops + shop
-
-Finishing a session has a 25% chance to drop a cosmetic item (rarity: Common → Legendary). Credits are spent in the shop on sky themes that change the entire visual backdrop. All themes are available to every user regardless of tier.
+Credits are spent in the shop on sky themes that change the entire visual backdrop, and on consumables — Streak Rescue (1,500 CR) and Extra Loot Pull (750 CR). Every theme is purchasable by every tier; only the streak shield is tier-exclusive.
 
 ### Solar backdrop
 
-The app background renders a real-time sky gradient that transitions through dawn, sunrise, day, golden hour, sunset, dusk, and night based on the device clock. Credits-tier themes use subtler gradients; PRO/ELITE themes are visually distinct.
+The background renders a live sky that transitions through dawn, day, golden hour, dusk and night against the device clock, with weather overlays from Open-Meteo. Animation is restricted to `transform` and `opacity` — no filters, no canvas — to hold 60fps on low-end devices.
 
 ---
 
 ## Monetization
 
-| Tier  | Price     | Task slots | History depth | Prestige | Streak shield       | CSV export |
-|-------|-----------|------------|---------------|----------|---------------------|------------|
-| FREE  | —         | 5          | 7 days        | —        | —                   | —          |
-| PRO   | €4.99/mo  | 15         | 6 months      | Yes      | One-time            | Yes        |
-| ELITE | €9.99/mo  | Unlimited  | All time      | Yes      | Auto-replenishes    | Yes        |
+| Tier  | Price     | Task slots | History depth | Prestige | Streak shield    | CSV export |
+|-------|-----------|------------|---------------|----------|------------------|------------|
+| FREE  | —         | 5          | 7 days        | —        | —                | —          |
+| PRO   | €4.99/mo  | 15         | 6 months      | Yes      | One-time         | Yes        |
+| ELITE | €9.99/mo  | Unlimited  | All time      | Yes      | Auto-replenishes | Yes        |
 
-Paying buys depth and capacity — never a gameplay advantage. Drop rates, XP speed, and loot rarity are identical across all tiers. No pay-to-win mechanics.
+Paying buys capacity and depth. Loot drop odds and rarity weights are identical across every tier — a free account and an Elite account roll from the same table.
 
-Billing is hybrid: web subscriptions go through Stripe (full portal, invoice history, cancel anytime), mobile through Apple IAP. Backend reconciles both into a single `role` field.
+Achievements are open to every tier. All 26 are evaluated server-side against lifetime stats, unlock on the same thresholds regardless of plan, and pay the same loot rarity whether the account is FREE or ELITE. One is effectively out of reach on a free plan — "Second Ascent" requires prestiging a skill, and Prestige is PRO-gated — leaving 25 of 26 fully attainable without paying.
+
+One honest exception: Prestige is PRO-gated and grants a permanent, stacking +10% skill XP multiplier, so a paying user who has prestiged does earn XP faster. It sits behind level 99, so it affects very few accounts in practice — but it is a paid advantage, and calling it anything else would be dishonest. It is also the reason any future leaderboard needs to rank on sessions or minutes focused rather than raw XP.
+
+---
+
+## Known limitations
+
+Kept here deliberately — these are known, not overlooked.
+
+- **Single-instance assumptions.** Scheduled jobs run via `node-cron` inside the web process, SSE clients are held in an in-memory `Map`, and rate limiting uses an in-memory store. All three are correct for one instance and break on two: duplicate notifications, dropped live updates, and per-process rate limits. Fixing them means Redis for leader election, pub/sub and a shared limiter store.
+- **Test coverage is thin.** Jest covers the reward math (`calculateStake`, `getNeuralMult`, achievement evaluation). API routes have no integration tests.
+- **Schema migrations are ad-hoc.** Tables and columns are created via `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ... IF NOT EXISTS` at boot. Idempotent and simple, but there is no migration history and no rollback path.
+- **No error tracking yet.** Failures go to `console.error` and the platform log. Planned before public launch.
+- **Accessibility is incomplete.** No VoiceOver labelling, and the app does not yet respect the system Reduce Motion setting despite being animation-heavy.
 
 ---
 

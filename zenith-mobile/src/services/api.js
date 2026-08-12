@@ -42,6 +42,9 @@ export const exportSessionsCsv  = ()      => api.get("/api/stats/export-csv", { 
 // ── Skills ────────────────────────────────────────────────────────────────────
 export const prestigeSkill = (skillName) => api.post("/skills/prestige", { skillName });
 
+// ── Achievements ──────────────────────────────────────────────────────────────
+export const fetchAchievements = () => api.get("/achievements");
+
 // ── Stripe ────────────────────────────────────────────────────────────────────
 export const createCheckoutSession = (targetTier) =>
   api.post("/payments/create-session", { targetTier });

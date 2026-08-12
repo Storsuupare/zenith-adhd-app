@@ -13,6 +13,7 @@ import ShopScreen           from "../screens/ShopScreen";
 import ArchivesScreen       from "../screens/ArchivesScreen";
 import SettingsScreen       from "../screens/SettingsScreen";
 import SessionScreen        from "../screens/SessionScreen";
+import AchievementsScreen   from "../screens/AchievementsScreen";
 import ReleaseNotesScreen   from "../screens/ReleaseNotesScreen";
 import PrivacyScreen        from "../screens/PrivacyScreen";
 import TermsScreen          from "../screens/TermsScreen";
@@ -23,6 +24,7 @@ import SolarBackdrop        from "../components/SolarBackdrop";
 import { useTheme }         from "../context/ThemeContext";
 import { COLORS }           from "../constants/colors";
 import { useTasks }         from "../context/TaskContext";
+import { useUser }          from "../context/UserContext";
 
 // Per-theme dark base that tints the navbar glass —
 // matched to each theme's night sky top color at ~72% opacity
@@ -97,6 +99,7 @@ function SettingsStack() {
 
 function AppTabs() {
   const { accentColor } = useTheme();
+  const { achievementsUnseen } = useUser() || {};
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -113,10 +116,11 @@ function AppTabs() {
         tabBarLabelStyle: { fontSize: 10, marginBottom: 2, fontFamily: FONTS.semiBold, letterSpacing: 0.5 },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = {
-            Home:     focused ? "home"          : "home-outline",
-            Shop:     focused ? "storefront"    : "storefront-outline",
-            History:  focused ? "time"          : "time-outline",
-            Settings: focused ? "settings"      : "settings-outline",
+            Home:         focused ? "home"       : "home-outline",
+            Shop:         focused ? "storefront" : "storefront-outline",
+            History:      focused ? "time"       : "time-outline",
+            Achievements: focused ? "trophy"     : "trophy-outline",
+            Settings:     focused ? "settings"   : "settings-outline",
           };
           return <Ionicons name={icons[route.name]} size={size - 2} color={color} />;
         },
@@ -125,6 +129,16 @@ function AppTabs() {
       <Tab.Screen name="Home"    component={DashboardScreen} />
       <Tab.Screen name="Shop"    component={ShopScreen} />
       <Tab.Screen name="History" component={ArchivesScreen} />
+      <Tab.Screen
+        name="Achievements"
+        component={AchievementsScreen}
+        options={{
+          tabBarLabel: "Awards",
+          // Dot only — a count would imply a to-do list rather than a reward.
+          tabBarBadge: achievementsUnseen ? "" : undefined,
+          tabBarBadgeStyle: { backgroundColor: accentColor, minWidth: 10, maxHeight: 10, borderRadius: 5 },
+        }}
+      />
       <Tab.Screen name="Settings" component={SettingsStack} />
     </Tab.Navigator>
   );

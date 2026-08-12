@@ -20,6 +20,7 @@
     "helmet": "^8.2.0",
     "node-cron": "^4.2.1",
     "pg": "^8.20.0",
+    "posthog-node": "^5.48.2",
     "resend": "^6.16.0",
     "stripe": "^22.0.2",
     "web-push": "^3.6.7"

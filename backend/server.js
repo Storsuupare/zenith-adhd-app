@@ -314,6 +314,19 @@ pool.query(`
   ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false
 `).catch(() => {});
 
+// Achievement unlocks. Definitions live in achievements.js, not here — only the
+// fact that a given user earned one is persisted. The composite primary key is
+// what makes the ON CONFLICT in evaluateAchievements() safe against double-paying
+// a reward when two session completions land at once.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS user_achievements (
+    user_id         INTEGER     NOT NULL,
+    achievement_key TEXT        NOT NULL,
+    unlocked_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, achievement_key)
+  )
+`).catch(() => {});
+
 pool.query(`UPDATE users SET system_credits = 0 WHERE system_credits IS NULL`).catch(() => {});
 
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_bonus_claimed_at TIMESTAMPTZ`).catch(() => {});
@@ -518,6 +531,8 @@ function getEffectiveAccountTier(accountTier) {
 }
 
 const { CREDIT_BY_RARITY, rollRarity } = require("./LootData.js");
+const { ACHIEVEMENTS, evaluateAchievements } = require("./achievementService.js");
+const { track: trackEvent, identify: identifyUser, shutdownAnalytics } = require("./analytics.js");
 
 // Terms that impersonate Zenith staff or the brand.
 // Checked case-insensitively as substrings after stripping separators.
@@ -812,6 +827,9 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
       );
       if (parseInt(taskActiveCount.rows[0].count) >= taskMaxLimit) {
         await taskClient.query("ROLLBACK");
+        // The only moment a user actually meets the paywall. Without this we can't
+        // tell whether the limit converts, annoys, or is never reached at all.
+        trackEvent(externalId, "paywall_hit", { limit: taskMaxLimit, tier: cTier, reason: "task_slots" });
         return res.status(403).json({
           error: "TASK LIMIT REACHED",
           message: `You've reached your ${taskMaxLimit}-task limit. Upgrade your plan to run more missions at once!`,
@@ -874,6 +892,16 @@ app.post("/api/tasks", requireAuth, mutationLimiter, async (req, res) => {
 
     await taskClient.query("COMMIT");
     pushUserPatch(externalId).catch(() => {});
+
+    // Skill and duration distribution across many of these is what answers
+    // whether 12 skills is too many and whether long sessions get used at all.
+    // The task's title is deliberately not included — it's the user's own words.
+    trackEvent(externalId, "session_started", {
+      duration_minutes: parsedDuration,
+      skill:            resolvedSkillName,
+      tier:             cTier ?? 0,
+      hour_of_day:      new Date().getHours(),
+    });
 
     presenceMap.set(externalId, {
       sessionId: Math.random().toString(36).slice(2, 10),
@@ -1190,7 +1218,64 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
       [task.userId, parseInt(task.durationMinutes) || 0],
     );
 
+    // Evaluated after the task is marked SUCCESS, because the thresholds count
+    // completed sessions, and before COMMIT so an unlock can never be credited
+    // without the session that earned it committing too.
+    //
+    // Wrapped in a SAVEPOINT for the same reason the milestone block above is:
+    // achievements are a bonus, and a failure here must never cost someone the
+    // XP, credits and loot they already earned. Postgres aborts the whole
+    // transaction on any error, so a bare try/catch would not be enough — the
+    // savepoint is what lets the session completion survive.
+    let unlockedAchievements = [];
+    await completeClient.query("SAVEPOINT achievements");
+    try {
+      unlockedAchievements = await evaluateAchievements(task.userId, completeClient);
+      await completeClient.query("RELEASE SAVEPOINT achievements");
+    } catch (achievementErr) {
+      await completeClient.query("ROLLBACK TO SAVEPOINT achievements");
+      console.error("[achievements] evaluation failed, session completed anyway:", achievementErr.message);
+      unlockedAchievements = [];
+    }
+
+    // evaluateAchievements pays its loot inside the same transaction, which makes
+    // the user row read earlier in this handler stale the moment anything unlocked.
+    let finalUserRow = updatedUser.rows[0];
+    if (unlockedAchievements.length > 0) {
+      const refreshedUser = await completeClient.query("SELECT * FROM users WHERE id = $1", [task.userId]);
+      if (refreshedUser.rows[0]) finalUserRow = refreshedUser.rows[0];
+    }
+
     await completeClient.query("COMMIT");
+
+    trackEvent(externalId, "session_completed", {
+      duration_minutes: parseInt(task.durationMinutes) || 0,
+      skill:            completedSkillName,
+      xp_earned:        totalXpGained,
+      credits_earned:   sessionCr,
+      drop_rarity:      drop?.rarity ?? null,
+      streak:           finalUserRow?.streak ?? 0,
+      tier:             finalUserRow?.account_tier ?? 0,
+      hour_of_day:      new Date().getHours(),
+      leveled_up:       Boolean(leveledUp),
+    });
+
+    // Emitted separately so unlock rate and threshold tuning can be read without
+    // unpacking arrays out of session events.
+    for (const achievement of unlockedAchievements) {
+      trackEvent(externalId, "achievement_unlocked", {
+        key:      achievement.key,
+        category: achievement.category,
+        rarity:   achievement.lootRarity,
+      });
+    }
+
+    // Lets every other event be segmented by tier and progression later.
+    identifyUser(externalId, {
+      tier:   finalUserRow?.account_tier ?? 0,
+      level:  finalUserRow?.level ?? 1,
+      streak: finalUserRow?.streak ?? 0,
+    });
 
     // Push real-time patch to any connected SSE client before sending response
     pushUserPatch(externalId).catch(() => {});
@@ -1203,7 +1288,8 @@ app.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req, re
       credits_earned:   sessionCr,
       xp_earned:        totalXpGained,
       skill_name:       completedSkillName,
-      user:             updatedUser.rows[0],
+      user:             finalUserRow,
+      achievements_unlocked: unlockedAchievements,
       drop,
       leveledUp,
       newLevel:         globalLevel,
@@ -1256,6 +1342,15 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
 
     await client.query("UPDATE tasks SET status = 'FAILED' WHERE id = $1", [id]);
 
+    // How far in people quit is the useful part — abandoning at 10% is a "picked
+    // the wrong length" problem, abandoning at 85% is a session-length problem.
+    trackEvent(externalId, "session_abandoned", {
+      elapsed_seconds: Math.round(elapsedSeconds),
+      in_grace_period: inGrace,
+      deadline_passed: Boolean(deadline_passed),
+      shield_used:     Boolean(streak_shield) && !inGrace,
+    });
+
     if (inGrace) {
       await client.query("COMMIT");
       pushUserPatch(externalId).catch(() => {});
@@ -1302,6 +1397,37 @@ app.post("/api/tasks/:id/fail", requireAuth, mutationLimiter, async (req, res) =
     res.status(500).send("ABORT_SEQUENCE_FAILED");
   } finally {
     client.release();
+  }
+});
+
+// Returns every achievement definition with the caller's unlock state attached.
+// Definitions are served rather than duplicated in the app so there is one source
+// of truth, and so adding an achievement needs no new mobile build.
+app.get("/achievements", requireAuth, async (req, res) => {
+  try {
+    const userRes = await pool.query("SELECT id FROM users WHERE external_id = $1", [req.auth.userId]);
+    if (!userRes.rows[0]) return res.status(404).json({ error: "USER_NOT_FOUND" });
+
+    const unlockedRes = await pool.query(
+      "SELECT achievement_key, unlocked_at FROM user_achievements WHERE user_id = $1",
+      [userRes.rows[0].id],
+    );
+    const unlockedByKey = new Map(unlockedRes.rows.map(row => [row.achievement_key, row.unlocked_at]));
+
+    res.json({
+      unlocked_count: unlockedByKey.size,
+      total_count:    ACHIEVEMENTS.length,
+      achievements:   ACHIEVEMENTS.map(definition => ({
+        key:         definition.key,
+        category:    definition.category,
+        title:       definition.title,
+        description: definition.description,
+        lootRarity:  definition.lootRarity,
+        unlocked_at: unlockedByKey.get(definition.key) ?? null,
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: "DATABASE_ERROR" });
   }
 });
 

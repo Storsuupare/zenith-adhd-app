@@ -20,13 +20,38 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: npm ci
+      # web-push validates VAPID key format, so a literal placeholder string won't do.
+      # A fresh pair is generated per run and never leaves the runner — nothing
+      # key-shaped is stored in this repo.
+      - name: Generate throwaway VAPID keys
+        working-directory: backend
+        run: |
+          node -e "
+          const { publicKey, privateKey } = require('web-push').generateVAPIDKeys();
+          const fs = require('fs');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'VAPID_PUBLIC_KEY=' + publicKey + '\n');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'VAPID_PRIVATE_KEY=' + privateKey + '\n');
+          "
+
       - name: Run tests
         working-directory: backend
-        # server.js opens a pool at import time; the startup queries swallow their own
-        # errors, so a throwaway URL keeps the suite offline instead of reaching Railway.
+        # server.js does real setup at import time — webpush.setVapidDetails(), the
+        # Stripe client and the Resend client each throw when their key is absent,
+        # and requiring server.js is exactly what these tests do. The values below are
+        # obvious non-secrets that only need to be present. DATABASE_URL points nowhere
+        # on purpose: the startup queries swallow their own errors, so the suite stays
+        # offline instead of reaching Railway.
         env:
           DATABASE_URL: postgres://ci:ci@localhost:5432/ci
           NODE_ENV: test
+          CLERK_SECRET_KEY: placeholder-not-a-real-key
+          STRIPE_SECRET_KEY: placeholder-not-a-real-key
+          STRIPE_WEBHOOK_SECRET: placeholder-not-a-real-key
+          FRONTEND_URL: http://localhost:5173
+          ALLOWED_ORIGINS: http://localhost:5173
+          VAPID_EMAIL: mailto:ci@example.com
+          ADMIN_SECRET: placeholder-not-a-real-key
+          RESEND_API_KEY: placeholder-not-a-real-key
         run: npm test
 
   website-build:

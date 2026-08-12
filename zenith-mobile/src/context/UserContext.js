@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
 import { fetchUser, createUser, setAuthToken } from "../services/api";
 import { registerPushToken } from "../services/notifications";
@@ -7,12 +8,34 @@ import Purchases from "react-native-purchases";
 
 const REVENUECAT_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY;
 
+// Drives the dot on the Achievements tab. Kept here rather than derived from an
+// API count so the badge costs no extra request — session completion already
+// tells us when something unlocked.
+const ACHIEVEMENTS_UNSEEN_KEY = "zenith_achievements_unseen";
+
 const UserContext = createContext(null);
 
 export function UserProvider({ children }) {
   const { isSignedIn, getToken, userId } = useAuth();
   const [user, setUser] = useState(null);
   const [restoringPurchases, setRestoringPurchases] = useState(false);
+  const [achievementsUnseen, setAchievementsUnseen] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ACHIEVEMENTS_UNSEEN_KEY)
+      .then(value => setAchievementsUnseen(value === "1"))
+      .catch(() => {});
+  }, []);
+
+  const markAchievementsUnseen = useCallback(() => {
+    setAchievementsUnseen(true);
+    AsyncStorage.setItem(ACHIEVEMENTS_UNSEEN_KEY, "1").catch(() => {});
+  }, []);
+
+  const clearAchievementsUnseen = useCallback(() => {
+    setAchievementsUnseen(false);
+    AsyncStorage.removeItem(ACHIEVEMENTS_UNSEEN_KEY).catch(() => {});
+  }, []);
 
   // Refresh the Clerk JWT and attach it to every future axios request.
   // Clerk caches the token and only hits the network when it's close to expiry.
@@ -80,6 +103,7 @@ export function UserProvider({ children }) {
     <UserContext.Provider value={{
       user, fetchUser: loadUser, refreshToken, userId,
       restorePurchases, restoringPurchases,
+      achievementsUnseen, markAchievementsUnseen, clearAchievementsUnseen,
     }}>
       {children}
     </UserContext.Provider>

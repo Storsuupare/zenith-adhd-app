@@ -5,7 +5,7 @@ import { fetchTasks, createTask, completeTask, failTask } from "../services/api"
 const TaskContext = createContext(null);
 
 export function TaskProvider({ children }) {
-  const { user, fetchUser, refreshToken, userId } = useUser();
+  const { user, fetchUser, refreshToken, userId, markAchievementsUnseen } = useUser();
   const [contracts,     setContracts]     = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loot,          setLoot]          = useState(null);
@@ -119,11 +119,28 @@ export function TaskProvider({ children }) {
         addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  +${streak_bonus} CR` : "") });
       }
 
+      // Achievements surface as toasts rather than a fourth modal — a full-screen
+      // celebration is already competing for this moment. If one is showing, wait
+      // until it has dismissed, otherwise the toast fires behind it and is missed.
+      const unlockedAchievements = res.data.achievements_unlocked ?? [];
+      if (unlockedAchievements.length > 0) {
+        markAchievementsUnseen();
+        const startDelay = (hasLevelCelebration || milestonePayload) ? 6500 : 900;
+        unlockedAchievements.forEach((achievement, index) => {
+          setTimeout(() => {
+            addNotification({
+              type:    "success",
+              message: `Achievement — ${achievement.title}` + (achievement.credits ? `  +${achievement.credits} CR` : ""),
+            });
+          }, startDelay + index * 1400);
+        });
+      }
+
       return res.data;
     } catch (err) {
       addNotification({ type: "error", message: "Could not collect reward" });
     }
-  }, [refreshToken, loadContracts, fetchUser, addNotification, user?.streak, user?.account_tier]);
+  }, [refreshToken, loadContracts, fetchUser, addNotification, markAchievementsUnseen, user?.streak, user?.account_tier]);
 
   const handleAbort = useCallback(async (taskId) => {
     try {
