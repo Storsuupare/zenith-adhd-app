@@ -19,6 +19,7 @@ function DoneCard({ contract, onComplete, skillColor }) {
   const [phase,     setPhase]     = useState("calculating");
   const [displayXP, setDisplayXP] = useState(0);
   const [isPending, setIsPending] = useState(false);
+  const [unlockedAchievements, setUnlockedAchievements] = useState([]);
 
   // Pulsing opacity for the ??? during calculating phase
   const pulse = useRef(new Animated.Value(0.25)).current;
@@ -63,8 +64,10 @@ function DoneCard({ contract, onComplete, skillColor }) {
     if (isPending) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsPending(true);
-    try { await onComplete(contract.id); }
-    finally { setIsPending(false); }
+    try {
+      const result = await onComplete(contract.id);
+      setUnlockedAchievements(result?.achievements_unlocked ?? []);
+    } finally { setIsPending(false); }
   };
 
   return (
@@ -103,8 +106,21 @@ function DoneCard({ contract, onComplete, skillColor }) {
           <Text style={doneStyles.calcLabel}>CALCULATING REWARDS...</Text>
         )}
 
+        {unlockedAchievements.map(achievement => (
+          <View key={achievement.key} style={doneStyles.achievementRow}>
+            <Text style={[doneStyles.achievementStar, { color: skillColor }]}>★</Text>
+            <View style={doneStyles.achievementBody}>
+              <Text style={doneStyles.achievementCaption}>ACHIEVEMENT UNLOCKED</Text>
+              <Text style={[doneStyles.achievementName, { color: skillColor }]}>{achievement.title}</Text>
+            </View>
+            {achievement.credits > 0 && (
+              <Text style={doneStyles.achievementCredits}>+{achievement.credits} CR</Text>
+            )}
+          </View>
+        ))}
+
         {/* Collect button — appears only when ready */}
-        {phase === "ready" && (
+        {phase === "ready" && unlockedAchievements.length === 0 && (
           <TouchableOpacity
             style={[doneStyles.collectBtn, { backgroundColor: skillColor }]}
             onPress={handleCollect}
@@ -517,6 +533,36 @@ const doneStyles = StyleSheet.create({
     textAlign:     "center",
   },
 
+  achievementRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    gap:               10,
+    marginTop:         12,
+    paddingVertical:   10,
+    paddingHorizontal: 14,
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.12)",
+    borderRadius:      12,
+    backgroundColor:   "rgba(255,255,255,0.05)",
+  },
+  achievementStar: { fontSize: 20 },
+  achievementBody: { flex: 1 },
+  achievementCaption: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      9,
+    letterSpacing: 1.6,
+    color:         "rgba(255,255,255,0.45)",
+  },
+  achievementName: {
+    fontFamily: FONTS.bold,
+    fontSize:   14,
+    marginTop:  2,
+  },
+  achievementCredits: {
+    fontFamily: FONTS.monoBold,
+    fontSize:   13,
+    color:      "#fbbf24",
+  },
   collectBtn: {
     width:          "100%",
     paddingVertical: 18,

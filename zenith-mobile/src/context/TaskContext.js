@@ -119,22 +119,7 @@ export function TaskProvider({ children }) {
         addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  +${streak_bonus} CR` : "") });
       }
 
-      // Achievements surface as toasts rather than a fourth modal — a full-screen
-      // celebration is already competing for this moment. If one is showing, wait
-      // until it has dismissed, otherwise the toast fires behind it and is missed.
-      const unlockedAchievements = res.data.achievements_unlocked ?? [];
-      if (unlockedAchievements.length > 0) {
-        markAchievementsUnseen();
-        const startDelay = (hasLevelCelebration || milestonePayload) ? 6500 : 900;
-        unlockedAchievements.forEach((achievement, index) => {
-          setTimeout(() => {
-            addNotification({
-              type:    "success",
-              message: `Achievement — ${achievement.title}` + (achievement.credits ? `  +${achievement.credits} CR` : ""),
-            });
-          }, startDelay + index * 1400);
-        });
-      }
+      if ((res.data.achievements_unlocked ?? []).length > 0) markAchievementsUnseen();
 
       return res.data;
     } catch (err) {

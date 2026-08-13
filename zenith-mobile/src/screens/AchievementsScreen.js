@@ -18,6 +18,14 @@ const RARITY_COLORS = {
   Mythic:    "#f472b6",
 };
 
+const STARS_BY_RARITY = {
+  Uncommon:  2,
+  Rare:      3,
+  Epic:      4,
+  Legendary: 5,
+  Mythic:    6,
+};
+
 export default function AchievementsScreen() {
   const { accentColor } = useTheme() || {};
   const { clearAchievementsUnseen } = useUser() || {};
@@ -131,12 +139,12 @@ export default function AchievementsScreen() {
                       : styles.cardLocked,
                   ]}
                 >
-                  <View style={[
-                    styles.marker,
-                    unlocked ? { borderColor: rarityColor, backgroundColor: rarityColor + "22" } : styles.markerLocked,
-                  ]}>
-                    <Text style={[styles.markerIcon, { color: unlocked ? rarityColor : "rgba(255,255,255,0.25)" }]}>
-                      {unlocked ? "★" : "☆"}
+                  <View style={styles.starColumn}>
+                    <Text
+                      style={[styles.stars, { color: unlocked ? rarityColor : "rgba(255,255,255,0.22)" }]}
+                      numberOfLines={2}
+                    >
+                      {(unlocked ? "★" : "☆").repeat(STARS_BY_RARITY[achievement.lootRarity] ?? 1)}
                     </Text>
                   </View>
 
@@ -149,11 +157,6 @@ export default function AchievementsScreen() {
                     </Text>
                   </View>
 
-                  {achievement.lootRarity && (
-                    <Text style={[styles.rarityTag, { color: unlocked ? rarityColor : "rgba(255,255,255,0.22)" }]}>
-                      {achievement.lootRarity}
-                    </Text>
-                  )}
                 </View>
               );
             })}
@@ -199,19 +202,12 @@ const styles = StyleSheet.create({
   },
   cardLocked: { borderColor: "rgba(255,255,255,0.07)" },
 
-  marker: {
-    width: 34, height: 34, borderRadius: 17,
-    borderWidth: 1, alignItems: "center", justifyContent: "center",
-  },
-  markerLocked: { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.03)" },
-  markerIcon: { fontSize: 16 },
+  starColumn: { width: 54 },
+  stars: { fontSize: 11, lineHeight: 14, letterSpacing: 0.5 },
 
   cardBody:  { flex: 1 },
   cardTitle: { color: "#f8fafc", fontSize: 14, fontFamily: FONTS.semiBold },
   cardDesc:  { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2, lineHeight: 17 },
   textLocked: { color: "rgba(255,255,255,0.35)" },
 
-  rarityTag: {
-    fontSize: 10, fontFamily: FONTS.monoBold, letterSpacing: 1, textTransform: "uppercase",
-  },
 });

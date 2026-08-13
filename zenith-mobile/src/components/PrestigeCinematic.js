@@ -79,7 +79,7 @@ export default function PrestigeCinematic({ skillName, prestigeLevel, creditRewa
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.92)",
+    backgroundColor: "rgba(9,12,19,0.92)",
     alignItems: "center",
     justifyContent: "center",
     padding: 32,

@@ -58,6 +58,10 @@ export default function LootDisplay({ loot, onDismiss }) {
   return (
     <Modal transparent animationType="none" visible={!!loot}>
       <View style={styles.overlay}>
+        <Animated.View
+          style={[styles.rarityWash, { backgroundColor: rarityColor, opacity: Animated.multiply(opacity, isHighRarity ? 0.12 : 0.05) }]}
+          pointerEvents="none"
+        />
         <Animated.View style={[styles.card, { transform: [{ scale }], opacity, borderColor: rarityColor }]}>
 
           {isHighRarity && <View style={[styles.glow, { backgroundColor: rarityColor + "22" }]} />}
@@ -87,10 +91,13 @@ export default function LootDisplay({ loot, onDismiss }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.85)",
+    backgroundColor: "rgba(9,12,19,0.88)",
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
+  },
+  rarityWash: {
+    ...StyleSheet.absoluteFillObject,
   },
   card: {
     width: "100%",

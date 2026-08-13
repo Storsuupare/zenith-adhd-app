@@ -169,7 +169,7 @@ export default function LevelUpModal({ data, onDismiss }) {
 const styles = StyleSheet.create({
   overlay: {
     flex:            1,
-    backgroundColor: "rgba(0,0,0,0.9)",
+    backgroundColor: "rgba(9,12,19,0.9)",
     alignItems:      "center",
     justifyContent:  "center",
     padding:         32,

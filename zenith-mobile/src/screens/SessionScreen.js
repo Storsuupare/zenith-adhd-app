@@ -54,6 +54,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
   const [sessionCr,    setSessionCr]    = useState(0);
   const [isPending,    setIsPending]    = useState(false);
   const [neuralWindow, setNeuralWindow] = useState(() => getNeuralWindow());
+  const [unlockedAchievements, setUnlockedAchievements] = useState([]);
   const pulse = useRef(new Animated.Value(0.3)).current;
 
   // Pulse the ??? while idle
@@ -103,6 +104,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
       const result = await onComplete(contract.id);
       const actualReward = result?.reward ?? result?.xp_earned ?? contract.stake_amount ?? 0;
       setSessionCr(result?.credits_earned ?? 0);
+      setUnlockedAchievements(result?.achievements_unlocked ?? []);
       runReveal(actualReward);
     } catch (collectError) {
       console.error("[DoneOverlay] collect failed:", collectError?.message);
@@ -133,6 +135,19 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
       {phase === "done" && sessionCr > 0 && (
         <Text style={done.crEarned}>+{sessionCr} CR</Text>
       )}
+
+      {phase === "done" && unlockedAchievements.map(achievement => (
+        <View key={achievement.key} style={done.achievementRow}>
+          <Text style={[done.achievementStar, { color: skillColor }]}>★</Text>
+          <View style={done.achievementBody}>
+            <Text style={done.achievementCaption}>ACHIEVEMENT UNLOCKED</Text>
+            <Text style={[done.achievementName, { color: skillColor }]}>{achievement.title}</Text>
+          </View>
+          {achievement.credits > 0 && (
+            <Text style={done.achievementCredits}>+{achievement.credits} CR</Text>
+          )}
+        </View>
+      ))}
 
       {neuralWindow.isRedzone && (phase === "idle" || phase === "collecting") && (
         <View style={done.redzoneNotice}>
@@ -239,7 +254,8 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
 
   if (isDone) {
     return (
-      <SafeAreaView style={[styles.root, { backgroundColor: "rgba(0,0,0,0.96)" }]}>
+      <SafeAreaView style={[styles.root, { backgroundColor: "rgba(9,12,19,0.86)" }]}>
+        <View style={[styles.tint, { backgroundColor: skillColor, opacity: 0.06 }]} />
         <DoneOverlay contract={contract} skillColor={skillColor} onComplete={onComplete} />
       </SafeAreaView>
     );
@@ -620,6 +636,37 @@ const done = StyleSheet.create({
     fontWeight:    "700",
     color:         "#fbbf24",
     letterSpacing: 0.5,
+  },
+  achievementRow: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             10,
+    alignSelf:       "stretch",
+    marginTop:       12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.12)",
+    borderRadius:    12,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  achievementStar: { fontSize: 20 },
+  achievementBody: { flex: 1 },
+  achievementCaption: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      9,
+    letterSpacing: 1.6,
+    color:         "rgba(255,255,255,0.45)",
+  },
+  achievementName: {
+    fontFamily: FONTS.bold,
+    fontSize:   14,
+    marginTop:  2,
+  },
+  achievementCredits: {
+    fontFamily: FONTS.monoBold,
+    fontSize:   13,
+    color:      "#fbbf24",
   },
   neuralBadge: {
     borderWidth:       1,
