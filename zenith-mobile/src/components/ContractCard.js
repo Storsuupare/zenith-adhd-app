@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, AppState } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
@@ -13,6 +14,7 @@ function formatTime(totalSeconds) {
 
 // ── Done state — suspense reveal then collect ────────────────────────────────
 function DoneCard({ contract, onComplete, skillColor }) {
+  const reduceMotion = useReducedMotion();
   // "calculating" → "revealing" (XP counts up) → "ready" (collect appears)
   const [phase,     setPhase]     = useState("calculating");
   const [displayXP, setDisplayXP] = useState(0);
@@ -22,6 +24,11 @@ function DoneCard({ contract, onComplete, skillColor }) {
   const pulse = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
+    // Reduce Motion: hold the ??? at a steady readable opacity instead of
+    // pulsing it. Nothing moves either way, but a repeating attention-grab is
+    // the kind of thing someone asking for less motion is asking to be spared.
+    if (reduceMotion) pulse.setValue(0.5);
+
     // Pulse the ??? while calculating
     const anim = Animated.loop(
       Animated.sequence([
@@ -29,7 +36,7 @@ function DoneCard({ contract, onComplete, skillColor }) {
         Animated.timing(pulse, { toValue: 0.25, duration: 600, useNativeDriver: true }),
       ])
     );
-    anim.start();
+    if (!reduceMotion) anim.start();
 
     // After 2s: start XP count-up
     const t1 = setTimeout(() => {

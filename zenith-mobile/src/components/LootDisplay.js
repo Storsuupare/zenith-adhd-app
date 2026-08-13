@@ -4,6 +4,7 @@ import {
   StyleSheet, Animated,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
@@ -28,6 +29,7 @@ const RARITY_LABELS = {
 };
 
 export default function LootDisplay({ loot, onDismiss }) {
+  const reduceMotion = useReducedMotion();
   const scale  = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -42,8 +44,11 @@ export default function LootDisplay({ loot, onDismiss }) {
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
+    // Reduce Motion: the reveal keeps its fade but loses the zoom.
+    if (reduceMotion) scale.setValue(1);
+
     Animated.parallel([
-      Animated.spring(scale,   { toValue: 1,   useNativeDriver: true, tension: 80, friction: 8 }),
+      ...(reduceMotion ? [] : [Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 })]),
       Animated.timing(opacity, { toValue: 1,   useNativeDriver: true, duration: 250 }),
     ]).start();
   }, [loot]);

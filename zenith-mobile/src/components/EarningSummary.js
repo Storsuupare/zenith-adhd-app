@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
@@ -21,6 +22,7 @@ const SKILL_ICONS = {
 };
 
 export default function EarningSummary({ data, onDismiss }) {
+  const reduceMotion = useReducedMotion();
   const { accentColor } = useTheme() || {};
   const resolvedAccent = accentColor || COLORS.accent;
   const slideY  = useRef(new Animated.Value(24)).current;
@@ -33,8 +35,12 @@ export default function EarningSummary({ data, onDismiss }) {
   useEffect(() => {
     if (!data) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Reduce Motion: translateY is movement, so the panel fades in where it
+    // will sit rather than sliding up into place.
+    if (reduceMotion) slideY.setValue(0);
+
     Animated.parallel([
-      Animated.timing(slideY,  { toValue: 0, duration: 280, useNativeDriver: true }),
+      ...(reduceMotion ? [] : [Animated.timing(slideY, { toValue: 0, duration: 280, useNativeDriver: true })]),
       Animated.timing(opacity, { toValue: 1, duration: 280, useNativeDriver: true }),
     ]).start();
   }, [data]);

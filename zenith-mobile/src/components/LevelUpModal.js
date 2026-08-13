@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
@@ -52,6 +53,7 @@ const SCENARIO = {
 export default function LevelUpModal({ data, onDismiss }) {
   const { accentColor } = useTheme() || {};
   const themeAccent = accentColor || COLORS.accent;
+  const reduceMotion = useReducedMotion();
 
   const scale   = useRef(new Animated.Value(0.7)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -76,10 +78,20 @@ export default function LevelUpModal({ data, onDismiss }) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    Animated.parallel([
-      Animated.spring(scale,   { toValue: 1, useNativeDriver: true, tension: 60, friction: 7 }),
-      Animated.timing(opacity, { toValue: 1, useNativeDriver: true, duration: 300 }),
-    ]).start();
+    // Under Reduce Motion the spring is the part that has to go — it's a zoom
+    // with bounce, which is exactly the motion that triggers vestibular symptoms.
+    // The fade stays: Apple's guidance is to replace movement with a cross-fade
+    // rather than remove animation entirely, because things appearing instantly
+    // makes it unclear what just happened.
+    if (reduceMotion) {
+      scale.setValue(1);
+      Animated.timing(opacity, { toValue: 1, useNativeDriver: true, duration: 300 }).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(scale,   { toValue: 1, useNativeDriver: true, tension: 60, friction: 7 }),
+        Animated.timing(opacity, { toValue: 1, useNativeDriver: true, duration: 300 }),
+      ]).start();
+    }
 
     const timer = setTimeout(onDismiss, scenario.autoDismiss);
     return () => clearTimeout(timer);

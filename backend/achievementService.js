@@ -18,12 +18,12 @@ async function buildAchievementStats(userId, client) {
                                                               AND EXTRACT(HOUR FROM completed_at) = ANY($2::int[]))                                     AS peak_sessions,
        (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS'
                                                               AND EXTRACT(HOUR FROM completed_at) = ANY($3::int[]))                                     AS hyperfocus_sessions,
-       (SELECT COALESCE(MAX(level),0)            FROM user_skills WHERE user_id = $1)                                                                   AS highest_skill_level,
-       (SELECT COUNT(*)                          FROM user_skills WHERE user_id = $1 AND level > 10)                                                    AS skills_above_ten,
-       (SELECT COALESCE(SUM(prestige_level),0)   FROM user_skills WHERE user_id = $1)                                                                   AS prestige_total,
-       (SELECT COALESCE(streak,0)                FROM users WHERE id = $1)                                                                              AS best_streak,
-       (SELECT jsonb_array_length(COALESCE(purchased_cosmetics, '[]'::jsonb)) FROM users WHERE id = $1)                                                 AS themes_owned`,
-    [userId, PEAK_HOURS, HYPERFOCUS_HOURS],
+       (SELECT COALESCE(MAX(level),0)            FROM user_skills WHERE user_id = $1::int)                                                              AS highest_skill_level,
+       (SELECT COUNT(*)                          FROM user_skills WHERE user_id = $1::int AND level > 10)                                               AS skills_above_ten,
+       (SELECT COALESCE(SUM(prestige_level),0)   FROM user_skills WHERE user_id = $1::int)                                                              AS prestige_total,
+       (SELECT COALESCE(streak,0)                FROM users WHERE id = $1::int)                                                                         AS best_streak,
+       (SELECT jsonb_array_length(COALESCE(purchased_cosmetics, '[]'::jsonb)) FROM users WHERE id = $1::int)                                            AS themes_owned`,
+    [String(userId), PEAK_HOURS, HYPERFOCUS_HOURS],
   );
 
   const row = statsResult.rows[0] ?? {};

@@ -75,6 +75,18 @@ Consecutive days of completed sessions build a streak, which pays a flat credit 
 
 Credits are spent in the shop on sky themes that change the entire visual backdrop, and on consumables — Streak Rescue (1,500 CR) and Extra Loot Pull (750 CR). Every theme is purchasable by every tier; only the streak shield is tier-exclusive.
 
+### Achievements
+
+26 achievements across sessions, focus time, streaks, skills, time-of-day rhythm and collection, evaluated server-side against lifetime stats when a session completes. Definitions live in code and are served by the API rather than stored in a table — adding one is a backend deploy, not an App Store release, and it avoids the schema-drift problem a definitions table creates.
+
+Wording is deliberately retroactive — "Completed 50 sessions", never "Complete 50 sessions to unlock". The same data framed as a target turns the screen into a chore list, which is the most common reason this audience abandons an app.
+
+Evaluation runs inside the session-completion transaction but behind a `SAVEPOINT`, so a failure in a bonus system can never roll back the XP, credits and loot the session actually earned.
+
+### iOS widgets
+
+Home Screen and Lock Screen widgets built with WidgetKit, plus an ActivityKit Live Activity that tracks a running session from the Dynamic Island. Written in Swift as native extensions rather than through a bridge.
+
 ### Solar backdrop
 
 The background renders a live sky that transitions through dawn, day, golden hour, dusk and night against the device clock, with weather overlays from Open-Meteo. Animation is restricted to `transform` and `opacity` — no filters, no canvas — to hold 60fps on low-end devices.

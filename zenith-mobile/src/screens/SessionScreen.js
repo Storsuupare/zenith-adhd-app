@@ -7,6 +7,7 @@ import * as Haptics from "expo-haptics";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 import { useTheme } from "../context/ThemeContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 
 // ── Neural Clock window — mirrors server getNeuralMult() ─────────────────────
 function getNeuralWindow() {
@@ -47,6 +48,7 @@ function formatTime(totalSeconds) {
 
 // ── Done state — mirrors ContractCard DoneCard but full-screen ────────────────
 function DoneOverlay({ contract, skillColor, onComplete }) {
+  const reduceMotion = useReducedMotion();
   const [phase,        setPhase]        = useState("idle");
   const [displayXP,    setDisplayXP]    = useState(0);
   const [sessionCr,    setSessionCr]    = useState(0);
@@ -57,6 +59,15 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
   // Pulse the ??? while idle
   useEffect(() => {
     if (phase !== "idle") return;
+
+    // This one runs until the user taps to collect, so it's the longest-lived
+    // animation in the app. Under Reduce Motion it holds a steady opacity —
+    // still clearly visible, just not breathing at someone indefinitely.
+    if (reduceMotion) {
+      pulse.setValue(0.6);
+      return;
+    }
+
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 0.9, duration: 700, useNativeDriver: true }),
@@ -65,7 +76,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
     );
     anim.start();
     return () => anim.stop();
-  }, [phase]);
+  }, [phase, reduceMotion]);
 
   const runReveal = (actualReward) => {
     setPhase("revealing");

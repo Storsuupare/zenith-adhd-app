@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 
@@ -16,6 +17,7 @@ function toRoman(n) {
 }
 
 export default function PrestigeCinematic({ skillName, prestigeLevel, creditReward, onDismiss }) {
+  const reduceMotion = useReducedMotion();
   const { accentColor } = useTheme() || {};
   const opacity = useRef(new Animated.Value(0)).current;
   const scale   = useRef(new Animated.Value(0.8)).current;
@@ -24,9 +26,13 @@ export default function PrestigeCinematic({ skillName, prestigeLevel, creditRewa
   useEffect(() => {
     if (!skillName) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Reduce Motion: drop the zoom, keep the fade. setValue rather than a
+    // conditional initial value, because the OS read resolves after the ref exists.
+    if (reduceMotion) scale.setValue(1);
+
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(scale,   { toValue: 1, tension: 50, friction: 8, useNativeDriver: true }),
+      ...(reduceMotion ? [] : [Animated.spring(scale, { toValue: 1, tension: 50, friction: 8, useNativeDriver: true })]),
     ]).start();
   }, [skillName]);
 
