@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <div className="legal-section">
           <span className="legal-eyebrow">◈ Legal</span>
           <h1 className="legal-title">Privacy Policy</h1>
-          <span className="legal-updated">Effective May 2026</span>
+          <span className="legal-updated">Effective August 2026</span>
           <div className="legal-body">
 
             <h2>What we collect</h2>
@@ -33,16 +33,28 @@ export default function PrivacyPage() {
               <li>To send session reminders if you have notifications turned on.</li>
               <li>To improve the app. We look at how people use Zenith in aggregate, never at what you personally typed into your tasks.</li>
             </ul>
-            <p>We don't sell your data. We don't use it for ads.</p>
+            <p>We don't sell your data. We don't use it for ads, and we don't track you across other apps or websites.</p>
 
             <hr className="legal-divider" />
 
             <h2>Third-party services</h2>
             <ul>
+              <li><strong>Clerk.</strong> Handles sign-up and login. Stores your email address and authentication details.</li>
               <li><strong>Railway.</strong> We host the backend and database on Railway. Your data stays on EU-compliant servers.</li>
               <li><strong>Vercel.</strong> The frontend is served through Vercel.</li>
+              <li><strong>RevenueCat.</strong> Processes subscription purchases and receipts. Receives your account ID and purchase history, never your payment card details — those stay with Apple.</li>
+              <li><strong>PostHog.</strong> Product analytics, hosted in the EU. Receives your account ID together with events like session length, skill, and subscription tier. Task names and other text you write are never sent.</li>
             </ul>
-            <p>Each provider operates under their own privacy policy. We only work with providers that take data protection seriously.</p>
+            <p>Each provider operates under their own privacy policy and processes data only on our instructions.</p>
+
+            <hr className="legal-divider" />
+
+            <h2>Why we're allowed to process it</h2>
+            <ul>
+              <li><strong>To provide the service.</strong> Running your account, sessions, and progress is necessary to deliver what you signed up for (GDPR Art. 6(1)(b)).</li>
+              <li><strong>Legitimate interest.</strong> Aggregate analytics that tell us which features are used, so we can improve the app (GDPR Art. 6(1)(f)).</li>
+              <li><strong>Consent.</strong> Push notifications, which you turn on yourself and can turn off at any time (GDPR Art. 6(1)(a)).</li>
+            </ul>
 
             <hr className="legal-divider" />
 
@@ -56,12 +68,13 @@ export default function PrivacyPage() {
               <li><strong>Restriction.</strong> Ask us to pause processing while a dispute is being resolved.</li>
               <li><strong>Objection.</strong> Object to processing based on legitimate interests.</li>
             </ul>
-            <p>Use the Delete Account option in Settings, or reach out to us directly.</p>
+            <p>Use the Delete Account option in Settings, or reach out to us directly. If you think we've handled your data wrongly, you can complain to your national data protection authority — in Finland, the Office of the Data Protection Ombudsman (tietosuoja.fi).</p>
 
             <hr className="legal-divider" />
 
             <h2>Data retention</h2>
             <p>We keep your data for as long as your account is active. Delete your account and everything goes with it: task history, XP, inventory, subscription info, all of it. Once it's gone, it's gone.</p>
+            <p>Encrypted database backups may hold deleted data for up to 30 days before they roll over. Analytics events are retained for 12 months.</p>
 
             <hr className="legal-divider" />
 

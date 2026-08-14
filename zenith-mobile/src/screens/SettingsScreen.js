@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, SafeAreaView, RefreshControl, Modal, Alert, Linking,
@@ -6,20 +6,43 @@ import {
 import { useAuth } from "@clerk/clerk-expo";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
+import ScreenHeader from "../components/ScreenHeader";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
+import { RADIUS, SPACING, SURFACE } from "../constants/layout";
 import onboardingRefs from "../utils/onboardingRefs";
 import { deleteAccount, createPortalSession } from "../services/api";
 import Purchases from "react-native-purchases";
 
 const WEBSITE_URL = process.env.EXPO_PUBLIC_WEBSITE_URL || "https://zenithapp.org";
 
-function getClockRows() {
-  return [
-    { time: "12AM – 5AM",  label: "Red Zone. Rewards ×0.5.",   color: "#ff3b3b" },
-    { time: "8AM – 11AM",  label: "Peak window. XP ×1.25.",    color: "#f5c518" },
-    { time: "10PM – 12AM", label: "Hyperfocus. XP ×1.5.",      color: "#a855f7" },
-  ];
+const CLOCK_ROWS = [
+  { time: "12AM – 5AM",  label: "Red Zone. Rewards ×0.5.",   color: "#ff3b3b" },
+  { time: "8AM – 11AM",  label: "Peak window. XP ×1.25.",    color: "#f5c518" },
+  { time: "10PM – 12AM", label: "Hyperfocus. XP ×1.5.",      color: "#a855f7" },
+];
+
+const PLAN_DETAILS = {
+  PRO:   { price: "€4.99 / month", perks: "15 task slots · 6 months of history · Prestige · Streak shield" },
+  ELITE: { price: "€9.99 / month", perks: "Unlimited slots · All-time history · Auto-replenishing shield · CSV export" },
+};
+
+const LEGAL_LINKS = [
+  { label: "Terms of Use",   screen: "Terms" },
+  { label: "Privacy Policy", screen: "Privacy" },
+  { label: "Refund Policy",  screen: "Refund" },
+];
+
+const BILLING_DISCLOSURE =
+  "Zenith PRO and ELITE are auto-renewing monthly subscriptions billed to your Apple ID. " +
+  "Your subscription renews automatically unless cancelled at least 24 hours before the current period ends. " +
+  "Manage or cancel it any time in your Apple ID settings.";
+
+function resolvePlanTier(purchasePackage) {
+  const packageDescriptor = `${purchasePackage.identifier ?? ""} ${purchasePackage.product?.identifier ?? ""} ${purchasePackage.product?.title ?? ""}`.toUpperCase();
+  if (packageDescriptor.includes("ELITE")) return "ELITE";
+  if (packageDescriptor.includes("PRO"))   return "PRO";
+  return null;
 }
 
 export default function SettingsScreen({ navigation }) {
@@ -33,26 +56,44 @@ export default function SettingsScreen({ navigation }) {
   const [offerings,           setOfferings]           = useState(null);
   const [offeringsLoading,    setOfferingsLoading]    = useState(false);
   const [purchaseLoading,     setPurchaseLoading]     = useState(false);
+  const [offeringsError,      setOfferingsError]      = useState(false);
 
   const userRole   = user?.role ?? "FREE";
   const isPaidTier = userRole === "PRO" || userRole === "ELITE";
   const tierColor  = userRole === "ELITE" ? "#fbbf24" : userRole === "PRO" ? accentColor : "rgba(255,255,255,0.35)";
 
-  useEffect(() => {
-    if (userRole !== "FREE" || !process.env.EXPO_PUBLIC_REVENUECAT_KEY) return;
+  const loadOfferings = useCallback(async ({ announceFailure = false } = {}) => {
+    if (userRole !== "FREE") return;
     setOfferingsLoading(true);
-    Purchases.getOfferings()
-      .then(availableOfferings => {
-        if (availableOfferings.current) setOfferings(availableOfferings.current);
-      })
-      .catch(() => {})
-      .finally(() => setOfferingsLoading(false));
+    setOfferingsError(false);
+    try {
+      const availableOfferings = await Purchases.getOfferings();
+      if (availableOfferings.current?.availablePackages?.length) {
+        setOfferings(availableOfferings.current);
+      } else {
+        setOfferingsError(true);
+        console.warn("[Settings] RevenueCat returned no current offering with packages");
+        if (announceFailure) {
+          Alert.alert("Plans unavailable", "Couldn't load subscription plans from the App Store. Please try again in a moment.");
+        }
+      }
+    } catch (offeringsFetchError) {
+      setOfferingsError(true);
+      console.warn("[Settings] getOfferings failed:", offeringsFetchError?.message);
+      if (announceFailure) {
+        Alert.alert("Plans unavailable", offeringsFetchError?.message ?? "Couldn't reach the App Store. Please try again.");
+      }
+    } finally {
+      setOfferingsLoading(false);
+    }
   }, [userRole]);
 
-  const handlePurchase = async (pkg) => {
+  useEffect(() => { loadOfferings(); }, [loadOfferings]);
+
+  const handlePurchase = async (purchasePackage) => {
     setPurchaseLoading(true);
     try {
-      await Purchases.purchasePackage(pkg);
+      await Purchases.purchasePackage(purchasePackage);
       await fetchUser();
     } catch (purchaseError) {
       if (!purchaseError.userCancelled) {
@@ -107,9 +148,8 @@ export default function SettingsScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const hour       = new Date().getHours();
-  const isRedzone  = hour >= 0 && hour < 5;
-  const CLOCK_ROWS = getClockRows();
+  const currentHour = new Date().getHours();
+  const isRedZone   = currentHour >= 0 && currentHour < 5;
 
   const NavRow = ({ label, screen }) => (
     <TouchableOpacity style={styles.navRow} onPress={() => navigation.navigate(screen)}>
@@ -120,13 +160,20 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScrollView ref={onboardingRefs.settingsScroll} style={styles.scroll} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}>
-        <Text style={styles.pageTitle}>Settings</Text>
+      <ScreenHeader title="Settings" />
 
+      <ScrollView
+        ref={onboardingRefs.settingsScroll}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
+      >
         {/* Account */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account</Text>
-          <Row label="Level"  value={String(user?.level ?? 1)} />
+          {user?.username && <Row label="Signed in as" value={user.username} numberOfLines={1} />}
+          {user?.email_address && <Row label="Email" value={user.email_address} numberOfLines={1} />}
+          <Row label="Level" value={String(user?.level ?? 1)} />
           {(user?.streak ?? 0) > 0 && (
             <Row label="Streak" value={`${user.streak} days`} />
           )}
@@ -139,73 +186,92 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.subscriptionTierLabel}>Current plan</Text>
             <Text style={[styles.subscriptionTierValue, { color: tierColor }]}>{userRole}</Text>
           </View>
+
           {isPaidTier ? (
-            <>
-              <Text style={styles.subscriptionNote}>
-                To cancel or update your plan, open the Stripe billing portal.
+            <TouchableOpacity
+              style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
+              onPress={handleManageSubscription}
+              disabled={subscriptionLoading}
+            >
+              <Text style={styles.manageBtnText}>
+                {subscriptionLoading ? "Opening…" : "Manage subscription"}
               </Text>
-              <TouchableOpacity
-                style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
-                onPress={handleManageSubscription}
-                disabled={subscriptionLoading}
-              >
-                <Text style={styles.manageBtnText}>
-                  {subscriptionLoading ? "Loading..." : "Manage subscription ↗"}
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              {offeringsLoading ? (
-                <Text style={styles.subscriptionNote}>Loading plans...</Text>
-              ) : offerings?.availablePackages.length ? (
-                offerings.availablePackages.map(pkg => (
-                  <TouchableOpacity
-                    key={pkg.identifier}
-                    style={[
-                      styles.upgradeBtn,
-                      { borderColor: accentColor + "55" },
-                      purchaseLoading && { opacity: 0.5 },
-                    ]}
-                    onPress={() => handlePurchase(pkg)}
-                    disabled={purchaseLoading}
-                  >
+            </TouchableOpacity>
+          ) : offeringsLoading ? (
+            <Text style={styles.subscriptionNote}>Loading plans from the App Store…</Text>
+          ) : offerings?.availablePackages.length ? (
+            offerings.availablePackages.map(purchasePackage => {
+              const planTier = resolvePlanTier(purchasePackage);
+              return (
+                <TouchableOpacity
+                  key={purchasePackage.identifier}
+                  style={[
+                    styles.upgradeBtn,
+                    { borderColor: accentColor + "55" },
+                    purchaseLoading && { opacity: 0.5 },
+                  ]}
+                  onPress={() => handlePurchase(purchasePackage)}
+                  disabled={purchaseLoading}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.planRow}>
                     <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
-                      {pkg.product.title}
+                      {planTier ?? purchasePackage.product.title}
                     </Text>
                     <Text style={[styles.upgradePriceText, { color: accentColor + "99" }]}>
-                      {pkg.product.priceString} / month
+                      {purchasePackage.product.priceString} / month
                     </Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <>
-                  {[
-                    { label: "PRO", price: "€4.99 / month", perks: "15 task slots · 6 months history · Prestige · Streak shield" },
-                    { label: "ELITE", price: "€9.99 / month", perks: "Unlimited slots · All-time history · Auto-replenishing shield · CSV export" },
-                  ].map(plan => (
-                    <View key={plan.label} style={[styles.upgradeBtn, styles.upgradeBtnStatic]}>
-                      <View style={styles.planRow}>
-                        <Text style={[styles.upgradeBtnText, { color: "rgba(255,255,255,0.5)" }]}>{plan.label}</Text>
-                        <Text style={[styles.upgradePriceText, { color: "rgba(255,255,255,0.35)" }]}>{plan.price}</Text>
-                      </View>
-                      <Text style={styles.planPerks}>{plan.perks}</Text>
-                    </View>
-                  ))}
-                  <Text style={styles.subscriptionNote}>
-                    Plans are pending App Store approval and will be purchasable here shortly. Already subscribed? Tap Restore purchases below.
-                  </Text>
-                </>
+                  </View>
+                  {planTier && <Text style={styles.planPerks}>{PLAN_DETAILS[planTier].perks}</Text>}
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <>
+              {Object.entries(PLAN_DETAILS).map(([planTier, plan]) => (
+                <TouchableOpacity
+                  key={planTier}
+                  style={[styles.upgradeBtn, { borderColor: accentColor + "40" }]}
+                  onPress={() => loadOfferings({ announceFailure: true })}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.planRow}>
+                    <Text style={[styles.upgradeBtnText, { color: accentColor }]}>{planTier}</Text>
+                    <Text style={[styles.upgradePriceText, { color: accentColor + "99" }]}>{plan.price}</Text>
+                  </View>
+                  <Text style={styles.planPerks}>{plan.perks}</Text>
+                </TouchableOpacity>
+              ))}
+              {offeringsError && (
+                <Text style={styles.subscriptionNote}>
+                  Couldn't reach the App Store. Tap a plan to try again.
+                </Text>
               )}
-              <TouchableOpacity
-                style={[styles.restoreBtn, restoringPurchases && { opacity: 0.5 }]}
-                onPress={restorePurchases}
-                disabled={restoringPurchases}
-              >
-                <Text style={styles.restoreBtnText}>Restore purchases</Text>
-              </TouchableOpacity>
             </>
           )}
+
+          <Text style={styles.subscriptionNote}>{BILLING_DISCLOSURE}</Text>
+
+          <TouchableOpacity
+            style={[styles.restoreBtn, restoringPurchases && { opacity: 0.5 }]}
+            onPress={restorePurchases}
+            disabled={restoringPurchases}
+          >
+            <Text style={styles.restoreBtnText}>
+              {restoringPurchases ? "Restoring…" : "Restore purchases"}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.legalLinkRow}>
+            {LEGAL_LINKS.map((legalLink, linkIndex) => (
+              <React.Fragment key={legalLink.screen}>
+                {linkIndex > 0 && <Text style={styles.legalSeparator}>·</Text>}
+                <TouchableOpacity onPress={() => navigation.navigate(legalLink.screen)} hitSlop={8}>
+                  <Text style={[styles.legalLink, { color: accentColor }]}>{legalLink.label}</Text>
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+          </View>
         </View>
 
         {/* Neural Clock */}
@@ -214,42 +280,47 @@ export default function SettingsScreen({ navigation }) {
           style={styles.card}
           onLayout={event => { onboardingRefs.neuralClockY.current = event.nativeEvent.layout.y; }}
         >
-          <Text style={styles.cardTitle}>◎ Neural Clock</Text>
-          <View style={[styles.statusBadge, isRedzone && { borderColor: COLORS.red + "55" }]}>
-            <View style={[styles.statusDot, { backgroundColor: isRedzone ? COLORS.red : COLORS.green }]} />
+          <Text style={styles.cardTitle}>Neural Clock</Text>
+          <View style={[styles.statusBadge, isRedZone && { borderColor: COLORS.red + "55" }]}>
+            <View style={[styles.statusDot, { backgroundColor: isRedZone ? COLORS.red : COLORS.green }]} />
             <Text style={styles.statusText}>
-              {isRedzone ? "Red Zone active. Rewards halved until 5AM." : "Rewards shift with the time of day."}
+              {isRedZone ? "Red Zone active. Rewards halved until 5AM." : "Rewards shift with the time of day."}
             </Text>
           </View>
-          {CLOCK_ROWS.map(row => (
-            <Row key={row.time} label={row.time} value={row.label} valueColor={row.color} />
+          {CLOCK_ROWS.map(clockWindow => (
+            <Row
+              key={clockWindow.time}
+              label={clockWindow.time}
+              value={clockWindow.label}
+              valueColor={clockWindow.color}
+            />
           ))}
         </View>
 
         {/* Navigation links */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>More</Text>
+          <Text style={styles.cardTitle}>About</Text>
           <NavRow label="Release Notes" screen="ReleaseNotes" />
-          <NavRow label="Privacy Policy" screen="Privacy" />
-          <NavRow label="Terms of Service" screen="Terms" />
-          <NavRow label="Refund Policy" screen="Refund" />
         </View>
 
-        {/* Sign out */}
-        <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut()}>
-          <Text style={styles.signOutText}>Sign out</Text>
-        </TouchableOpacity>
-
-        {/* Danger Zone */}
-        <View style={styles.dangerCard}>
-          <Text style={styles.dangerTitle}>⚠ Danger Zone</Text>
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => setShowDeleteModal(true)}>
-            <Text style={styles.deleteText}>Delete Account</Text>
+        {/* Account actions */}
+        <View style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionRow} onPress={() => signOut()}>
+            <Text style={styles.actionText}>Sign out</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionRow, styles.actionRowDivided]}
+            onPress={() => setShowDeleteModal(true)}
+          >
+            <Text style={[styles.actionText, styles.actionTextDestructive]}>Delete account</Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.actionFootnote}>
+          Deleting your account permanently removes all progress, credits, and inventory.
+        </Text>
 
         <View style={styles.versionBadge}>
-          <Text style={styles.versionText}>v1.1.0</Text>
+          <Text style={styles.versionText}>v1.0.0</Text>
         </View>
       </ScrollView>
 
@@ -284,11 +355,17 @@ export default function SettingsScreen({ navigation }) {
   );
 }
 
-function Row({ label, value, valueColor }) {
+function Row({ label, value, valueColor, numberOfLines }) {
   return (
     <View style={rowStyles.row}>
       <Text style={rowStyles.label}>{label}</Text>
-      <Text style={[rowStyles.value, valueColor && { color: valueColor }]}>{value}</Text>
+      <Text
+        style={[rowStyles.value, valueColor && { color: valueColor }]}
+        numberOfLines={numberOfLines}
+        ellipsizeMode="middle"
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -298,26 +375,38 @@ const rowStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.04)",
   },
-  label: { color: "rgba(255,255,255,0.3)", fontSize: 11, letterSpacing: 1, textTransform: "uppercase" },
-  value: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontFamily: FONTS.semiBold },
+  label: {
+    color:         "rgba(255,255,255,0.3)",
+    fontSize:      11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    flexShrink:    0,
+  },
+  value: {
+    color:      "rgba(255,255,255,0.8)",
+    fontSize:   12,
+    fontFamily: FONTS.semiBold,
+    flexShrink: 1,
+    textAlign:  "right",
+  },
 });
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: "transparent" },
   scroll:  { flex: 1 },
-  content: { padding: 16, gap: 14, paddingBottom: 32 },
-  pageTitle: { color: COLORS.text, fontSize: 22, fontFamily: FONTS.bold, marginBottom: 4 },
+  content: { padding: SPACING.screenPadding, gap: 14, paddingBottom: 32 },
   card: {
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    borderRadius: 16,
-    padding: 18,
-    gap: 2,
+    backgroundColor: SURFACE.card,
+    borderWidth:     1,
+    borderColor:     SURFACE.cardBorder,
+    borderRadius:    RADIUS.large,
+    padding:         18,
+    gap:             2,
   },
   cardTitle: { color: COLORS.text, fontSize: 13, fontFamily: FONTS.bold, marginBottom: 6 },
   statusBadge: {
@@ -377,11 +466,6 @@ const styles = StyleSheet.create({
     marginTop:         8,
     backgroundColor:   "rgba(255,255,255,0.03)",
   },
-  upgradeBtnStatic: {
-    borderStyle:     "dashed",
-    borderColor:     "rgba(255,255,255,0.12)",
-    backgroundColor: "transparent",
-  },
   upgradeBtnText: {
     fontSize:   13,
     fontFamily: FONTS.semiBold,
@@ -421,6 +505,16 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     marginTop:  4,
   },
+  legalLinkRow: {
+    flexDirection:  "row",
+    flexWrap:       "wrap",
+    justifyContent: "center",
+    alignItems:     "center",
+    gap:            8,
+    marginTop:      8,
+  },
+  legalLink:      { fontSize: 12, fontFamily: FONTS.semiBold },
+  legalSeparator: { color: "rgba(255,255,255,0.3)", fontSize: 12 },
   restoreBtn: {
     backgroundColor:   "rgba(5,8,15,0.7)",
     borderWidth:       1,
@@ -437,35 +531,35 @@ const styles = StyleSheet.create({
     fontFamily:    FONTS.regular,
     letterSpacing: 0.5,
   },
-  signOutBtn: {
-    backgroundColor: "rgba(255,34,68,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,34,68,0.45)",
-    borderRadius: 12,
-    padding: 14,
-    alignItems: "center",
+  actionCard: {
+    backgroundColor: "rgba(0,0,0,0.25)",
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.06)",
+    borderRadius:    16,
+    overflow:        "hidden",
   },
-  signOutText: { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
-  dangerCard: {
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(255,34,68,0.65)",
-    borderRadius: 16,
-    padding: 18,
-    gap: 10,
-    alignItems: "center",
+  actionRow: {
+    paddingVertical: 15,
+    alignItems:      "center",
   },
-  dangerTitle: { color: "#fff", fontSize: 13, fontFamily: FONTS.bold, letterSpacing: 1, textAlign: "center" },
-  deleteBtn: {
-    backgroundColor: "rgba(255,34,68,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,34,68,0.45)",
-    borderRadius: 12,
-    padding: 14,
-    alignItems: "center",
-    alignSelf: "stretch",
+  actionRowDivided: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)",
   },
-  deleteText:   { color: COLORS.red, fontSize: 15, fontFamily: FONTS.semiBold },
+  actionText: {
+    color:      COLORS.text,
+    fontSize:   15,
+    fontFamily: FONTS.semiBold,
+  },
+  actionTextDestructive: { color: COLORS.red },
+  actionFootnote: {
+    color:      "rgba(255,255,255,0.28)",
+    fontSize:   11,
+    lineHeight: 16,
+    textAlign:  "center",
+    marginTop:  -6,
+    paddingHorizontal: 16,
+  },
   versionBadge: {
     alignSelf:         "center",
     backgroundColor:   "rgba(5,8,15,0.7)",

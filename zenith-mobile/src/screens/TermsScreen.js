@@ -1,17 +1,12 @@
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Linking } from "react-native";
+import ScreenHeader from "../components/ScreenHeader";
 import { COLORS } from "../constants/colors";
 
 export default function TermsScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>‹ Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.pageTitle}>Terms of Service</Text>
-        <View style={{ width: 48 }} />
-      </View>
+      <ScreenHeader title="Terms of Service" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.effective}>Effective May 2026</Text>
 
@@ -83,18 +78,6 @@ const sStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: "transparent" },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: "rgba(9,12,19,0.6)",
-  },
-  back:       { color: COLORS.accent, fontSize: 18 },
-  pageTitle:  { color: COLORS.text, fontSize: 18, fontWeight: "700" },
   content:    { padding: 16, paddingBottom: 40 },
   effective:  { color: COLORS.textMuted, fontSize: 12, marginBottom: 20 },
   body:       { color: COLORS.textMuted, fontSize: 13, lineHeight: 20, marginBottom: 6 },

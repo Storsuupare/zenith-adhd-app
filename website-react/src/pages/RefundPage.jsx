@@ -35,7 +35,7 @@ export default function RefundPage() {
             <hr className="legal-divider" />
 
             <h2>What Zenith can help with</h2>
-            <p>Credits are never sold directly — they only come from loot drops earned by completing sessions — so there's nothing to refund there. If you're double-charged or hit a billing bug on our end, contact us and we'll investigate and help you get it sorted.</p>
+            <p>Credits cannot be bought with money. They are only earned in-app — by completing sessions, opening loot, unlocking awards, claiming the daily challenge, and prestiging a skill — so there is nothing to refund there. If you're double-charged or hit a billing bug on our end, contact us and we'll investigate and help you get it sorted.</p>
 
             <hr className="legal-divider" />
 

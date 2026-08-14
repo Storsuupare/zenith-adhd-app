@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Linking } from "react-native";
+import ScreenHeader from "../components/ScreenHeader";
 import { COLORS } from "../constants/colors";
 import { useUser } from "../context/UserContext";
 
@@ -8,13 +9,7 @@ export default function RefundScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>‹ Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.pageTitle}>Refund Policy</Text>
-        <View style={{ width: 48 }} />
-      </View>
+      <ScreenHeader title="Refund Policy" onBack={() => navigation.goBack()} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Text style={styles.effective}>Effective August 2026</Text>
 
@@ -40,7 +35,7 @@ export default function RefundScreen({ navigation }) {
         </Section>
 
         <Section title="What Zenith can help with">
-          <Text style={styles.body}>Credits are never sold directly — they only come from loot drops earned by completing sessions — so there's nothing to refund there. If you're double-charged or hit a billing bug on our end, contact us and we'll investigate and help you get it sorted.</Text>
+          <Text style={styles.body}>Credits cannot be bought with money. They are only earned in-app — by completing sessions, opening loot, unlocking awards, claiming the daily challenge, and prestiging a skill — so there is nothing to refund there. If you're double-charged or hit a billing bug on our end, contact us and we'll investigate and help you get it sorted.</Text>
         </Section>
 
         <Section title="Changes to this policy">
@@ -74,18 +69,6 @@ const sStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: "transparent" },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: "rgba(9,12,19,0.6)",
-  },
-  back:       { color: COLORS.accent, fontSize: 18 },
-  pageTitle:  { color: COLORS.text, fontSize: 18, fontWeight: "700" },
   scroll:     { flex: 1 },
   content:    { padding: 16, paddingBottom: 40 },
   effective:  { color: COLORS.textMuted, fontSize: 12, marginBottom: 20 },
