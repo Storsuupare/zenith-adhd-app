@@ -16,3 +16,12 @@ backend/generated/
 stripe.exe
 *.zip
 *.log
+
+# Apple signing material and API keys. A .p8 can only be downloaded once and
+# grants access to App Store Connect, so it must never reach the repository.
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+AuthKey_*.txt
