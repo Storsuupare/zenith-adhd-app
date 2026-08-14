@@ -2,7 +2,7 @@
   "expo": {
     "name": "Zenith",
     "slug": "zenith-mobile",
-    "version": "1.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo2.png",
     "userInterfaceStyle": "dark",

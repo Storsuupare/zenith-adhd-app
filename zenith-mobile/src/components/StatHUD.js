@@ -9,13 +9,11 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
 
   const level        = user.level ?? 1;
   const xp           = user.xp ?? 0;
-  const totalXP      = user.total_xp ?? xp;
   const credits      = user.system_credits ?? 0;
   const streak       = user.streak ?? 0;
   const streakShield = user.streak_shield ?? false;
   const role         = user.role ?? "FREE";
   const nextLvlXP   = Math.max(1, Math.floor(100 * Math.pow(level, 1.6)));
-  const xpToNext    = Math.max(0, nextLvlXP - xp);
   const pct         = Math.min((xp / nextLvlXP) * 100, 100);
   const rankName    = getRankName(level);
 
@@ -59,31 +57,17 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
         />
       </View>
 
-      <View style={styles.xpRow}>
-        <View>
-          <Text style={styles.xpValue}>{totalXP.toLocaleString()}</Text>
-          <Text style={styles.xpLabel}>TOTAL XP</Text>
-        </View>
-        <View style={styles.xpRightGroup}>
-          <Text style={[styles.xpValue, styles.xpRightValue]}>{xpToNext.toLocaleString()}</Text>
-          <Text style={[styles.xpLabel, styles.xpRightLabel]}>TO NEXT LVL</Text>
-        </View>
-      </View>
-
       {/* ── Zone 3: Credits left · streak right ── */}
       <View style={styles.footer}>
         <View style={styles.creditsGroup}>
-          <Text style={[styles.creditsDiamond, { color: accentColor }]}>◈</Text>
+          <Text style={styles.creditsDiamond}>◈</Text>
           <Text style={styles.creditsValue}>{credits.toLocaleString()}</Text>
-          <Text style={[styles.creditsLabel, { color: accentColor + "99" }]}>CR</Text>
+          <Text style={styles.creditsLabel}>Credits</Text>
         </View>
 
         {streak > 0 && (
           <View style={styles.streakGroup}>
-            <Text style={styles.streakText}>{streak} DAY</Text>
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakBadgeText}>+50 CR</Text>
-            </View>
+            <Text style={styles.streakText}>{streak} DAY STREAK</Text>
             {streakShield && (
               <View style={styles.shieldBadge}>
                 <Text style={styles.shieldText}>SHIELD</Text>
@@ -148,27 +132,6 @@ const styles = StyleSheet.create({
     borderRadius:    50,
     overflow:        "hidden",
   },
-  xpRow: {
-    flexDirection:  "row",
-    justifyContent: "space-between",
-    alignItems:     "flex-start",
-  },
-  xpValue: {
-    color:         "rgba(255,255,255,0.75)",
-    fontSize:      15,
-    fontFamily:    FONTS.semiBold,
-    letterSpacing: -0.2,
-  },
-  xpLabel: {
-    color:         "rgba(255,255,255,0.35)",
-    fontSize:      11,
-    fontFamily:    FONTS.monoBold,
-    letterSpacing: 1.2,
-    marginTop:     2,
-  },
-  xpRightGroup: { alignItems: "flex-end" },
-  xpRightValue: { textAlign: "right" },
-  xpRightLabel: { textAlign: "right" },
 
   // ── Zone 3: Footer ──
   footer: {
@@ -185,6 +148,7 @@ const styles = StyleSheet.create({
     gap:           5,
   },
   creditsDiamond: {
+    color:      "#fbbf24",
     fontSize:   14,
     lineHeight: 18,
   },
@@ -196,6 +160,7 @@ const styles = StyleSheet.create({
     lineHeight:    22,
   },
   creditsLabel: {
+    color:         "rgba(255,255,255,0.4)",
     fontSize:      11,
     fontFamily:    FONTS.monoBold,
     letterSpacing: 1.5,
@@ -208,24 +173,10 @@ const styles = StyleSheet.create({
     gap:           5,
   },
   streakText: {
-    color:         "#fb923c",
+    color:         "rgba(255,255,255,0.55)",
     fontSize:      11,
     fontFamily:    FONTS.monoBold,
     letterSpacing: 1,
-  },
-  streakBadge: {
-    backgroundColor: "rgba(251,146,60,0.1)",
-    borderWidth:     1,
-    borderColor:     "rgba(251,146,60,0.25)",
-    borderRadius:    4,
-    paddingHorizontal: 5,
-    paddingVertical:   2,
-  },
-  streakBadgeText: {
-    color:      "#fb923c",
-    fontSize:   9,
-    fontFamily: FONTS.monoBold,
-    letterSpacing: 0.5,
   },
   shieldBadge: {
     backgroundColor: "rgba(59,130,246,0.12)",

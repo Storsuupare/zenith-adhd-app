@@ -8,6 +8,8 @@ import { useUser } from "../context/UserContext";
 import { useTheme, THEME_DATA } from "../context/ThemeContext";
 import { useTasks } from "../context/TaskContext";
 import { fetchShopState, purchaseCosmetic, purchaseConsumable } from "../services/api";
+import ScreenHeader from "../components/ScreenHeader";
+import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
 
@@ -234,11 +236,9 @@ export default function ShopScreen() {
   return (
     <SafeAreaView style={styles.root}>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Shop</Text>
-        <Text style={[styles.credits, { color: "#fbbf24" }]}>◈ {credits.toLocaleString()} CR</Text>
-      </View>
+      <ScreenHeader title="Shop">
+        <Text style={styles.credits}>◈ {credits.toLocaleString()} Credits</Text>
+      </ScreenHeader>
 
       {/* Preview banner */}
       {previewId && (
@@ -320,7 +320,7 @@ export default function ShopScreen() {
                   canAfford && { color: accentColor },
                   !canAfford && styles.consumableBtnTxtDisabled,
                 ]}>
-                  {isPurchasing ? "···" : unavailable ? "STREAK ACTIVE" : `${item.price} CR`}
+                  {isPurchasing ? "···" : unavailable ? "STREAK ACTIVE" : `${item.price} Credits`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -369,7 +369,7 @@ export default function ShopScreen() {
                   <Text style={[styles.themePrice, { color: themeColor }]}>Preview</Text>
                 ) : !unlocked && item.price ? (
                   <Text style={[styles.themePrice, canBuy && { color: themeColor }]}>
-                    {isBuying ? "···" : canBuy ? `BUY · ${item.price} CR` : `${item.price} CR`}
+                    {isBuying ? "···" : canBuy ? `BUY · ${item.price} Credits` : `${item.price} Credits`}
                   </Text>
                 ) : unlocked && active ? (
                   <Text style={[styles.themePrice, { color: themeColor }]}>Active</Text>
@@ -387,15 +387,8 @@ export default function ShopScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: "transparent" },
-  header: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: "rgba(0,0,0,0.22)",
-    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)",
-  },
-  title:   { color: "#f8fafc", fontSize: 14, fontFamily: FONTS.bold, letterSpacing: 2 },
-  credits: { fontSize: 13, fontFamily: FONTS.semiBold },
+  root:    { flex: 1, backgroundColor: "transparent" },
+  credits: { color: COLORS.gold, fontSize: 14, fontFamily: FONTS.semiBold, flexShrink: 0 },
 
   previewBanner: {
     marginHorizontal: 16, marginTop: 8,

@@ -114,7 +114,7 @@ function DoneCard({ contract, onComplete, skillColor }) {
               <Text style={[doneStyles.achievementName, { color: skillColor }]}>{achievement.title}</Text>
             </View>
             {achievement.credits > 0 && (
-              <Text style={doneStyles.achievementCredits}>+{achievement.credits} CR</Text>
+              <Text style={doneStyles.achievementCredits}>+{achievement.credits} Credits</Text>
             )}
           </View>
         ))}

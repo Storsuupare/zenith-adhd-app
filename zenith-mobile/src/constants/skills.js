@@ -4,6 +4,15 @@ export const SKILLS = [
   "Presence", "Recovery", "Learning", "Environment",
 ];
 
+export const SKILL_CATEGORIES = [
+  { name: "Grit",   skills: ["Resolve", "Discipline"] },
+  { name: "Drive",  skills: ["Execution", "Logic Flow"] },
+  { name: "Growth", skills: ["Creativity", "Learning"] },
+  { name: "Body",   skills: ["Vitality", "Nutrition"] },
+  { name: "Life",   skills: ["Logistics", "Environment"] },
+  { name: "Calm",   skills: ["Presence", "Recovery"] },
+];
+
 // Short examples shown in MissionForm when a skill is selected
 export const SKILL_INFO = {
   "Resolve":     "A task you've been avoiding, pushing through frustration, finishing when drained",
@@ -18,6 +27,21 @@ export const SKILL_INFO = {
   "Recovery":    "Sleeping on time, taking a proper break, decompressing",
   "Learning":    "Studying, reading, practising a skill, taking a course",
   "Environment": "Cleaning your desk, organising your room, decluttering",
+};
+
+export const SKILL_ICONS = {
+  "RESOLVE":     "▲",
+  "LOGIC FLOW":  "⬡",
+  "CREATIVITY":  "◆",
+  "DISCIPLINE":  "◫",
+  "VITALITY":    "◈",
+  "EXECUTION":   "◎",
+  "NUTRITION":   "◉",
+  "LOGISTICS":   "▤",
+  "PRESENCE":    "◑",
+  "RECOVERY":    "◌",
+  "LEARNING":    "⬢",
+  "ENVIRONMENT": "▣",
 };
 
 export const DURATIONS = [

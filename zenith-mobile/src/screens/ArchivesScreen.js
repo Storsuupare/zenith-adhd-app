@@ -1,34 +1,91 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
   SafeAreaView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert, Share,
 } from "react-native";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
+import ScreenHeader from "../components/ScreenHeader";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
+import { SKILL_ICONS } from "../constants/skills";
 import { FONTS } from "../constants/fonts";
+import { RADIUS, SPACING, SURFACE } from "../constants/layout";
 import { fetchSummitHistory, exportSessionsCsv } from "../services/api";
 
-const SKILL_ICONS = {
-  "LOGIC FLOW":  "⬡",
-  VITALITY:      "◈",
-  NUTRITION:     "◉",
-  ENVIRONMENT:   "▣",
-  EXECUTION:     "◎",
-  LEARNING:      "⬢",
-  LOGISTICS:     "▤",
-  CREATIVITY:    "◆",
-  DISCIPLINE:    "◫",
-  PRESENCE:      "◑",
-  RECOVERY:      "◌",
-  RESOLVE:       "▲",
-};
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ACTIVITY_CHART_DAYS = 7;
 
-function SectionLabel({ text, sub }) {
+function startOfDay(value) {
+  const dayStart = new Date(value);
+  dayStart.setHours(0, 0, 0, 0);
+  return dayStart;
+}
+
+function buildWeeklyActivity(sessions) {
+  const today = startOfDay(new Date());
+  const days  = [];
+
+  for (let dayOffset = ACTIVITY_CHART_DAYS - 1; dayOffset >= 0; dayOffset -= 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - dayOffset);
+    days.push({ key: date.toDateString(), label: WEEKDAY_LABELS[date.getDay()], minutes: 0 });
+  }
+
+  const daysByKey = new Map(days.map(day => [day.key, day]));
+  sessions.forEach(session => {
+    if (!session.completed_at) return;
+    const day = daysByKey.get(startOfDay(session.completed_at).toDateString());
+    if (day) day.minutes += Number(session.minutes) || 0;
+  });
+
+  return days;
+}
+
+function describeDay(date) {
+  const today     = startOfDay(new Date());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.getTime() === today.getTime())     return "Today";
+  if (date.getTime() === yesterday.getTime()) return "Yesterday";
+
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    day:     "numeric",
+    month:   "short",
+    ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+function groupSessionsByDay(sessions) {
+  const groups     = [];
+  const groupByKey = new Map();
+
+  [...sessions]
+    .sort((first, second) => new Date(second.completed_at) - new Date(first.completed_at))
+    .forEach(session => {
+      const sessionDay = startOfDay(session.completed_at ?? new Date());
+      const groupKey   = sessionDay.toDateString();
+
+      let group = groupByKey.get(groupKey);
+      if (!group) {
+        group = { key: groupKey, label: describeDay(sessionDay), totalMinutes: 0, sessions: [] };
+        groupByKey.set(groupKey, group);
+        groups.push(group);
+      }
+
+      group.sessions.push(session);
+      group.totalMinutes += Number(session.minutes) || 0;
+    });
+
+  return groups;
+}
+
+function SectionLabel({ text, detail }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionLabel}>{text}</Text>
-      {sub && <Text style={styles.sectionSub}>{sub}</Text>}
+      {detail ? <Text style={styles.sectionDetail}>{detail}</Text> : null}
     </View>
   );
 }
@@ -38,7 +95,9 @@ function StatGrid({ tiles, accentColor }) {
     <View style={styles.statGrid}>
       {tiles.map(tile => (
         <View key={tile.label} style={styles.statTile}>
-          <Text style={[styles.statValue, { color: tile.color ?? accentColor }]}>{tile.value}</Text>
+          <Text style={[styles.statValue, { color: tile.color ?? accentColor }]} numberOfLines={1}>
+            {tile.value}
+          </Text>
           <Text style={styles.statLabel}>{tile.label}</Text>
         </View>
       ))}
@@ -46,26 +105,67 @@ function StatGrid({ tiles, accentColor }) {
   );
 }
 
+function WeeklyActivityChart({ days, accentColor }) {
+  const peakMinutes = Math.max(...days.map(day => day.minutes), 1);
+  const todayKey    = startOfDay(new Date()).toDateString();
+
+  return (
+    <View style={styles.chartCard}>
+      <View style={styles.chartPlot}>
+        {days.map(day => {
+          const isToday   = day.key === todayKey;
+          const hasData   = day.minutes > 0;
+          const barHeight = hasData ? Math.max((day.minutes / peakMinutes) * 100, 6) : 2;
+
+          return (
+            <View key={day.key} style={styles.chartColumn}>
+              <Text style={[styles.chartValue, !hasData && styles.chartValueEmpty]}>
+                {hasData ? `${day.minutes}m` : ""}
+              </Text>
+              <View style={styles.chartBarSlot}>
+                <View
+                  style={[
+                    styles.chartBar,
+                    {
+                      height:          `${barHeight}%`,
+                      backgroundColor: hasData ? accentColor : "rgba(255,255,255,0.1)",
+                      opacity:         hasData && !isToday ? 0.65 : 1,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.chartDay, isToday && { color: accentColor }]}>{day.label}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function ArchivesScreen() {
   const { user } = useUser();
   const { accentColor } = useTheme();
-  const [sessions,      setSessions]      = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [refreshing,    setRefreshing]    = useState(false);
-  const [exporting,     setExporting]     = useState(false);
+  const [sessions,   setSessions]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [exporting,  setExporting]  = useState(false);
 
-  const userRole       = user?.role ?? "FREE";
-  const accountTier    = user?.account_tier ?? 0;
-  const isPro          = accountTier >= 1;
-  const historyLabel   = accountTier >= 2 ? "All time" : accountTier >= 1 ? "Last 6 months" : "Last 7 days";
+  const accountTier  = user?.account_tier ?? 0;
+  const isPro        = accountTier >= 1;
+  const historyLabel = accountTier >= 2 ? "All time" : accountTier >= 1 ? "Last 6 months" : "Last 7 days";
+  const historyLimit = accountTier >= 2 ? 500 : accountTier >= 1 ? 200 : 50;
 
-  const loadSessions = () =>
-    fetchSummitHistory(50)
-      .then(res => setSessions(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
+  const loadSessions = useCallback(
+    () =>
+      fetchSummitHistory(historyLimit)
+        .then(response => setSessions(Array.isArray(response.data) ? response.data : []))
+        .catch(() => setSessions([]))
+        .finally(() => setLoading(false)),
+    [historyLimit],
+  );
 
-  useEffect(() => { loadSessions(); }, [user?.id]);
+  useEffect(() => { loadSessions(); }, [loadSessions, user?.id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,152 +187,155 @@ export default function ArchivesScreen() {
   };
 
   const skills        = user?.mastery ?? [];
-  const totalXP       = user?.total_xp ?? 0;
-  const avgLevel      = skills.length
-    ? Math.round(skills.reduce((sum, skill) => sum + (skill.current_level ?? 0), 0) / skills.length)
+  const lifetimeXP    = user?.total_xp ?? 0;
+  const currentStreak = user?.streak ?? 0;
+  const averageLevel  = skills.length
+    ? Math.round(skills.reduce((total, skill) => total + (skill.current_level ?? 0), 0) / skills.length)
     : 0;
-  const prestigeCount = skills.reduce((sum, skill) => sum + (skill.prestige_level ?? 0), 0);
-  const allTimeMinutes = skills.length > 0
-    ? sessions.reduce((sum, session) => sum + (Number(session.minutes) || 0), 0)
-    : 0;
+  const prestigeCount = skills.reduce((total, skill) => total + (skill.prestige_level ?? 0), 0);
 
-  // ── Performance: derived from 7-day sessions ──────────────────────────────
-  const weekMinutes     = sessions.reduce((sum, session) => sum + (Number(session.minutes) || 0), 0);
-  const weekHours       = (weekMinutes / 60).toFixed(1);
-  const dailyAvgMinutes = Math.round(weekMinutes / 7);
+  const windowMinutes = sessions.reduce((total, session) => total + (Number(session.minutes) || 0), 0);
+  const windowHours   = (windowMinutes / 60).toFixed(1);
 
-  const skillFrequency = {};
+  const activeDayKeys = new Set(
+    sessions.filter(session => session.completed_at)
+            .map(session => startOfDay(session.completed_at).toDateString()),
+  );
+  const activeDayCount   = activeDayKeys.size;
+  const minutesPerActive = activeDayCount > 0 ? Math.round(windowMinutes / activeDayCount) : 0;
+
+  const sessionsBySkill = {};
   sessions.forEach(session => {
-    const name = session.skill_name || "";
-    if (name) skillFrequency[name] = (skillFrequency[name] || 0) + 1;
+    const skillName = session.skill_name || "";
+    if (skillName) sessionsBySkill[skillName] = (sessionsBySkill[skillName] || 0) + 1;
   });
-  const topSkill = Object.entries(skillFrequency).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+  const topSkill = Object.entries(sessionsBySkill).sort((first, second) => second[1] - first[1])[0]?.[0];
 
-  // ── Skill XP ──────────────────────────────────────────────────────────────
-  const sortedSkills = [...skills].sort((a, b) => (b.current_xp ?? 0) - (a.current_xp ?? 0));
-  const topSkillXP   = sortedSkills.length ? Math.max(sortedSkills[0].current_xp ?? 1, 1) : 1;
+  const weeklyActivity = buildWeeklyActivity(sessions);
+  const sessionGroups  = groupSessionsByDay(sessions);
+  const weeklyMinutes  = weeklyActivity.reduce((total, day) => total + day.minutes, 0);
 
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.topBar}>
-        <Text style={styles.pageTitle}>History</Text>
+      <ScreenHeader title="History" subtitle={historyLabel}>
         {isPro && (
           <TouchableOpacity
-            style={[styles.exportBtn, { borderColor: accentColor + "55" }]}
+            style={[styles.exportButton, { borderColor: accentColor + "55" }, exporting && { opacity: 0.5 }]}
             onPress={handleExportCsv}
             disabled={exporting}
           >
-            <Text style={[styles.exportBtnText, { color: accentColor }]}>
-              {exporting ? "Exporting..." : "Export CSV"}
+            <Text style={[styles.exportButtonText, { color: accentColor }]}>
+              {exporting ? "Exporting…" : "Export CSV"}
             </Text>
           </TouchableOpacity>
         )}
-      </View>
+      </ScreenHeader>
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
+        alwaysBounceVertical
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />
+        }
       >
 
-        {/* ── Personal Records ─────────────────────────────────────────── */}
-        <SectionLabel text="Personal Records" />
-        <StatGrid accentColor={accentColor} tiles={[
-          { label: "Lifetime XP",     value: totalXP.toLocaleString() },
-          { label: "Avg Skill Level", value: `Lv ${avgLevel}`         },
-          { label: "Hours Logged",    value: `${(allTimeMinutes / 60).toFixed(1)}h` },
-          { label: "Prestiges",       value: String(prestigeCount)    },
-        ]} />
-
-        {/* ── Performance ──────────────────────────────────────────────── */}
-        <SectionLabel text="Performance" sub={historyLabel} />
+        <SectionLabel text="This week" detail={`${(weeklyMinutes / 60).toFixed(1)}h focused`} />
         {loading ? (
-          <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />
+          <ActivityIndicator color={accentColor} style={styles.sectionSpinner} />
         ) : (
-          <StatGrid accentColor={accentColor} tiles={[
-            { label: "Sessions",     value: String(sessions.length) },
-            { label: "Time Logged",  value: `${weekHours}h`         },
-            { label: "Top Skill",    value: topSkill || "—",  color: topSkill ? SKILL_COLORS[topSkill.toUpperCase()] : undefined },
-            { label: "Daily Avg",    value: `${dailyAvgMinutes}m`   },
-          ]} />
+          <WeeklyActivityChart days={weeklyActivity} accentColor={accentColor} />
         )}
 
-        {/* ── Skill XP ─────────────────────────────────────────────────── */}
-        {sortedSkills.length > 0 && (
-          <>
-            <SectionLabel text="Skill XP" />
-            <View style={styles.card}>
-              {sortedSkills.map((skill, index) => {
-                const upperName  = (skill.skill_name ?? "").toUpperCase();
-                const skillColor = SKILL_COLORS[upperName] || accentColor;
-                const icon       = SKILL_ICONS[upperName] ?? "◉";
-                const fillPct    = ((skill.current_xp ?? 0) / topSkillXP) * 100;
-                const xpDisplay  = (skill.current_xp ?? 0) >= 1000
-                  ? `${((skill.current_xp ?? 0) / 1000).toFixed(1)}k`
-                  : String(skill.current_xp ?? 0);
-                return (
-                  <View key={skill.skill_name} style={[styles.skillRow, index > 0 && styles.rowDivider]}>
-                    <Text style={[styles.skillIcon, { color: skillColor }]}>{icon}</Text>
-                    <View style={styles.skillMeta}>
-                      <View style={styles.skillTopRow}>
-                        <Text style={styles.skillName} numberOfLines={1}>{skill.skill_name}</Text>
-                        <View style={styles.levelBadge}>
-                          <Text style={[styles.levelText, { color: skillColor }]}>LV {skill.current_level ?? 0}</Text>
-                        </View>
-                        <Text style={[styles.xpValue, { color: skillColor }]}>{xpDisplay} XP</Text>
-                      </View>
-                      <View style={styles.barTrack}>
-                        <View style={[styles.barFill, { width: `${fillPct}%`, backgroundColor: skillColor }]} />
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {/* ── Recent Sessions ──────────────────────────────────────────── */}
-        <SectionLabel text="Recent Sessions" sub={historyLabel} />
+        <SectionLabel text="Performance" detail={historyLabel} />
         {loading ? (
-          <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />
-        ) : sessions.length === 0 ? (
-          <View style={styles.emptyBox}>
+          <ActivityIndicator color={accentColor} style={styles.sectionSpinner} />
+        ) : (
+          <StatGrid
+            accentColor={accentColor}
+            tiles={[
+              { label: "Sessions",        value: String(sessions.length) },
+              { label: "Time focused",    value: `${windowHours}h` },
+              { label: "Active days",     value: String(activeDayCount) },
+              { label: "Avg / active day", value: `${minutesPerActive}m` },
+            ]}
+          />
+        )}
+
+        <SectionLabel text="All time" />
+        <StatGrid
+          accentColor={accentColor}
+          tiles={[
+            { label: "Lifetime XP",     value: lifetimeXP.toLocaleString() },
+            { label: "Avg skill level", value: `Lv ${averageLevel}` },
+            { label: "Current streak",  value: `${currentStreak}d` },
+            {
+              label: "Top skill",
+              value: topSkill ?? "—",
+              color: topSkill ? SKILL_COLORS[topSkill.toUpperCase()] : undefined,
+            },
+          ]}
+        />
+        {prestigeCount > 0 && (
+          <Text style={styles.prestigeNote}>
+            {prestigeCount} prestige{prestigeCount === 1 ? "" : "s"} earned across your skills.
+          </Text>
+        )}
+
+        <SectionLabel text="Sessions" detail={historyLabel} />
+        {loading ? (
+          <ActivityIndicator color={accentColor} style={styles.sectionSpinner} />
+        ) : sessionGroups.length === 0 ? (
+          <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>◌</Text>
-            <Text style={styles.emptyText}>No sessions in the last 7 days.</Text>
+            <Text style={styles.emptyTitle}>No sessions yet</Text>
+            <Text style={styles.emptyDetail}>
+              Finished sessions from {historyLabel.toLowerCase()} will appear here.
+            </Text>
           </View>
         ) : (
-          <View style={styles.sessionList}>
-            {[...sessions].reverse().map((session, index) => {
-              const upperSkill = (session.skill_name ?? "").toUpperCase();
-              const skillColor = SKILL_COLORS[upperSkill] || accentColor;
-              const icon       = SKILL_ICONS[upperSkill] ?? "◉";
-              return (
-                <View key={session.id ?? index} style={styles.sessionRow}>
-                  <View style={[styles.sessionAccent, { backgroundColor: skillColor }]} />
-                  <View style={styles.sessionBody}>
-                    <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
-                    <View style={styles.sessionMeta}>
-                      <Text style={[styles.sessionIcon]}>{icon}</Text>
-                      <Text style={[styles.sessionSkill, { color: skillColor }]}>
-                        {session.skill_name || "Session"}
+          sessionGroups.map(group => (
+            <View key={group.key} style={styles.dayGroup}>
+              <View style={styles.dayHeader}>
+                <Text style={styles.dayLabel}>{group.label}</Text>
+                <Text style={styles.dayTotal}>
+                  {group.sessions.length} · {group.totalMinutes}m
+                </Text>
+              </View>
+
+              <View style={styles.dayCard}>
+                {group.sessions.map((session, sessionIndex) => {
+                  const skillKey   = (session.skill_name ?? "").toUpperCase();
+                  const skillColor = SKILL_COLORS[skillKey] || accentColor;
+
+                  return (
+                    <View
+                      key={session.id ?? `${group.key}-${sessionIndex}`}
+                      style={[styles.sessionRow, sessionIndex > 0 && styles.sessionRowDivided]}
+                    >
+                      <Text style={[styles.sessionIcon, { color: skillColor }]}>
+                        {SKILL_ICONS[skillKey] ?? "◉"}
                       </Text>
-                      <View style={styles.sessionDot} />
-                      <Text style={styles.sessionDate}>{session.label}</Text>
-                      <View style={styles.sessionDot} />
+                      <View style={styles.sessionBody}>
+                        <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
+                        <Text style={[styles.sessionSkill, { color: skillColor }]}>
+                          {session.skill_name || "Session"}
+                        </Text>
+                      </View>
                       <Text style={styles.sessionDuration}>{session.minutes}m</Text>
                     </View>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                  );
+                })}
+              </View>
+            </View>
+          ))
         )}
 
         {!isPro && (
           <View style={styles.upgradeNotice}>
             <Text style={styles.upgradeNoticeText}>
-              PRO unlocks 6 months of history, prestige, and CSV export. ELITE unlocks all-time history and auto-replenishing streak shield.
+              PRO unlocks 6 months of history, prestige, and CSV export.
+              ELITE unlocks all-time history and an auto-replenishing streak shield.
             </Text>
           </View>
         )}
@@ -243,35 +346,143 @@ export default function ArchivesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:      { flex: 1, backgroundColor: "transparent" },
-  topBar: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    paddingHorizontal: 16,
-    paddingVertical:   12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
-  },
-  pageTitle: { color: COLORS.text, fontSize: 20, fontFamily: FONTS.bold },
-  exportBtn: {
+  root:    { flex: 1, backgroundColor: "transparent" },
+  content: { padding: SPACING.screenPadding, paddingBottom: 40, gap: 10 },
+
+  exportButton: {
     borderWidth:       1,
-    borderRadius:      8,
+    borderRadius:      RADIUS.small,
     paddingHorizontal: 12,
     paddingVertical:   6,
   },
-  exportBtnText: {
-    fontSize:   11,
-    fontFamily: FONTS.monoBold,
-    letterSpacing: 1,
+  exportButtonText: { fontSize: 11, fontFamily: FONTS.monoBold, letterSpacing: 1 },
+
+  sectionHeader: {
+    flexDirection:  "row",
+    alignItems:     "baseline",
+    justifyContent: "space-between",
+    gap:            8,
+    marginTop:      8,
   },
+  sectionLabel: {
+    color:         COLORS.textMuted,
+    fontSize:      10,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    fontFamily:    FONTS.bold,
+  },
+  sectionDetail:  { color: "rgba(255,255,255,0.25)", fontSize: 10, fontFamily: FONTS.regular },
+  sectionSpinner: { marginVertical: 16 },
+
+  chartCard: {
+    backgroundColor: SURFACE.card,
+    borderWidth:     1,
+    borderColor:     SURFACE.cardBorder,
+    borderRadius:    RADIUS.medium,
+    padding:         14,
+  },
+  chartPlot: {
+    flexDirection:  "row",
+    alignItems:     "flex-end",
+    justifyContent: "space-between",
+    gap:            6,
+  },
+  chartColumn:  { flex: 1, alignItems: "center", gap: 5 },
+  chartValue: {
+    color:      "rgba(255,255,255,0.5)",
+    fontSize:   9,
+    fontFamily: FONTS.monoBold,
+    height:     12,
+  },
+  chartValueEmpty: { color: "transparent" },
+  chartBarSlot: {
+    height:        76,
+    width:         "100%",
+    justifyContent: "flex-end",
+    alignItems:    "center",
+  },
+  chartBar: { width: "62%", borderRadius: 3, minHeight: 2 },
+  chartDay: {
+    color:         "rgba(255,255,255,0.35)",
+    fontSize:      10,
+    fontFamily:    FONTS.semiBold,
+    letterSpacing: 0.3,
+  },
+
+  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  statTile: {
+    flexGrow:        1,
+    flexBasis:       "46%",
+    backgroundColor: SURFACE.card,
+    borderWidth:     1,
+    borderColor:     SURFACE.cardBorder,
+    borderRadius:    RADIUS.medium,
+    padding:         14,
+    gap:             4,
+  },
+  statValue: { fontSize: 21, fontFamily: FONTS.bold },
+  statLabel: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
+
+  prestigeNote: {
+    color:      "rgba(255,255,255,0.3)",
+    fontSize:   11,
+    fontFamily: FONTS.regular,
+    marginTop:  2,
+  },
+
+  dayGroup:  { gap: 6, marginTop: 4 },
+  dayHeader: {
+    flexDirection:  "row",
+    alignItems:     "baseline",
+    justifyContent: "space-between",
+  },
+  dayLabel: { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
+  dayTotal: { color: "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: FONTS.monoBold },
+  dayCard: {
+    backgroundColor: SURFACE.card,
+    borderWidth:     1,
+    borderColor:     SURFACE.cardBorder,
+    borderRadius:    RADIUS.medium,
+    overflow:        "hidden",
+  },
+
+  sessionRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    gap:               10,
+    paddingHorizontal: 14,
+    paddingVertical:   11,
+  },
+  sessionRowDivided: { borderTopWidth: 1, borderTopColor: SURFACE.inset },
+  sessionIcon:       { fontSize: 14, width: 18, textAlign: "center" },
+  sessionBody:       { flex: 1, gap: 2 },
+  sessionTitle:      { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
+  sessionSkill:      { fontSize: 11, fontFamily: FONTS.regular },
+  sessionDuration: {
+    color:      COLORS.textMuted,
+    fontSize:   12,
+    fontFamily: FONTS.monoBold,
+    flexShrink: 0,
+  },
+
+  emptyState:  { alignItems: "center", paddingVertical: 32, gap: 6 },
+  emptyIcon:   { color: COLORS.textMuted, fontSize: 28, marginBottom: 2 },
+  emptyTitle:  { color: COLORS.text, fontSize: 14, fontFamily: FONTS.semiBold },
+  emptyDetail: {
+    color:      COLORS.textMuted,
+    fontSize:   12,
+    fontFamily: FONTS.regular,
+    textAlign:  "center",
+    paddingHorizontal: 24,
+  },
+
   upgradeNotice: {
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth:     1,
-    borderColor:     "rgba(255,255,255,0.07)",
-    borderRadius:    12,
+    borderColor:     SURFACE.cardBorder,
+    borderRadius:    RADIUS.medium,
     padding:         14,
-    marginTop:       4,
+    marginTop:       10,
   },
   upgradeNoticeText: {
     color:      "rgba(255,255,255,0.3)",
@@ -280,93 +491,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign:  "center",
   },
-  content:   { padding: 16, paddingBottom: 40, gap: 12 },
-
-  // ── Section header ────────────────────────────────────────────
-  sectionHeader: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: 4 },
-  sectionLabel:  { color: COLORS.textMuted, fontSize: 10, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONTS.bold },
-  sectionSub:    { color: "rgba(255,255,255,0.2)", fontSize: 10, fontFamily: FONTS.regular },
-
-  // ── Stat grid ─────────────────────────────────────────────────
-  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  statTile: {
-    width:           "47.5%",
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth:     1,
-    borderColor:     "rgba(255,255,255,0.07)",
-    borderRadius:    12,
-    padding:         14,
-    gap:             4,
-  },
-  statValue: { fontSize: 22, fontFamily: FONTS.bold },
-  statLabel: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
-
-  // ── Shared card ───────────────────────────────────────────────
-  card: {
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth:     1,
-    borderColor:     "rgba(255,255,255,0.06)",
-    borderRadius:    14,
-    overflow:        "hidden",
-  },
-
-  // ── Skill XP rows ─────────────────────────────────────────────
-  skillRow: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    paddingHorizontal: 14,
-    paddingVertical:   10,
-    gap:               10,
-  },
-  rowDivider: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.04)" },
-  skillIcon:  { fontSize: 14, width: 18, textAlign: "center" },
-  skillMeta:  { flex: 1, gap: 5 },
-  skillTopRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  skillName:  { color: COLORS.text, fontSize: 12, fontFamily: FONTS.semiBold, flex: 1 },
-  levelBadge: {
-    backgroundColor:   "rgba(255,255,255,0.07)",
-    borderRadius:      4,
-    paddingHorizontal: 5,
-    paddingVertical:   2,
-  },
-  levelText:  { fontSize: 9, fontFamily: FONTS.bold, letterSpacing: 0.5 },
-  xpValue:    { fontSize: 10, fontFamily: FONTS.monoBold, letterSpacing: 0.5, opacity: 0.85 },
-  barTrack: {
-    height:          3,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius:    2,
-    overflow:        "hidden",
-  },
-  barFill: { height: "100%", borderRadius: 2 },
-
-  // ── Session rows ──────────────────────────────────────────────
-  sessionList: { gap: 6 },
-  sessionRow: {
-    flexDirection:   "row",
-    alignItems:      "stretch",
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth:     1,
-    borderColor:     "rgba(255,255,255,0.06)",
-    borderRadius:    10,
-    overflow:        "hidden",
-  },
-  sessionAccent: { width: 3 },
-  sessionBody: {
-    flex:              1,
-    paddingVertical:   10,
-    paddingHorizontal: 12,
-    gap:               4,
-  },
-  sessionTitle: { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
-  sessionMeta:  { flexDirection: "row", alignItems: "center", gap: 5 },
-  sessionIcon:  { fontSize: 10, color: "rgba(255,255,255,0.4)" },
-  sessionSkill: { fontSize: 11, fontFamily: FONTS.semiBold },
-  sessionDot:   { width: 2, height: 2, borderRadius: 1, backgroundColor: "rgba(255,255,255,0.2)" },
-  sessionDate:  { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
-  sessionDuration: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
-
-  // ── Empty state ───────────────────────────────────────────────
-  emptyBox:  { alignItems: "center", paddingVertical: 32, gap: 8 },
-  emptyIcon: { color: COLORS.textMuted, fontSize: 28 },
-  emptyText: { color: COLORS.textMuted, fontSize: 13, fontFamily: FONTS.regular },
 });

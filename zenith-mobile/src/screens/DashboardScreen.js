@@ -18,7 +18,9 @@ import WhatsNewModal from "../components/WhatsNewModal";
 import { WHATS_NEW, WHATS_NEW_KEY } from "../constants/whatsNew";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS } from "../constants/colors";
+import { SKILL_ICONS } from "../constants/skills";
 import { FONTS } from "../constants/fonts";
+import { RADIUS } from "../constants/layout";
 
 function getContextHint(user) {
   const hour   = new Date().getHours();
@@ -38,131 +40,108 @@ function getTierKey(level) {
   return "novice";
 }
 
-const TIER = {
-  novice:   { color: "rgba(255,255,255,0.28)", gradientColors: ["rgba(255,255,255,0.18)", "rgba(255,255,255,0.5)"],  borderColor: "rgba(255,255,255,0.07)",  cardBg: "rgba(0,0,0,0.22)" },
-  adept:    { color: "#00f5ff",                gradientColors: ["#0096c7", "#00f5ff", "#ade8f4"],                     borderColor: "rgba(0,245,255,0.2)",      cardBg: "rgba(0,18,28,0.26)" },
-  vanguard: { color: "#ff0040",                gradientColors: ["#c9184a", "#ff0040", "#ff758f"],                     borderColor: "rgba(255,0,64,0.3)",       cardBg: "rgba(22,0,10,0.26)" },
-};
-
-const SKILL_DATA = {
-  "LOGIC FLOW":  { icon: "⬡", benefit: "Sharpens analytical thinking, pattern recognition, and problem-solving under pressure.", trains: ["Coding", "Debugging", "Math", "Chess", "Algorithm", "SQL", "Python"] },
-  "VITALITY":    { icon: "◈", benefit: "Boosts energy, focus, and mood — your body is your most important productivity tool.", trains: ["Gym", "Workout", "Running", "Cardio", "HIIT", "Yoga", "Lifting"] },
-  "NUTRITION":   { icon: "◉", benefit: "Fuels consistent energy levels and keeps your brain sharp throughout the day.", trains: ["Healthy Meal", "Meal Prep", "Cooking", "Hydration", "Groceries"] },
-  "ENVIRONMENT": { icon: "▣", benefit: "A cleaner space means a clearer head.", trains: ["Cleaning", "Chores", "Dishes", "Laundry", "Organizing", "Tidying"] },
-  "EXECUTION":   { icon: "◎", benefit: "The skill of actually doing the work — sitting down, starting, and seeing it through.", trains: ["Work Session", "Project", "Pomodoro", "Sprint", "Task Sprint", "Grind"] },
-  "LEARNING":    { icon: "⬢", benefit: "Builds knowledge that stacks over time — the more you learn, the faster you learn.", trains: ["Reading", "Study", "Research", "Note Taking", "Flashcards", "Course"] },
-  "LOGISTICS":   { icon: "▤", benefit: "Keeps your life organised and your head clear — fewer open loops, more focus.", trains: ["Organisation", "Email", "Planning", "Scheduling", "Errands", "Calendar"] },
-  "CREATIVITY":  { icon: "◆", benefit: "Trains your brain to think differently and express ideas in ways only you can.", trains: ["Drawing", "Writing", "Music", "Design", "Art", "Photography", "Guitar"] },
-  "DISCIPLINE":  { icon: "◫", benefit: "Builds the habit infrastructure that makes everything else easier.", trains: ["Habit", "Routine", "Morning Routine", "Practice", "Self-improvement", "Ritual"] },
-  "PRESENCE":    { icon: "◑", benefit: "Strengthens real connections — the people in your life are part of your progress too.", trains: ["Meeting", "Call", "Networking", "Friends", "Family", "Dating", "Hangout"] },
-  "RECOVERY":    { icon: "◯", benefit: "Rest isn't laziness — it's how your brain resets and locks in everything you've worked on.", trains: ["Meditation", "Sleep", "Nap", "Breathing", "Journaling", "Rest", "Bath"] },
-  "RESOLVE":     { icon: "▲", benefit: "Doing the hard thing anyway — this skill grows every time you push through resistance.", trains: ["Hard Task", "Challenge", "Cold Shower", "Therapy", "Discipline", "Mindset"] },
+const TIER_STYLES = {
+  novice:   { color: "rgba(255,255,255,0.28)", gradientColors: ["rgba(255,255,255,0.18)", "rgba(255,255,255,0.5)"],  borderColor: "rgba(255,255,255,0.07)",  cardBackground: "rgba(0,0,0,0.22)" },
+  adept:    { color: "#00f5ff",                gradientColors: ["#0096c7", "#00f5ff", "#ade8f4"],                     borderColor: "rgba(0,245,255,0.2)",      cardBackground: "rgba(0,18,28,0.26)" },
+  vanguard: { color: "#ff0040",                gradientColors: ["#c9184a", "#ff0040", "#ff758f"],                     borderColor: "rgba(255,0,64,0.3)",       cardBackground: "rgba(22,0,10,0.26)" },
 };
 
 // ── Skill card (matches SkillSideBar.css) ────────────────────────────────────
 function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }) {
-  const level      = skill.current_level ?? 0;
-  const xp         = skill.current_xp ?? 0;
-  const nextXP     = Math.max(skill.next_level_xp ?? 100, 1);
-  const prestige   = skill.prestige_level ?? 0;
-  const pct         = Math.min((xp / nextXP) * 100, 100);
-  const projectedPct = previewXP > 0
-    ? Math.min(((xp + previewXP) / nextXP) * 100, 100)
+  const currentLevel     = skill.current_level ?? 0;
+  const currentXP        = skill.current_xp ?? 0;
+  const nextLevelXP      = Math.max(skill.next_level_xp ?? 100, 1);
+  const prestigeLevel    = skill.prestige_level ?? 0;
+  const displayName      = (skill.skill_name || "").toUpperCase();
+  const skillIcon        = SKILL_ICONS[displayName];
+  const tierStyle        = TIER_STYLES[getTierKey(currentLevel)];
+  const canPrestige      = currentLevel >= 99;
+  const hasPrestigeBoost = skill.prestige_boost_until && new Date(skill.prestige_boost_until) > new Date();
+
+  const progressPercent  = Math.min((currentXP / nextLevelXP) * 100, 100);
+  const projectedPercent = previewXP > 0
+    ? Math.min(((currentXP + previewXP) / nextLevelXP) * 100, 100)
     : 0;
-  const name       = (skill.skill_name || "").toUpperCase();
-  const tierKey    = getTierKey(level);
-  const tier       = TIER[tierKey];
-  const data       = SKILL_DATA[name];
-  const canPrestige = level >= 99;
-  const boostActive = skill.prestige_boost_until && new Date(skill.prestige_boost_until) > new Date();
 
   return (
-    <View style={[sk.card, { borderColor: tier.borderColor, backgroundColor: tier.cardBg }]}>
+    <View style={[
+      skillCardStyles.card,
+      { borderColor: tierStyle.borderColor, backgroundColor: tierStyle.cardBackground },
+    ]}>
 
-      {/* Icon badge — absolute top-right, never affects row layout */}
-      {data && <Text style={[sk.iconBadge, { color: accentColor }]}>{data.icon}</Text>}
+      {skillIcon && (
+        <Text style={[skillCardStyles.icon, { color: accentColor }]}>{skillIcon}</Text>
+      )}
 
-      {/* LVL badge row — .skill-lvl-row — only badge + xpBonus + stars, no wrapping */}
-      <View style={sk.lvlRow}>
-        <View style={sk.lvlBadge}>
-          <Text style={[sk.lvlText, { color: accentColor }]}>LVL {level}</Text>
+      <View style={skillCardStyles.levelRow}>
+        <View style={skillCardStyles.levelBadge}>
+          <Text style={[skillCardStyles.levelText, { color: accentColor }]}>LVL {currentLevel}</Text>
         </View>
-        {level >= 2 && !canPrestige && (
-          <Text style={[sk.xpBonus, { color: tier.color }]} numberOfLines={1}>+{level * 5}% XP</Text>
-        )}
-        {prestige > 0 && (
-          <Text style={sk.prestigeStars} numberOfLines={1}>{"★".repeat(Math.min(prestige, 5))}</Text>
+        {prestigeLevel > 0 && (
+          <Text style={skillCardStyles.prestigeStars} numberOfLines={1}>
+            {"★".repeat(Math.min(prestigeLevel, 5))}
+          </Text>
         )}
       </View>
 
-      {/* Skill name — full width so nothing truncates */}
-      <Text style={sk.skillName}>
-        {name}{boostActive && <Text style={sk.boostBadge}> 2×</Text>}
+      <Text style={skillCardStyles.skillName}>
+        {displayName}
+        {hasPrestigeBoost && <Text style={skillCardStyles.boostBadge}> 2×</Text>}
       </Text>
 
-      {!canPrestige ? (
-        <>
-          {/* Progress bar — ghost shows projected session XP, real fill on top */}
-          <View style={sk.barTrack}>
-            {projectedPct > pct && (
-              <View style={[sk.barGhost, { width: `${projectedPct}%` }]} />
-            )}
-            <View style={[sk.barFill, { width: `${pct}%`, backgroundColor: accentColor }]} />
-          </View>
-          {/* XP fraction + percent on same row */}
-          <View style={sk.bottomRow}>
-            <Text style={sk.pctReadout}>{Math.floor(pct)}%</Text>
-            <View style={sk.xpFrac}>
-              <Text style={sk.xpVal}>{xp.toLocaleString()}</Text>
-              <Text style={sk.xpDim}> / {nextXP.toLocaleString()} </Text>
-              <Text style={[sk.xpLbl, { color: accentColor }]}>XP</Text>
-            </View>
-          </View>
-        </>
-      ) : (
-        <TouchableOpacity style={sk.prestigeBtn} onPress={() => onPrestige(skill.skill_name)} activeOpacity={0.85}>
-          <Text style={sk.prestigeBtnTxt}>PRESTIGE SKILL</Text>
-          <Text style={sk.prestigeBtnSub}>RESET TO LVL 1 · +10% XP · 3,500 CR</Text>
+      {canPrestige ? (
+        <TouchableOpacity
+          style={skillCardStyles.prestigeButton}
+          onPress={() => onPrestige(skill.skill_name)}
+          activeOpacity={0.85}
+        >
+          <Text style={skillCardStyles.prestigeButtonLabel}>PRESTIGE SKILL</Text>
+          <Text style={skillCardStyles.prestigeButtonDetail}>
+            RESET TO LVL 1 · +10% XP · 3,500 Credits
+          </Text>
         </TouchableOpacity>
+      ) : (
+        <View style={skillCardStyles.progressTrack}>
+          {projectedPercent > progressPercent && (
+            <View style={[skillCardStyles.progressProjected, { width: `${projectedPercent}%` }]} />
+          )}
+          <View style={[
+            skillCardStyles.progressFill,
+            { width: `${progressPercent}%`, backgroundColor: accentColor },
+          ]} />
+        </View>
       )}
 
     </View>
   );
 }
 
-const sk = StyleSheet.create({
+const skillCardStyles = StyleSheet.create({
   card: {
     width:             "48.5%",
     borderWidth:       1,
-    borderRadius:      11,
+    borderRadius:      RADIUS.medium,
     paddingVertical:   10,
     paddingHorizontal: 10,
     minHeight:         90,
   },
-  // lvlRow never wraps — xpBonus shrinks first, icon stays pinned right
-  lvlRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6, overflow: "hidden" },
-  lvlBadge: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 0 },
-  lvlText:  { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
-  xpBonus:  { fontFamily: FONTS.monoBold, fontSize: 10, fontWeight: "700", letterSpacing: 0.6, opacity: 0.7, flexShrink: 1 },
-  prestigeStars: { color: "#fbbf24", fontSize: 11, lineHeight: 14, flexShrink: 0 },
-  iconBadge: { position: "absolute", top: 10, right: 10, fontSize: 13, opacity: 0.55 },
+  icon: { position: "absolute", top: 10, right: 10, fontSize: 13, opacity: 0.55 },
 
-  skillName: { fontFamily: FONTS.bold, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.9)", letterSpacing: -0.1, marginBottom: 4 },
+  levelRow:      { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6, overflow: "hidden" },
+  levelBadge:    { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 0 },
+  levelText:     { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  prestigeStars: { color: "#fbbf24", fontSize: 11, lineHeight: 14, flexShrink: 0 },
+
+  skillName:  { fontFamily: FONTS.bold, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.9)", letterSpacing: -0.1, marginBottom: 4 },
   boostBadge: { fontSize: 10, fontWeight: "800", color: "#fbbf24" },
 
-  barTrack: { height: 3, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden", marginTop: 6, marginBottom: 4 },
-  barFill:  { height: "100%", borderRadius: 20 },
-  barGhost: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)" },
-  bottomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  pctReadout: { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.6)", letterSpacing: 0.8 },
-  xpFrac:   { flexDirection: "row", alignItems: "baseline" },
-  xpVal:    { fontFamily: FONTS.semiBold, fontSize: 10, color: "rgba(255,255,255,0.9)" },
-  xpDim:    { fontFamily: FONTS.regular,  fontSize: 10, color: "rgba(255,255,255,0.35)" },
-  xpLbl:    { fontFamily: FONTS.bold,     fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
+  progressTrack:     { height: 3, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden", marginTop: 6, marginBottom: 4 },
+  progressFill:      { height: "100%", borderRadius: 20 },
+  progressProjected: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)" },
 
-  prestigeBtn:    { marginTop: 10, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 10, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
-  prestigeBtnTxt: { fontFamily: FONTS.black, fontSize: 13, fontWeight: "800", color: "#fff", letterSpacing: -0.1 },
-  prestigeBtnSub: { fontFamily: FONTS.regular, fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 3, textAlign: "center" },
+  prestigeButton:       { marginTop: 10, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 10, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
+  prestigeButtonLabel:  { fontFamily: FONTS.black, fontSize: 13, fontWeight: "800", color: "#fff", letterSpacing: -0.1 },
+  prestigeButtonDetail: { fontFamily: FONTS.regular, fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 3, textAlign: "center" },
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -189,7 +168,7 @@ export default function DashboardScreen({ navigation }) {
   const handleDailyChallengeClaim = async () => {
     try {
       await claimDailyChallenge();
-      addNotification({ type: "success", message: "+150 CR — challenge complete!" });
+      addNotification({ type: "success", message: "+150 Credits — challenge complete!" });
       await fetchUser();
     } catch (err) {
       if (err.response?.status === 409) {
@@ -203,7 +182,7 @@ export default function DashboardScreen({ navigation }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert(
       "Prestige Skill",
-      `Reset ${skillName} to Level 1?\n\nYou earn a permanent +10% XP bonus to this skill. 3,500 CR will be deducted.`,
+      `Reset ${skillName} to Level 1?\n\nYou earn a permanent +10% XP bonus to this skill. 3,500 Credits will be deducted.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -311,15 +290,6 @@ export default function DashboardScreen({ navigation }) {
           </View>
         )}
 
-        {/* Daily challenge */}
-        <DailyChallenge
-          sessionsToday={Number(user?.sessions_today ?? 0)}
-          minutesToday={Number(user?.minutes_today  ?? 0)}
-          skillsToday={Number(user?.skills_today    ?? 0)}
-          claimedToday={claimedToday}
-          onClaim={handleDailyChallengeClaim}
-        />
-
         {/* ── Running session indicator ── */}
         {activeCount > 0 && (
           <View style={styles.runningBanner}>
@@ -340,6 +310,15 @@ export default function DashboardScreen({ navigation }) {
             <MissionForm onStart={handleCreateTask} accentColor={accentColor} />
           </View>
         )}
+
+        {/* Daily challenge */}
+        <DailyChallenge
+          sessionsToday={Number(user?.sessions_today ?? 0)}
+          minutesToday={Number(user?.minutes_today  ?? 0)}
+          skillsToday={Number(user?.skills_today    ?? 0)}
+          claimedToday={claimedToday}
+          onClaim={handleDailyChallengeClaim}
+        />
 
         {/* Active contracts */}
         {activeCount > 0 && (

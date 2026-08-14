@@ -133,7 +133,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
       </View>
 
       {phase === "done" && sessionCr > 0 && (
-        <Text style={done.crEarned}>+{sessionCr} CR</Text>
+        <Text style={done.crEarned}>+{sessionCr} Credits</Text>
       )}
 
       {phase === "done" && unlockedAchievements.map(achievement => (
@@ -144,7 +144,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
             <Text style={[done.achievementName, { color: skillColor }]}>{achievement.title}</Text>
           </View>
           {achievement.credits > 0 && (
-            <Text style={done.achievementCredits}>+{achievement.credits} CR</Text>
+            <Text style={done.achievementCredits}>+{achievement.credits} Credits</Text>
           )}
         </View>
       ))}

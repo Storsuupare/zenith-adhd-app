@@ -1,26 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
-import { SKILLS, DURATIONS, SKILL_INFO } from "../constants/skills";
+import { SKILL_CATEGORIES, DURATIONS, SKILL_INFO } from "../constants/skills";
+
+const LAST_SKILL_KEY    = "zenith_last_skill";
+const LAST_DURATION_KEY = "zenith_last_duration";
+const DEFAULT_SKILL     = "Resolve";
+const DEFAULT_DURATION  = 30;
 
 export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
   const [taskName, setTaskName] = useState("");
-  const [duration, setDuration] = useState(null);
-  const [skill,    setSkill]    = useState(null);
+  const [duration, setDuration] = useState(DEFAULT_DURATION);
+  const [skill,    setSkill]    = useState(DEFAULT_SKILL);
+  const [openCategory, setOpenCategory] = useState(null);
   const [busy,     setBusy]     = useState(false);
 
-  const canStart = taskName.trim().length > 0 && skill !== null && duration !== null;
+  useEffect(() => {
+    AsyncStorage.multiGet([LAST_SKILL_KEY, LAST_DURATION_KEY])
+      .then(([[, lastSkill], [, lastDuration]]) => {
+        if (lastSkill) setSkill(lastSkill);
+        if (lastDuration) setDuration(Number(lastDuration));
+      })
+      .catch(() => {});
+  }, []);
+
+  const canStart = taskName.trim().length > 0;
 
   const handleStart = async () => {
     if (!canStart || busy) return;
     setBusy(true);
     try {
       await onStart({ taskName: taskName.trim(), durationMinutes: duration, skillName: skill });
-      setTaskName(""); setSkill(null); setDuration(null);
+      AsyncStorage.multiSet([[LAST_SKILL_KEY, skill], [LAST_DURATION_KEY, String(duration)]]).catch(() => {});
+      setTaskName(""); setOpenCategory(null);
     } finally { setBusy(false); }
   };
 
@@ -39,30 +56,59 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
         returnKeyType="done"
       />
 
-      {/* Skill picker — all chips visible, no scroll */}
       <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>CHOOSE SKILL</Text>
       <View style={styles.skillGrid}>
-        {SKILLS.map(skillName => {
-          const skillColor = SKILL_COLORS[skillName.toUpperCase()];
-          const active     = skill === skillName;
+        {SKILL_CATEGORIES.map(category => {
+          const isExpanded      = openCategory === category.name;
+          const holdsSelection  = category.skills.includes(skill);
+          const highlightColor  = holdsSelection ? SKILL_COLORS[skill.toUpperCase()] : accentColor;
+          const isHighlighted   = isExpanded || holdsSelection;
           return (
             <TouchableOpacity
-              key={skillName}
+              key={category.name}
               style={[
                 styles.chip,
-                active
-                  ? { borderColor: skillColor, backgroundColor: "rgba(255,255,255,0.14)" }
+                isHighlighted
+                  ? { borderColor: highlightColor, backgroundColor: "rgba(255,255,255,0.14)" }
                   : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
-              onPress={() => setSkill(skillName)}
+              onPress={() => setOpenCategory(isExpanded ? null : category.name)}
             >
-              <Text style={[styles.chipText, { color: active ? skillColor : "rgba(255,255,255,0.45)" }]}>
-                {skillName.toUpperCase()}
+              <Text style={[
+                styles.chipText,
+                { color: isHighlighted ? highlightColor : "rgba(255,255,255,0.45)" },
+              ]}>
+                {holdsSelection ? skill.toUpperCase() : category.name.toUpperCase()}
               </Text>
             </TouchableOpacity>
           );
         })}
       </View>
+
+      {openCategory && (
+        <View style={styles.skillGrid}>
+          {SKILL_CATEGORIES.find(category => category.name === openCategory).skills.map(skillName => {
+            const skillColor = SKILL_COLORS[skillName.toUpperCase()];
+            const active     = skill === skillName;
+            return (
+              <TouchableOpacity
+                key={skillName}
+                style={[
+                  styles.subChip,
+                  active
+                    ? { borderColor: skillColor, backgroundColor: "rgba(255,255,255,0.14)" }
+                    : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
+                ]}
+                onPress={() => { setSkill(skillName); setOpenCategory(null); }}
+              >
+                <Text style={[styles.chipText, { color: active ? skillColor : "rgba(255,255,255,0.6)" }]}>
+                  {skillName.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* Example tasks for selected skill */}
       {skill && (
@@ -100,7 +146,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
           styles.startBtn,
           canStart
             ? { backgroundColor: accentColor, borderColor: accentColor }
-            : { borderColor: "rgba(255,255,255,0.12)", opacity: 0.4 },
+            : { borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(255,255,255,0.04)" },
         ]}
         onPress={handleStart}
         disabled={!canStart || busy}
@@ -108,8 +154,8 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       >
         {busy
           ? <ActivityIndicator color={canStart ? "#030712" : accentColor} />
-          : <Text style={[styles.startText, { color: canStart ? "#030712" : "rgba(255,255,255,0.4)" }]}>
-              Begin Session →
+          : <Text style={[styles.startText, { color: canStart ? "#030712" : "rgba(255,255,255,0.55)" }]}>
+              {canStart ? `Begin ${duration} Min Session →` : "Name your task to begin"}
             </Text>
         }
       </TouchableOpacity>
@@ -161,6 +207,14 @@ const styles = StyleSheet.create({
     paddingVertical:   6,
     borderRadius:      20,
     borderWidth:       1,
+  },
+  subChip: {
+    flex:              1,
+    paddingHorizontal: 12,
+    paddingVertical:   9,
+    borderRadius:      12,
+    borderWidth:       1,
+    alignItems:        "center",
   },
   chipText: {
     fontFamily:    FONTS.bold,

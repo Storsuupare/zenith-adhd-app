@@ -531,7 +531,7 @@ function getEffectiveAccountTier(accountTier) {
 }
 
 const { CREDIT_BY_RARITY, rollRarity } = require("./LootData.js");
-const { ACHIEVEMENTS, evaluateAchievements } = require("./achievementService.js");
+const { ACHIEVEMENTS, evaluateAchievements, buildAchievementStats } = require("./achievementService.js");
 const { track: trackEvent, identify: identifyUser, shutdownAnalytics } = require("./analytics.js");
 
 // Terms that impersonate Zenith staff or the brand.
@@ -1408,10 +1408,14 @@ app.get("/achievements", requireAuth, async (req, res) => {
     const userRes = await pool.query("SELECT id FROM users WHERE external_id = $1", [req.auth.userId]);
     if (!userRes.rows[0]) return res.status(404).json({ error: "USER_NOT_FOUND" });
 
-    const unlockedRes = await pool.query(
-      "SELECT achievement_key, unlocked_at FROM user_achievements WHERE user_id = $1",
-      [userRes.rows[0].id],
-    );
+    const userId = userRes.rows[0].id;
+    const [unlockedRes, achievementStats] = await Promise.all([
+      pool.query(
+        "SELECT achievement_key, unlocked_at FROM user_achievements WHERE user_id = $1",
+        [userId],
+      ),
+      buildAchievementStats(userId, pool),
+    ]);
     const unlockedByKey = new Map(unlockedRes.rows.map(row => [row.achievement_key, row.unlocked_at]));
 
     res.json({
@@ -1423,6 +1427,8 @@ app.get("/achievements", requireAuth, async (req, res) => {
         title:       definition.title,
         description: definition.description,
         lootRarity:  definition.lootRarity,
+        threshold:   definition.threshold,
+        progress:    Math.min(achievementStats[definition.metric] ?? 0, definition.threshold),
         unlocked_at: unlockedByKey.get(definition.key) ?? null,
       })),
     });

@@ -129,14 +129,14 @@ export default function LevelUpModal({ data, onDismiss }) {
 
           {data.type === "milestone" && data.credits_earned > 0 && (
             <View style={[styles.badge, { backgroundColor: accentOverride + "22", borderColor: accentOverride + "55" }]}>
-              <Text style={[styles.badgeText, { color: accentOverride }]}>+{data.credits_earned} CR MILESTONE REWARD</Text>
+              <Text style={[styles.badgeText, { color: accentOverride }]}>+{data.credits_earned} Credits MILESTONE REWARD</Text>
             </View>
           )}
 
           {data.type === "milestone" && data.loot && (
             <View style={[styles.badge, { backgroundColor: accentOverride + "15", borderColor: accentOverride + "44" }]}>
               <Text style={[styles.badgeText, { color: accentOverride }]}>
-                GUARANTEED {data.loot.rarity.toUpperCase()} DROP  +{data.loot.credits_earned} CR
+                GUARANTEED {data.loot.rarity.toUpperCase()} DROP  +{data.loot.credits_earned} Credits
               </Text>
             </View>
           )}

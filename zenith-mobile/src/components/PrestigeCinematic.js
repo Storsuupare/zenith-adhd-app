@@ -58,7 +58,7 @@ export default function PrestigeCinematic({ skillName, prestigeLevel, creditRewa
 
           <View style={styles.rewardRow}>
             <Text style={styles.rewardLabel}>Credits</Text>
-            <Text style={[styles.rewardValue, { color }]}>+{creditReward ?? 0} CR</Text>
+            <Text style={[styles.rewardValue, { color }]}>+{creditReward ?? 0}</Text>
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardLabel}>XP Bonus</Text>

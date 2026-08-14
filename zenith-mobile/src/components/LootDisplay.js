@@ -73,7 +73,7 @@ export default function LootDisplay({ loot, onDismiss }) {
           </Text>
 
           <Text style={[styles.credits, { color: rarityColor }]}>
-            +{loot.credits_earned} CR
+            +{loot.credits_earned} Credits
           </Text>
 
           <TouchableOpacity

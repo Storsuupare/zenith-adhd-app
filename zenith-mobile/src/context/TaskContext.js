@@ -116,7 +116,7 @@ export function TaskProvider({ children }) {
 
       // Streak increment notification (only if no full milestone modal is showing)
       if (newStreak > oldStreak && !milestonePayload) {
-        addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  +${streak_bonus} CR` : "") });
+        addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  +${streak_bonus} Credits` : "") });
       }
 
       if ((res.data.achievements_unlocked ?? []).length > 0) markAchievementsUnseen();
