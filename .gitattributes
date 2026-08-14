@@ -1,0 +1,26 @@
+# Files sourced or executed by the macOS build hosts must keep LF endings.
+# A Windows checkout with core.autocrlf=true otherwise rewrites them to CRLF,
+# and EAS uploads the working directory — so a stray \r reaches the build and
+# fails the Xcode script phase with "line N: : command not found".
+.xcode.env        text eol=lf
+.xcode.env.local  text eol=lf
+*.sh              text eol=lf
+*.command         text eol=lf
+Podfile           text eol=lf
+Gemfile           text eol=lf
+*.rb              text eol=lf
+
+# Swift and Obj-C sources compiled on macOS.
+*.swift           text eol=lf
+*.h               text eol=lf
+*.m               text eol=lf
+*.mm              text eol=lf
+
+# Apple plist-family files are consumed by macOS tooling.
+*.plist           text eol=lf
+*.entitlements    text eol=lf
+*.xcprivacy       text eol=lf
+
+*.pbxproj         text eol=lf
+*.xcscheme        text eol=lf
+*.xcworkspacedata text eol=lf
