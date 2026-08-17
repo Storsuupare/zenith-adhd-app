@@ -246,9 +246,13 @@ app.post("/webhooks/revenuecat", async (req, res) => {
 
   try {
     if (["INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE", "UNCANCELLATION"].includes(eventType)) {
-      const mapping = APPLE_PRODUCT_ROLES[event.product_id];
+      // On PRODUCT_CHANGE, `product_id` is the product the subscriber switched FROM —
+      // the product they switched TO is `new_product_id`. Every other event type here
+      // only ever has `product_id`, so it's the correct fallback for those.
+      const currentProductId = event.new_product_id ?? event.product_id;
+      const mapping = APPLE_PRODUCT_ROLES[currentProductId];
       if (!mapping) {
-        console.warn(`[REVENUECAT] Unknown product_id: ${event.product_id}`);
+        console.warn(`[REVENUECAT] Unknown product_id: ${currentProductId}`);
         return res.json({ received: true });
       }
       await pool.query(
