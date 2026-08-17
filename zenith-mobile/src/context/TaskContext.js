@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { useUser } from "./UserContext";
 import { fetchTasks, createTask, completeTask, failTask } from "../services/api";
+import { beginSessionActivity, endSessionActivity } from "../services/liveActivity";
 
 const TaskContext = createContext(null);
 
@@ -13,14 +14,21 @@ export function TaskProvider({ children }) {
   const [prestigeData,  setPrestigeData]  = useState(null);
   const pendingMilestone = React.useRef(null);
 
+  // Returns the freshly fetched list so callers can react to it immediately —
+  // reading the `contracts` state right after this resolves would still see the
+  // pre-fetch value, since setContracts() doesn't apply synchronously. Returns
+  // null on failure so callers can tell "confirmed empty" apart from "unknown".
   const loadContracts = useCallback(async () => {
-    if (!user?.external_id && !userId) return;
+    if (!user?.external_id && !userId) return [];
     try {
       await refreshToken();
       const res = await fetchTasks(user?.external_id || userId);
-      setContracts(res.data || []);
+      const freshContracts = res.data || [];
+      setContracts(freshContracts);
+      return freshContracts;
     } catch (err) {
       console.error("[TaskContext] loadContracts failed:", err.message);
+      return null;
     }
   }, [refreshToken, user?.external_id, userId]);
 
@@ -37,10 +45,14 @@ export function TaskProvider({ children }) {
 
   const handleCreateTask = useCallback(async ({ taskName, durationMinutes, skillName }) => {
     await refreshToken();
+    const hadNoActiveSession = contracts.length === 0;
     const res = await createTask({ taskName, durationMinutes, skillName });
     await loadContracts();
+    if (hadNoActiveSession) {
+      beginSessionActivity({ title: taskName, skillName, durationMinutes });
+    }
     return res.data;
-  }, [refreshToken, loadContracts]);
+  }, [refreshToken, loadContracts, contracts]);
 
   const handleComplete = useCallback(async (taskId) => {
     try {
@@ -49,7 +61,10 @@ export function TaskProvider({ children }) {
       const res = await completeTask(String(taskId));
       // Delay contract refresh so DoneOverlay has time to show the reward animation
       // before the modal closes due to the active contract disappearing.
-      setTimeout(() => Promise.all([loadContracts(), fetchUser()]), 4000);
+      setTimeout(async () => {
+        const [freshContracts] = await Promise.all([loadContracts(), fetchUser()]);
+        if (freshContracts && freshContracts.length === 0) endSessionActivity();
+      }, 4000);
 
       const { reward, leveledUp, newLevel, drop, skillLeveledUp, skillHit99, newSkillLevel, milestone, streak_bonus } = res.data;
       const newStreak = res.data.user?.streak ?? 0;
@@ -132,7 +147,8 @@ export function TaskProvider({ children }) {
       await refreshToken();
       const oldStreak = user?.streak ?? 0;
       const res = await failTask(String(taskId));
-      await Promise.all([loadContracts(), fetchUser()]);
+      const [freshContracts] = await Promise.all([loadContracts(), fetchUser()]);
+      if (freshContracts && freshContracts.length === 0) endSessionActivity();
 
       // Warn if the streak was wiped (not a grace-period drop)
       if (!res.data.grace_period && oldStreak > 0 && !res.data.streak_shield_used) {
