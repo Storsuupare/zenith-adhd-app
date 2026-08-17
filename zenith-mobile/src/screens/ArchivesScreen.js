@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
-  SafeAreaView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert, Share,
+  SafeAreaView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert,
 } from "react-native";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
 import ScreenHeader from "../components/ScreenHeader";
@@ -177,9 +179,24 @@ export default function ArchivesScreen() {
     setExporting(true);
     try {
       const response = await exportSessionsCsv();
-      const csvText  = await response.data.text();
-      await Share.share({ message: csvText, title: "zenith-sessions.csv" });
-    } catch {
+
+      const csvFile = new File(Paths.cache, "zenith-sessions.csv");
+      csvFile.create({ overwrite: true });
+      csvFile.write(response.data);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("Sharing unavailable", "Your device doesn't support sharing files.");
+        return;
+      }
+
+      await Sharing.shareAsync(csvFile.uri, {
+        mimeType: "text/csv",
+        dialogTitle: "Export session history",
+        UTI: "public.comma-separated-values-text",
+      });
+    } catch (exportError) {
+      console.error("[ArchivesScreen] CSV export failed:", exportError?.message);
       Alert.alert("Export failed", "Could not export session data. Please try again.");
     } finally {
       setExporting(false);
