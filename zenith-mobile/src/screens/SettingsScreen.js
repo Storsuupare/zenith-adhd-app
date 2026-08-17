@@ -45,6 +45,32 @@ function resolvePlanTier(purchasePackage) {
   return null;
 }
 
+function PurchaseButton({ purchasePackage, accentColor, purchaseLoading, onPress, labelOverride }) {
+  const planTier = resolvePlanTier(purchasePackage);
+  return (
+    <TouchableOpacity
+      style={[
+        styles.upgradeBtn,
+        { borderColor: accentColor + "55" },
+        purchaseLoading && { opacity: 0.5 },
+      ]}
+      onPress={onPress}
+      disabled={purchaseLoading}
+      activeOpacity={0.75}
+    >
+      <View style={styles.planRow}>
+        <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
+          {labelOverride ?? planTier ?? purchasePackage.product.title}
+        </Text>
+        <Text style={[styles.upgradePriceText, { color: accentColor + "99" }]}>
+          {purchasePackage.product.priceString} / month
+        </Text>
+      </View>
+      {planTier && <Text style={styles.planPerks}>{PLAN_DETAILS[planTier].perks}</Text>}
+    </TouchableOpacity>
+  );
+}
+
 export default function SettingsScreen({ navigation }) {
   const { signOut } = useAuth();
   const { user, fetchUser, restorePurchases, restoringPurchases } = useUser();
@@ -59,11 +85,12 @@ export default function SettingsScreen({ navigation }) {
   const [offeringsError,      setOfferingsError]      = useState(false);
 
   const userRole   = user?.role ?? "FREE";
-  const isPaidTier = userRole === "PRO" || userRole === "ELITE";
   const tierColor  = userRole === "ELITE" ? "#fbbf24" : userRole === "PRO" ? accentColor : "rgba(255,255,255,0.35)";
 
   const loadOfferings = useCallback(async ({ announceFailure = false } = {}) => {
-    if (userRole !== "FREE") return;
+    // ELITE has nothing above it to upgrade to. PRO still needs the catalog, to
+    // offer ELITE as an in-app upgrade instead of only via Apple's system screen.
+    if (userRole === "ELITE") return;
     setOfferingsLoading(true);
     setOfferingsError(false);
     try {
@@ -148,6 +175,10 @@ export default function SettingsScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  const eliteUpgradePackage = userRole === "PRO"
+    ? offerings?.availablePackages.find(purchasePackage => resolvePlanTier(purchasePackage) === "ELITE")
+    : null;
+
   const currentHour = new Date().getHours();
   const isRedZone   = currentHour >= 0 && currentHour < 5;
 
@@ -187,7 +218,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[styles.subscriptionTierValue, { color: tierColor }]}>{userRole}</Text>
           </View>
 
-          {isPaidTier ? (
+          {userRole === "ELITE" ? (
             <TouchableOpacity
               style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
               onPress={handleManageSubscription}
@@ -197,35 +228,39 @@ export default function SettingsScreen({ navigation }) {
                 {subscriptionLoading ? "Opening…" : "Manage subscription"}
               </Text>
             </TouchableOpacity>
+          ) : userRole === "PRO" ? (
+            <>
+              <TouchableOpacity
+                style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
+                onPress={handleManageSubscription}
+                disabled={subscriptionLoading}
+              >
+                <Text style={styles.manageBtnText}>
+                  {subscriptionLoading ? "Opening…" : "Manage subscription"}
+                </Text>
+              </TouchableOpacity>
+              {eliteUpgradePackage && (
+                <PurchaseButton
+                  purchasePackage={eliteUpgradePackage}
+                  accentColor={accentColor}
+                  purchaseLoading={purchaseLoading}
+                  onPress={() => handlePurchase(eliteUpgradePackage)}
+                  labelOverride="Upgrade to ELITE"
+                />
+              )}
+            </>
           ) : offeringsLoading ? (
             <Text style={styles.subscriptionNote}>Loading plans from the App Store…</Text>
           ) : offerings?.availablePackages.length ? (
-            offerings.availablePackages.map(purchasePackage => {
-              const planTier = resolvePlanTier(purchasePackage);
-              return (
-                <TouchableOpacity
-                  key={purchasePackage.identifier}
-                  style={[
-                    styles.upgradeBtn,
-                    { borderColor: accentColor + "55" },
-                    purchaseLoading && { opacity: 0.5 },
-                  ]}
-                  onPress={() => handlePurchase(purchasePackage)}
-                  disabled={purchaseLoading}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.planRow}>
-                    <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
-                      {planTier ?? purchasePackage.product.title}
-                    </Text>
-                    <Text style={[styles.upgradePriceText, { color: accentColor + "99" }]}>
-                      {purchasePackage.product.priceString} / month
-                    </Text>
-                  </View>
-                  {planTier && <Text style={styles.planPerks}>{PLAN_DETAILS[planTier].perks}</Text>}
-                </TouchableOpacity>
-              );
-            })
+            offerings.availablePackages.map(purchasePackage => (
+              <PurchaseButton
+                key={purchasePackage.identifier}
+                purchasePackage={purchasePackage}
+                accentColor={accentColor}
+                purchaseLoading={purchaseLoading}
+                onPress={() => handlePurchase(purchasePackage)}
+              />
+            ))
           ) : (
             <>
               {Object.entries(PLAN_DETAILS).map(([planTier, plan]) => (

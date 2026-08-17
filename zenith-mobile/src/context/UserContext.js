@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
-import { fetchUser, createUser, setAuthToken } from "../services/api";
+import { fetchUser, createUser, setAuthToken, syncSubscription } from "../services/api";
 import { registerPushToken } from "../services/notifications";
 import Purchases from "react-native-purchases";
 
@@ -79,21 +79,40 @@ export function UserProvider({ children }) {
     }
   }, [isSignedIn, userId]);
 
-  // Re-links an existing App Store purchase to this account. Covers the most common
-  // "I paid but it shows Free" case (reinstall, new device) without an Apple refund ticket.
+  // Re-links an existing App Store purchase to this account (reinstall, new device),
+  // and also repairs a role that's drifted out of sync with what Apple actually has —
+  // Purchases.restorePurchases() only confirms the entitlement on-device, it can't
+  // write anything back to our database. syncSubscription() asks our server to pull
+  // the confirmed state from RevenueCat directly and make it authoritative.
   const restorePurchases = useCallback(async () => {
     if (!REVENUECAT_KEY) return;
     setRestoringPurchases(true);
+
     try {
-      const customerInfo = await Purchases.restorePurchases();
-      if (Object.keys(customerInfo.entitlements.active).length > 0) {
-        await loadUser();
-        Alert.alert("Restored", "Your subscription has been restored.");
-      } else {
-        Alert.alert("Nothing to restore", "No active subscription found for this Apple ID.");
-      }
+      await Purchases.restorePurchases();
     } catch {
       Alert.alert("Error", "Could not restore purchases. Please try again.");
+      setRestoringPurchases(false);
+      return;
+    }
+
+    try {
+      const syncResponse = await syncSubscription();
+      const resolvedRole = syncResponse.data?.role ?? "FREE";
+      await loadUser();
+      if (resolvedRole === "FREE") {
+        Alert.alert("Nothing to restore", "No active subscription found for this Apple ID.");
+      } else {
+        Alert.alert("Restored", `Your ${resolvedRole} subscription has been restored.`);
+      }
+    } catch {
+      // Apple already confirmed the restore above — only our own sync call failed.
+      // The webhook will catch the account up on its own; this just couldn't force it now.
+      await loadUser();
+      Alert.alert(
+        "Restored, but not fully synced",
+        "Apple confirmed your purchase, but we couldn't verify it with our server just now. Pull to refresh in a moment.",
+      );
     } finally {
       setRestoringPurchases(false);
     }

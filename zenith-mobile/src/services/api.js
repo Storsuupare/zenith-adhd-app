@@ -50,5 +50,6 @@ export const createCheckoutSession = (targetTier) =>
   api.post("/payments/create-session", { targetTier });
 
 export const createPortalSession = () => api.post("/payments/create-portal-session");
+export const syncSubscription    = () => api.post("/subscription/sync");
 
 export default api;

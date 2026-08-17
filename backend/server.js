@@ -1441,6 +1441,60 @@ app.get("/achievements", requireAuth, async (req, res) => {
   }
 });
 
+// ── Subscription sync ────────────────────────────────────────────────────────
+// Restore Purchases confirms Apple's truth locally via the SDK, but has no way to
+// write it back to our database — only the webhook does that, and webhooks can be
+// missed or misconfigured. This endpoint asks RevenueCat directly for the real
+// entitlement state and makes it authoritative, so Restore can actually repair a
+// role that's drifted out of sync instead of just re-reading the same stale row.
+const REVENUECAT_SECRET_KEY = process.env.REVENUECAT_SECRET_KEY;
+const ENTITLEMENT_ROLES = {
+  PRO:   { role: "PRO",   accountTier: 1 },
+  ELITE: { role: "ELITE", accountTier: 2 },
+};
+
+app.post("/subscription/sync", requireAuth, mutationLimiter, async (req, res) => {
+  if (!REVENUECAT_SECRET_KEY) {
+    return res.status(503).json({ error: "SYNC_NOT_CONFIGURED" });
+  }
+  const clerkUserId = req.auth.userId;
+
+  try {
+    const subscriberResponse = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(clerkUserId)}`,
+      { headers: { Authorization: `Bearer ${REVENUECAT_SECRET_KEY}` } },
+    );
+    if (!subscriberResponse.ok) {
+      console.error(`[SUBSCRIPTION_SYNC] RevenueCat returned ${subscriberResponse.status} for ${clerkUserId}`);
+      return res.status(502).json({ error: "REVENUECAT_UNAVAILABLE" });
+    }
+
+    const { subscriber } = await subscriberResponse.json();
+    const entitlements = subscriber?.entitlements ?? {};
+    const now = new Date();
+
+    // ELITE is checked last so it wins if both were somehow active at once — the
+    // higher tier should never be shadowed by a stale lower grant.
+    let resolved = { role: "FREE", accountTier: 0 };
+    for (const [entitlementId, mapping] of Object.entries(ENTITLEMENT_ROLES)) {
+      const entitlement = entitlements[entitlementId];
+      const isActive = entitlement && (!entitlement.expires_date || new Date(entitlement.expires_date) > now);
+      if (isActive) resolved = mapping;
+    }
+
+    await pool.query(
+      "UPDATE users SET role = $1, account_tier = $2 WHERE external_id = $3",
+      [resolved.role, resolved.accountTier, clerkUserId],
+    );
+    console.log(`[SUBSCRIPTION_SYNC] ${clerkUserId} → ${resolved.role}`);
+
+    res.json({ role: resolved.role, account_tier: resolved.accountTier });
+  } catch (err) {
+    console.error("[SUBSCRIPTION_SYNC] failed:", err.message);
+    res.status(500).json({ error: "SYNC_FAILED" });
+  }
+});
+
 app.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) => {
   const { skillName } = req.body;
   const externalId = req.auth.userId;
