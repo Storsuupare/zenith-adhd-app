@@ -27,12 +27,14 @@ struct ZenithSessionLiveActivity: Widget {
                         .lineLimit(1)
                 }
             } compactLeading: {
-                zenithMark(size: 18)
+                Image(systemName: "bolt.fill")
+                    .foregroundStyle(Color.zenithAccent)
             } compactTrailing: {
                 statusView(endTime: context.state.endTime, font: .caption.bold())
                     .frame(width: 44, alignment: .center)
             } minimal: {
-                zenithMark(size: 18)
+                Image(systemName: "bolt.fill")
+                    .foregroundStyle(Color.zenithAccent)
             }
         }
     }
@@ -40,10 +42,8 @@ struct ZenithSessionLiveActivity: Widget {
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<ZenithSessionAttributes>) -> some View {
         HStack(spacing: 14) {
-            zenithMark(size: 22)
-
             statusView(endTime: context.state.endTime, font: .title2.bold())
-                .frame(width: 76, alignment: .center)
+                .frame(width: 88, alignment: .center)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(context.attributes.sessionName)
@@ -92,14 +92,6 @@ struct ZenithSessionLiveActivity: Widget {
         } else {
             countdownText(endTime: endTime, font: font)
         }
-    }
-
-    private func zenithMark(size: CGFloat) -> some View {
-        Image("ZenithMark")
-            .resizable()
-            .scaledToFit()
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
     }
 
     private func skillBadge(skillName: String) -> some View {
