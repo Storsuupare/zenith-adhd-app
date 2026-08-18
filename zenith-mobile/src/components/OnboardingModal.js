@@ -36,13 +36,6 @@ const STEPS = [
     body: "Turn what you're already doing into a game. Every session earns XP and credits. Maintain your streak to earn bonus credits and unlock milestone rewards.",
   },
   {
-    id: "stathud",
-    scrollTo: "statHud",
-    icon: "◈",
-    title: "Your stats",
-    body: "Your level, XP, streak, and credits are all at the top. Credits come from completing sessions and get spent in the shop.",
-  },
-  {
     id: "missions",
     scrollTo: "mission",
     maxSpotlightHeight: Math.round(SCREEN_HEIGHT * 0.65), // full form: name, skill picker, duration, start button
@@ -51,29 +44,13 @@ const STEPS = [
     body: "Name what you're working on, choose a specific skill, pick a duration, and hit go! Longer sessions pay more. Quit early and your reward gets cut.",
   },
   {
-    id: "contracts",
-    scrollTo: "contracts",
-    icon: "◆",
-    title: "Active sessions!",
-    body: "Running sessions show up with a live countdown. Hit Collect when the timer runs out. Finish one and you might earn a loot drop.",
-  },
-  {
     id: "skills",
     scrollTo: "skills",
     scrollToCenter: true,  // brings skills to mid-screen so card fits above
     maxSpotlightHeight: Math.round(SCREEN_HEIGHT * 0.65), // full 12-skill grid, not just the first row
     icon: "⬢",
     title: "12 skills to grow!",
-    body: "You pick the skill before each session — Logic Flow, Vitality, Creativity and 9 more. Hit level 99 and PRO users can Prestige: the skill resets but leaves a permanent XP bonus.",
-  },
-  {
-    id: "shop",
-    navigateTo: "Shop",
-    crossTabSpotlightKey: "shopContent",
-    maxSpotlightHeight: Math.round(SCREEN_HEIGHT * 0.65), // full shop content, not a 160px sliver
-    icon: "◈",
-    title: "The shop",
-    body: "Spend credits on themes and consumables. Themes change the entire background look — from cosmic Nebula to Neon — and every one is available to every user. Consumables like Streak Rescue and Extra Loot Pull can save a broken streak or roll extra loot on demand.",
+    body: "You pick the skill before each session — Logic Flow, Vitality, Creativity and 9 more.",
   },
   {
     id: "guardian",

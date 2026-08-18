@@ -29,7 +29,7 @@ export default function RefundPage() {
             <p>If Restore purchases didn't fix it and you want your money back, that's handled by Apple, not Zenith. We have no ability to issue one ourselves.</p>
             <ul>
               <li>Request one at reportaproblem.apple.com</li>
-              <li>Or from your iPhone: Settings → [your name] → Subscriptions</li>
+              <li>Or from your iPhone: Settings → Profile → Subscriptions</li>
             </ul>
 
             <hr className="legal-divider" />

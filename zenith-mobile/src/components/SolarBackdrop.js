@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { View, StyleSheet, Animated, Dimensions } from "react-native";
+import { View, StyleSheet, Animated, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../context/ThemeContext";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getMinuteOfDay() {
@@ -106,12 +104,12 @@ function getInterpolatedSunCfg() {
   if (!fromConfig) return toConfig;
   if (!toConfig)   return fromConfig;
   return {
-    size:        lerpNum(fromConfig.size,   toConfig.size,   progress),
-    topFraction: lerpNum(fromConfig.topF,   toConfig.topF,   progress),
-    leftFraction:lerpNum(fromConfig.leftF,  toConfig.leftF,  progress),
-    color:       lerpColor(fromConfig.color, toConfig.color,  progress),
-    shadow:      fromConfig.shadow,
-    shadowRadius:lerpNum(fromConfig.sr,     toConfig.sr,     progress),
+    sizeFraction:      lerpNum(fromConfig.sizeFraction,      toConfig.sizeFraction,      progress),
+    topFraction:       lerpNum(fromConfig.topF,               toConfig.topF,               progress),
+    leftFraction:      lerpNum(fromConfig.leftF,              toConfig.leftF,              progress),
+    color:             lerpColor(fromConfig.color, toConfig.color, progress),
+    shadow:            fromConfig.shadow,
+    shadowRadiusRatio: lerpNum(fromConfig.shadowRadiusRatio, toConfig.shadowRadiusRatio, progress),
   };
 }
 
@@ -264,36 +262,60 @@ const THEME_STAR = {
   ember:    "#fdba74",
 };
 
-// ── Sun config per phase (position + size for arc interpolation) ──────────────
+// ── Sun config per phase ────────────────────────────────────────────────────────
+// size and shadowRadius are expressed as fractions of the CURRENT screen width
+// (computed at render time), not fixed pixel values — a fixed pixel sun sized for
+// an iPhone renders as a tiny dot on an iPad's much wider screen. Fractions below
+// are the original iPhone-tuned pixel values divided by a 390pt reference width,
+// so the on-screen result is unchanged on a standard iPhone and scales correctly
+// everywhere else.
 const SUN_CONFIG = {
-  morning: { size: 68,  topF: 0.84, leftF: 0.28, color: "#ffe0a0", shadow: "rgba(255,140,60,1.0)",  sr: 60 },
-  day:     { size: 100, topF: 0.38, leftF: 0.62, color: "#ffffff", shadow: "rgba(255,255,220,1.0)", sr: 80 },
-  noon:    { size: 112, topF: 0.46, leftF: 0.50, color: "#ffffff", shadow: "rgba(255,255,240,1.0)", sr: 95 },
-  evening: { size: 84,  topF: 0.60, leftF: 0.72, color: "#ffe566", shadow: "rgba(255,160,0,1.0)",   sr: 70 },
-  sunset:  { size: 78,  topF: 0.88, leftF: 0.80, color: "#ff8c55", shadow: "rgba(255,80,20,1.0)",   sr: 70 },
+  morning: { sizeFraction: 0.1744, topF: 0.84, leftF: 0.28, color: "#ffe0a0", shadow: "rgba(255,140,60,1.0)",  shadowRadiusRatio: 0.882 },
+  day:     { sizeFraction: 0.2564, topF: 0.38, leftF: 0.62, color: "#ffffff", shadow: "rgba(255,255,220,1.0)", shadowRadiusRatio: 0.800 },
+  noon:    { sizeFraction: 0.2872, topF: 0.46, leftF: 0.50, color: "#ffffff", shadow: "rgba(255,255,240,1.0)", shadowRadiusRatio: 0.848 },
+  evening: { sizeFraction: 0.2154, topF: 0.60, leftF: 0.72, color: "#ffe566", shadow: "rgba(255,160,0,1.0)",   shadowRadiusRatio: 0.833 },
+  sunset:  { sizeFraction: 0.2000, topF: 0.88, leftF: 0.80, color: "#ff8c55", shadow: "rgba(255,80,20,1.0)",   shadowRadiusRatio: 0.897 },
   night:   null,
 };
 
-// ── Cloud positions ───────────────────────────────────────────────────────────
+// Moon disc size, also a fraction of screen width (84px / 390pt reference).
+const MOON_SIZE_FRACTION = 0.2154;
+
+// ── Cloud shapes ─────────────────────────────────────────────────────────────
+// widthFraction is relative to screen width, same as before — clouds already
+// scaled horizontally correctly. aspectRatio is new: height used to be a fixed
+// pixel value that never scaled, so on an iPad's much wider screen a cloud kept
+// its iPhone-sized height while stretching far wider, turning a soft puff into a
+// thin, disproportionate smear. Deriving height from the cloud's own computed
+// width via a fixed aspect ratio keeps the same proportions on every device.
 const CLOUDS = [
-  { width: SCREEN_WIDTH * 0.65, height: 55, topFraction: 0.08, leftFraction: 0.05, opacity: 0.60, duration: 18000 },
-  { width: SCREEN_WIDTH * 0.48, height: 42, topFraction: 0.18, leftFraction: 0.32, opacity: 0.45, duration: 24000 },
-  { width: SCREEN_WIDTH * 0.55, height: 62, topFraction: 0.30, leftFraction: 0.38, opacity: 0.35, duration: 30000 },
-  { width: SCREEN_WIDTH * 0.38, height: 38, topFraction: 0.12, leftFraction: 0.52, opacity: 0.50, duration: 20000 },
+  { widthFraction: 0.65, aspectRatio: 4.61, topFraction: 0.08, leftFraction: 0.05, opacity: 0.60, duration: 18000 },
+  { widthFraction: 0.48, aspectRatio: 4.46, topFraction: 0.18, leftFraction: 0.32, opacity: 0.45, duration: 24000 },
+  { widthFraction: 0.55, aspectRatio: 3.46, topFraction: 0.30, leftFraction: 0.38, opacity: 0.35, duration: 30000 },
+  { widthFraction: 0.38, aspectRatio: 3.90, topFraction: 0.12, leftFraction: 0.52, opacity: 0.50, duration: 20000 },
 ];
 
-// ── Star positions ────────────────────────────────────────────────────────────
+// ── Star positions ───────────────────────────────────────────────────────────
+// Fractional (0–1) rather than pre-multiplied by a screen size captured once at
+// module load — on a much larger iPad screen, pre-multiplied positions would
+// leave all 80 stars clustered in an iPhone-sized region in one corner instead
+// of spread across the actual visible sky.
 const STARS = Array.from({ length: 80 }, (_, index) => ({
-  id:    index,
-  x:     ((index * 37) % 100) / 100 * SCREEN_WIDTH,
-  y:     ((index * 53) % 90)  / 100 * SCREEN_HEIGHT * 0.7,
-  size:  1 + ((index * 7) % 3),
-  delay: (index * 0.37) % 4,
+  id:        index,
+  xFraction: ((index * 37) % 100) / 100,
+  yFraction: ((index * 53) % 90)  / 100 * 0.7,
+  size:      1 + ((index * 7) % 3),
+  delay:     (index * 0.37) % 4,
 }));
 
 // ── Animated cloud ────────────────────────────────────────────────────────────
-const Cloud = React.memo(function Cloud({ width, height, topFraction, leftFraction, opacity, duration }) {
+const Cloud = React.memo(function Cloud({
+  widthFraction, aspectRatio, topFraction, leftFraction, opacity, duration,
+  windowWidth, windowHeight,
+}) {
   const drift = useRef(new Animated.Value(0)).current;
+  const width  = widthFraction * windowWidth;
+  const height = width / aspectRatio;
 
   useEffect(() => {
     Animated.loop(
@@ -308,10 +330,10 @@ const Cloud = React.memo(function Cloud({ width, height, topFraction, leftFracti
     <Animated.View
       style={{
         position:        "absolute",
-        top:             topFraction  * SCREEN_HEIGHT,
-        left:            leftFraction * SCREEN_WIDTH,
-        width:           width,
-        height:          height,
+        top:             topFraction  * windowHeight,
+        left:            leftFraction * windowWidth,
+        width,
+        height,
         borderRadius:    height / 2,
         backgroundColor: "rgba(255,255,255,0.55)",
         opacity,
@@ -356,6 +378,11 @@ const Star = React.memo(function Star({ x, y, size, delay, color }) {
 export default function SolarBackdrop({ children }) {
   const { activeTheme, accentColor } = useTheme() || {};
 
+  // Reactive — re-renders on rotation, iPad Split View / Stage Manager resize,
+  // and gives the real dimensions for whichever device this actually is, unlike
+  // a one-time Dimensions.get() snapshot at module load.
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
   // Re-derive sky colors every 60 seconds — each step is imperceptible
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -363,22 +390,25 @@ export default function SolarBackdrop({ children }) {
     return () => clearInterval(id);
   }, []);
 
-  const hour       = new Date().getHours();
-  const phase      = getSolarPhase(hour);
-  const isNight    = phase === "night";
-  const showClouds = phase === "morning" || phase === "day" || phase === "noon";
-  const sunOpacity = getSunOpacity();
+  const hour        = new Date().getHours();
+  const phase       = getSolarPhase(hour);
+  const isNight     = phase === "night";
+  const showClouds  = phase === "morning" || phase === "day" || phase === "noon";
+  const sunOpacity  = getSunOpacity();
   const moonOpacity = getMoonOpacity();
 
   const palette  = (activeTheme && THEMED_SKIES.has(activeTheme))
     ? THEME_SKY_OVERRIDES[activeTheme]
     : SKY_DEFAULT;
 
-  const sky      = getInterpolatedSky(palette);
-  const sunCfg   = getInterpolatedSunCfg();
-  const sunTint  = activeTheme ? THEME_SUN[activeTheme] : null;
-  const moonDisc = (activeTheme && THEME_MOON[activeTheme]) ? THEME_MOON[activeTheme] : "#ffffff";
+  const sky       = getInterpolatedSky(palette);
+  const sunCfg    = getInterpolatedSunCfg();
+  const sunTint   = activeTheme ? THEME_SUN[activeTheme] : null;
+  const moonDisc  = (activeTheme && THEME_MOON[activeTheme]) ? THEME_MOON[activeTheme] : "#ffffff";
   const starColor = (activeTheme && THEME_STAR[activeTheme]) ? THEME_STAR[activeTheme] : "#ffffff";
+
+  const sunSize  = sunCfg ? sunCfg.sizeFraction * windowWidth : 0;
+  const moonSize = MOON_SIZE_FRACTION * windowWidth;
 
   // Cloud group fades in/out when phase crosses into/out of cloudy hours
   const cloudGroupOpacity = useRef(new Animated.Value(showClouds ? 1 : 0)).current;
@@ -390,10 +420,26 @@ export default function SolarBackdrop({ children }) {
     }).start();
   }, [showClouds]);
 
-  const cloudElements = useMemo(() => CLOUDS.map((c, i) => <Cloud key={i} {...c} />), []);
-  const starElements  = useMemo(
-    () => isNight ? STARS.map(star => <Star key={star.id} {...star} color={starColor} />) : null,
-    [isNight, starColor]
+  const cloudElements = useMemo(
+    () => CLOUDS.map((cloud, index) => (
+      <Cloud key={index} {...cloud} windowWidth={windowWidth} windowHeight={windowHeight} />
+    )),
+    [windowWidth, windowHeight]
+  );
+  const starElements = useMemo(
+    () => isNight
+      ? STARS.map(star => (
+          <Star
+            key={star.id}
+            x={star.xFraction * windowWidth}
+            y={star.yFraction * windowHeight}
+            size={star.size}
+            delay={star.delay}
+            color={starColor}
+          />
+        ))
+      : null,
+    [isNight, starColor, windowWidth, windowHeight]
   );
 
   return (
@@ -410,16 +456,16 @@ export default function SolarBackdrop({ children }) {
       {sunCfg && sunOpacity > 0 && (
         <View style={{
           position:        "absolute",
-          top:             sunCfg.topFraction  * SCREEN_HEIGHT - sunCfg.size / 2,
-          left:            sunCfg.leftFraction * SCREEN_WIDTH  - sunCfg.size / 2,
-          width:           sunCfg.size,
-          height:          sunCfg.size,
-          borderRadius:    sunCfg.size / 2,
+          top:             sunCfg.topFraction  * windowHeight - sunSize / 2,
+          left:            sunCfg.leftFraction * windowWidth  - sunSize / 2,
+          width:           sunSize,
+          height:          sunSize,
+          borderRadius:    sunSize / 2,
           backgroundColor: sunTint ? sunTint[0] : sunCfg.color,
           shadowColor:     sunTint ? sunTint[1] : sunCfg.shadow,
           shadowOffset:    { width: 0, height: 0 },
           shadowOpacity:   sunOpacity,
-          shadowRadius:    sunCfg.shadowRadius,
+          shadowRadius:    sunSize * sunCfg.shadowRadiusRatio,
           elevation:       24,
           opacity:         sunOpacity,
         }} />
@@ -427,11 +473,21 @@ export default function SolarBackdrop({ children }) {
 
       {/* Moon disc */}
       {moonOpacity > 0 && (
-        <View style={[styles.moon, {
+        <View style={{
+          position:        "absolute",
+          top:             windowHeight * 0.12 - moonSize / 2,
+          left:            windowWidth  * 0.72 - moonSize / 2,
+          width:           moonSize,
+          height:          moonSize,
+          borderRadius:    moonSize / 2,
           backgroundColor: moonDisc,
           shadowColor:     moonDisc,
+          shadowOffset:    { width: 0, height: 0 },
+          shadowOpacity:   1,
+          shadowRadius:    moonSize * 0.6,
+          elevation:       20,
           opacity:         moonOpacity,
-        }]} />
+        }} />
       )}
 
       {/* Stars */}
@@ -451,16 +507,4 @@ const styles = StyleSheet.create({
   fill:    { ...StyleSheet.absoluteFillObject },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4,6,12,0.28)" },
   content: { flex: 1 },
-  moon: {
-    position:        "absolute",
-    top:             SCREEN_HEIGHT * 0.12 - 42,
-    left:            SCREEN_WIDTH  * 0.72 - 42,
-    width:           84,
-    height:          84,
-    borderRadius:    42,
-    shadowOffset:    { width: 0, height: 0 },
-    shadowOpacity:   1,
-    shadowRadius:    50,
-    elevation:       20,
-  },
 });
