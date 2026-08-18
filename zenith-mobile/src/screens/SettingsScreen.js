@@ -73,7 +73,7 @@ function PurchaseButton({ purchasePackage, accentColor, purchaseLoading, onPress
 
 export default function SettingsScreen({ navigation }) {
   const { signOut } = useAuth();
-  const { user, fetchUser, restorePurchases, restoringPurchases } = useUser();
+  const { user, fetchUser, refreshToken, restorePurchases, restoringPurchases } = useUser();
   const { accentColor } = useTheme();
   const [refreshing,          setRefreshing]          = useState(false);
   const [showDeleteModal,     setShowDeleteModal]     = useState(false);
@@ -143,6 +143,7 @@ export default function SettingsScreen({ navigation }) {
           return;
         }
       }
+      await refreshToken();
       const response  = await createPortalSession();
       const portalUrl = response.data?.url;
       if (portalUrl) {
@@ -160,6 +161,7 @@ export default function SettingsScreen({ navigation }) {
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
+      await refreshToken();
       await deleteAccount();
       await signOut();
     } catch {
