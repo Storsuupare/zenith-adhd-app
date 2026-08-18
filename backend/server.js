@@ -108,6 +108,7 @@ const shopLimiter     = createRateLimiter(15, 10);   // 10 purchases per 15 min 
 const bonusLimiter    = createRateLimiter(60, 5);    // 5 attempts per hour — daily bonus anti-spam
 const adminLimiter    = createRateLimiter(15, 20);   // 20 req per 15 min — admin panel
 const paymentLimiter  = createRateLimiter(60, 5);    // 5 Stripe session creations per hour — prevents API abuse
+const syncLimiter      = createRateLimiter(60, 60);  // 60 syncs per hour — Restore Purchases, kept off the shared mutation pool
 
 const app = express();
 
@@ -766,7 +767,7 @@ app.delete("/user/account", requireAuth, mutationLimiter, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const userRes = await client.query(
+    const userRes = await client.query(      
       "SELECT id FROM users WHERE external_id = $1",
       [clerkId],
     );
@@ -1466,7 +1467,7 @@ const ENTITLEMENT_ROLES = {
   ELITE: { role: "ELITE", accountTier: 2 },
 };
 
-app.post("/subscription/sync", requireAuth, mutationLimiter, async (req, res) => {
+app.post("/subscription/sync", requireAuth, syncLimiter, async (req, res) => {
   if (!REVENUECAT_SECRET_KEY) {
     return res.status(503).json({ error: "SYNC_NOT_CONFIGURED" });
   }
