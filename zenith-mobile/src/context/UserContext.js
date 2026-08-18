@@ -57,7 +57,7 @@ export function UserProvider({ children }) {
       // 404 means the user exists in Clerk but not in our DB yet — create them
       if (err.response?.status === 404) {
         try {
-          await createUser({ username: userId, email: "" });
+          await createUser();
           const res = await fetchUser(userId);
           setUser(res.data);
           if (REVENUECAT_KEY) Purchases.logIn(userId).catch(() => {});
@@ -97,6 +97,7 @@ export function UserProvider({ children }) {
     }
 
     try {
+      await refreshToken();
       const syncResponse = await syncSubscription();
       const resolvedRole = syncResponse.data?.role ?? "FREE";
       await loadUser();
@@ -116,7 +117,7 @@ export function UserProvider({ children }) {
     } finally {
       setRestoringPurchases(false);
     }
-  }, [loadUser]);
+  }, [loadUser, refreshToken]);
 
   return (
     <UserContext.Provider value={{

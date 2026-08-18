@@ -18,7 +18,6 @@ export default function AuthScreen() {
   const [mode,     setMode]     = useState("signup"); // "signin" | "signup" | "verify"
   const [verifyFlow, setVerifyFlow] = useState("signin"); // tracks whether verify came from signin or signup
   const [email,    setEmail]    = useState("");
-  const [username, setUsername] = useState("");
   const [code,     setCode]     = useState("");
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState(null);
@@ -54,7 +53,6 @@ export default function AuthScreen() {
     try {
       await signUp.create({
         emailAddress: email.trim().toLowerCase(),
-        username: username.trim(),
       });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setVerifyFlow("signup");
@@ -152,19 +150,6 @@ export default function AuthScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-
-            {mode === "signup" && (
-              <TextInput
-                style={styles.input}
-                placeholder="Username"
-                placeholderTextColor={COLORS.textMuted}
-                value={username}
-                onChangeText={(t) => { setUsername(t); clearError(); }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={30}
-              />
-            )}
 
             {error && <Text style={styles.error}>{error}</Text>}
 
