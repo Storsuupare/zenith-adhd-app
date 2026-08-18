@@ -748,7 +748,21 @@ app.get("/user/:externalId", requireAuth, async (req, res) => {
 // Permanently deletes all user data across every table. Irreversible.
 app.delete("/user/account", requireAuth, mutationLimiter, async (req, res) => {
   const clerkId = req.auth.userId;
-  const client  = await pool.connect();
+
+  // Clerk goes first. If it fails, nothing else has happened — the account is
+  // untouched and safe to retry. Doing it in this order matters: the reverse
+  // (database first, Clerk after) means a failed Clerk deletion leaves the Clerk
+  // identity alive after the database row is already gone, and the next sign-in
+  // hits a 404 that loadUser() treats as a brand-new user, silently recreating
+  // the account someone just asked to delete.
+  try {
+    await clerkClient.users.deleteUser(clerkId);
+  } catch (err) {
+    console.error("ACCOUNT_DELETE_CLERK_FAILED:", err.message);
+    return res.status(500).json({ error: "DELETE_FAILED" });
+  }
+
+  const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
@@ -758,7 +772,7 @@ app.delete("/user/account", requireAuth, mutationLimiter, async (req, res) => {
     );
     if (userRes.rows.length === 0) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ error: "USER_NOT_FOUND" });
+      return res.json({ success: true });
     }
     const userId = userRes.rows[0].id;
 
@@ -767,18 +781,17 @@ app.delete("/user/account", requireAuth, mutationLimiter, async (req, res) => {
     await client.query("DELETE FROM tasks              WHERE user_id = $1", [userId]);
     await client.query("DELETE FROM daily_stats        WHERE user_id = $1", [userId]);
     await client.query("DELETE FROM push_subscriptions WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM user_achievements  WHERE user_id = $1", [userId]);
     await client.query("DELETE FROM users              WHERE id      = $1", [userId]);
 
     await client.query("COMMIT");
-
-    // Delete from Clerk after DB succeeds — if this fails the account is
-    // already gone from our DB so the user effectively can't log in anyway.
-    await clerkClient.users.deleteUser(clerkId);
-
     res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("ACCOUNT_DELETE_FATAL:", err.message);
+    // The Clerk identity is already gone at this point — the user can't sign
+    // back in to retry, so this is now a background cleanup problem, not a
+    // user-facing one.
+    console.error("ACCOUNT_DELETE_DB_FAILED (Clerk identity already removed):", err.message);
     res.status(500).json({ error: "DELETE_FAILED" });
   } finally {
     client.release();
@@ -1460,6 +1473,16 @@ app.post("/subscription/sync", requireAuth, mutationLimiter, async (req, res) =>
   const clerkUserId = req.auth.userId;
 
   try {
+    const currentUserRes = await pool.query(
+      "SELECT COALESCE(role, 'FREE') AS role, COALESCE(account_tier, 0) AS account_tier FROM users WHERE external_id = $1",
+      [clerkUserId],
+    );
+    if (currentUserRes.rows.length === 0) {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+    const currentRole = currentUserRes.rows[0].role;
+    const currentTier = currentUserRes.rows[0].account_tier;
+
     const subscriberResponse = await fetch(
       `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(clerkUserId)}`,
       { headers: { Authorization: `Bearer ${REVENUECAT_SECRET_KEY}` } },
@@ -1480,6 +1503,17 @@ app.post("/subscription/sync", requireAuth, mutationLimiter, async (req, res) =>
       const entitlement = entitlements[entitlementId];
       const isActive = entitlement && (!entitlement.expires_date || new Date(entitlement.expires_date) > now);
       if (isActive) resolved = mapping;
+    }
+
+    // This endpoint only ever moves a subscriber up, or leaves them unchanged.
+    // A false negative here — a RevenueCat hiccup, an entitlement identifier
+    // that doesn't quite match what's configured on their side — must never cost
+    // someone their paid access with no way to appeal it, since this runs off a
+    // single ambiguous read triggered by a Restore tap. Real expiry is handled by
+    // the webhook's EXPIRATION/BILLING_ISSUE events instead, which are explicit,
+    // intentional signals from Apple rather than a guess.
+    if (resolved.accountTier < currentTier) {
+      return res.json({ role: currentRole, account_tier: currentTier });
     }
 
     await pool.query(
