@@ -202,7 +202,6 @@ export default function SettingsScreen({ navigation }) {
         {/* Account */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account</Text>
-          {user?.username && <Row label="Signed in as" value={user.username} numberOfLines={1} />}
           {user?.email_address && <Row label="Email" value={user.email_address} numberOfLines={1} />}
           <Row label="Level" value={String(user?.level ?? 1)} />
           {(user?.streak ?? 0) > 0 && (
