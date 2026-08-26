@@ -1711,9 +1711,6 @@ body::after {
   .hero-cta-row {
     justify-content: center;
   }
-  .hero-mockup {
-    order: -1;
-  }
   .mockup-frame {
     width: min(100%, 340px);
   }
