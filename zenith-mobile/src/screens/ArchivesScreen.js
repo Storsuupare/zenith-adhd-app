@@ -267,6 +267,12 @@ export default function ArchivesScreen() {
         <SectionLabel text="Performance" detail={historyLabel} />
         {loading ? (
           <ActivityIndicator color={accentColor} style={styles.sectionSpinner} />
+        ) : sessions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>◌</Text>
+            <Text style={styles.emptyTitle}>No sessions yet</Text>
+            <Text style={styles.emptyDetail}>Complete your first session to start tracking your stats.</Text>
+          </View>
         ) : (
           <StatGrid
             accentColor={accentColor}

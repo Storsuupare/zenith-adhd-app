@@ -67,7 +67,9 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
 
         {streak > 0 && (
           <View style={styles.streakGroup}>
-            <Text style={styles.streakText}>{streak} DAY STREAK</Text>
+            <Text style={styles.streakFlame}>🔥</Text>
+            <Text style={styles.streakCount}>{streak}</Text>
+            <Text style={styles.streakLabel}>day{streak !== 1 ? "s" : ""}</Text>
             {streakShield && (
               <View style={styles.shieldBadge}>
                 <Text style={styles.shieldText}>SHIELD</Text>
@@ -169,14 +171,26 @@ const styles = StyleSheet.create({
   // ── Streak ──
   streakGroup: {
     flexDirection: "row",
-    alignItems:    "center",
-    gap:           5,
+    alignItems:    "baseline",
+    gap:           3,
   },
-  streakText: {
-    color:         "rgba(255,255,255,0.55)",
+  streakFlame: {
+    fontSize:   15,
+    lineHeight: 20,
+  },
+  streakCount: {
+    color:         "#fb923c",
+    fontSize:      18,
+    fontFamily:    FONTS.bold,
+    letterSpacing: -0.5,
+    lineHeight:    22,
+  },
+  streakLabel: {
+    color:         "rgba(255,255,255,0.4)",
     fontSize:      11,
     fontFamily:    FONTS.monoBold,
     letterSpacing: 1,
+    marginLeft:    1,
   },
   shieldBadge: {
     backgroundColor: "rgba(59,130,246,0.12)",

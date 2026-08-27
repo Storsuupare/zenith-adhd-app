@@ -36,7 +36,7 @@ function formatUnlockDate(timestamp) {
 function AchievementCard({ achievement, accentColor }) {
   const isUnlocked  = Boolean(achievement.unlocked_at);
   const rarityColor = RARITY_COLORS[achievement.lootRarity] ?? accentColor;
-  const starCount   = STARS_BY_RARITY[achievement.lootRarity] ?? 1;
+  const starCount   = Math.min(STARS_BY_RARITY[achievement.lootRarity] ?? 1, 5);
 
   const threshold      = Number(achievement.threshold ?? 0);
   const progress       = Number(achievement.progress ?? 0);
@@ -54,7 +54,7 @@ function AchievementCard({ achievement, accentColor }) {
       <View style={styles.starColumn}>
         <Text
           style={[styles.stars, { color: isUnlocked ? rarityColor : "rgba(255,255,255,0.22)" }]}
-          numberOfLines={2}
+          numberOfLines={1}
         >
           {(isUnlocked ? "★" : "☆").repeat(starCount)}
         </Text>

@@ -55,7 +55,8 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
   const [isPending,    setIsPending]    = useState(false);
   const [neuralWindow, setNeuralWindow] = useState(() => getNeuralWindow());
   const [unlockedAchievements, setUnlockedAchievements] = useState([]);
-  const pulse = useRef(new Animated.Value(0.3)).current;
+  const pulse             = useRef(new Animated.Value(0.3)).current;
+  const revealIntervalRef = useRef(null);
 
   // Pulse the ??? while idle
   useEffect(() => {

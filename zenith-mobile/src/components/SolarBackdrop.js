@@ -271,8 +271,8 @@ const THEME_STAR = {
 // everywhere else.
 const SUN_CONFIG = {
   morning: { sizeFraction: 0.1744, topF: 0.84, leftF: 0.28, color: "#ffe0a0", shadow: "rgba(255,140,60,1.0)",  shadowRadiusRatio: 0.882 },
-  day:     { sizeFraction: 0.2564, topF: 0.38, leftF: 0.62, color: "#ffffff", shadow: "rgba(255,255,220,1.0)", shadowRadiusRatio: 0.800 },
-  noon:    { sizeFraction: 0.2872, topF: 0.46, leftF: 0.50, color: "#ffffff", shadow: "rgba(255,255,240,1.0)", shadowRadiusRatio: 0.848 },
+  day:     { sizeFraction: 0.2564, topF: 0.04, leftF: 0.70, color: "#ffffff", shadow: "rgba(255,255,220,1.0)", shadowRadiusRatio: 0.800 },
+  noon:    { sizeFraction: 0.2872, topF: 0.02, leftF: 0.52, color: "#ffffff", shadow: "rgba(255,255,240,1.0)", shadowRadiusRatio: 0.848 },
   evening: { sizeFraction: 0.2154, topF: 0.60, leftF: 0.72, color: "#ffe566", shadow: "rgba(255,160,0,1.0)",   shadowRadiusRatio: 0.833 },
   sunset:  { sizeFraction: 0.2000, topF: 0.88, leftF: 0.80, color: "#ff8c55", shadow: "rgba(255,80,20,1.0)",   shadowRadiusRatio: 0.897 },
   night:   null,
@@ -407,8 +407,9 @@ export default function SolarBackdrop({ children }) {
   const moonDisc  = (activeTheme && THEME_MOON[activeTheme]) ? THEME_MOON[activeTheme] : "#ffffff";
   const starColor = (activeTheme && THEME_STAR[activeTheme]) ? THEME_STAR[activeTheme] : "#ffffff";
 
-  const sunSize  = sunCfg ? sunCfg.sizeFraction * windowWidth : 0;
-  const moonSize = MOON_SIZE_FRACTION * windowWidth;
+  // Cap sizes so the orbs don't blow up on wide iPad screens
+  const sunSize  = sunCfg ? Math.min(sunCfg.sizeFraction * windowWidth, 100) : 0;
+  const moonSize = Math.min(MOON_SIZE_FRACTION * windowWidth, 90);
 
   // Cloud group fades in/out when phase crosses into/out of cloudy hours
   const cloudGroupOpacity = useRef(new Animated.Value(showClouds ? 1 : 0)).current;
@@ -475,8 +476,8 @@ export default function SolarBackdrop({ children }) {
       {moonOpacity > 0 && (
         <View style={{
           position:        "absolute",
-          top:             windowHeight * 0.12 - moonSize / 2,
-          left:            windowWidth  * 0.72 - moonSize / 2,
+          top:             -moonSize * 0.28,
+          left:            windowWidth * 0.76 - moonSize / 2,
           width:           moonSize,
           height:          moonSize,
           borderRadius:    moonSize / 2,

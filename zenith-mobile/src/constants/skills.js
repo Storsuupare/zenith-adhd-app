@@ -31,15 +31,15 @@ export const SKILL_INFO = {
 
 export const SKILL_ICONS = {
   "RESOLVE":     "▲",
-  "LOGIC FLOW":  "⬡",
+  "LOGIC FLOW":  "≡",
   "CREATIVITY":  "◆",
-  "DISCIPLINE":  "◫",
+  "DISCIPLINE":  "◼",
   "VITALITY":    "◈",
   "EXECUTION":   "◎",
-  "NUTRITION":   "◉",
+  "NUTRITION":   "⊕",
   "LOGISTICS":   "▤",
-  "PRESENCE":    "◑",
-  "RECOVERY":    "◌",
+  "PRESENCE":    "⊙",
+  "RECOVERY":    "☽",
   "LEARNING":    "⬢",
   "ENVIRONMENT": "▣",
 };

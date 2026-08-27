@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SKILL_COLORS } from "../constants/colors";
@@ -57,7 +57,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       />
 
       <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>CHOOSE SKILL</Text>
-      <View style={styles.skillGrid}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skillRow}>
         {SKILL_CATEGORIES.map(category => {
           const isExpanded      = openCategory === category.name;
           const holdsSelection  = category.skills.includes(skill);
@@ -83,7 +83,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       {openCategory && (
         <View style={styles.skillGrid}>
@@ -197,6 +197,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(34,211,238,0.22)",
   },
 
+  skillRow: {
+    flexDirection: "row",
+    gap:           8,
+    paddingVertical: 2,
+  },
   skillGrid: {
     flexDirection: "row",
     flexWrap:      "wrap",
