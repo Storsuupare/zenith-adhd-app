@@ -1,4 +1,4 @@
-const { calculateStake } = require("../server");
+const { calculateStake } = require("../lib/economy.js");
 
 describe("calculateStake", () => {
   afterEach(() => {

@@ -2,7 +2,7 @@
 
 A productivity app that turns focus sessions into a live progression system — XP, skills, loot drops, and streaks that compound the longer you stay consistent. Built for people who struggle to start and stay on task.
 
-Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Soon...)
+Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Live 2026/08/27)
 
 ---
 
@@ -65,7 +65,7 @@ Rewards shift with time of day. A 12AM–5AM REDZONE halves rewards, an 8–11AM
 
 ### Skill system
 
-12 independent skills — Resolve, Logic Flow, Creativity, Discipline, Vitality, Execution, Nutrition, Logistics, Presence, Recovery, Learning, Environment — each with its own XP bar from level 1 to 99, following `100 × level^1.6`. PRO users can Prestige at 99: the skill resets to level 1 and gains a permanent +10% XP multiplier. Prestige stacks.
+12 independent skills — Resolve, Logic Flow, Creativity, Discipline, Vitality, Momentum, Nutrition, Logistics, Presence, Recovery, Learning, Environment — each with its own XP bar from level 1 to 99, following `100 × level^1.6`. PRO users can Prestige at 99: the skill resets to level 1 and gains a permanent +10% XP multiplier. Prestige stacks.
 
 ### Streak system
 

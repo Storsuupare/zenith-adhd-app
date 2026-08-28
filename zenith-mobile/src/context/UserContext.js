@@ -16,8 +16,12 @@ const ACHIEVEMENTS_UNSEEN_KEY = "zenith_achievements_unseen";
 const UserContext = createContext(null);
 
 export function UserProvider({ children }) {
-  const { isSignedIn, getToken, userId } = useAuth();
+  const { isSignedIn, getToken, userId, signOut } = useAuth();
   const [user, setUser] = useState(null);
+  // True once the current sign-in state has been confirmed against the server —
+  // Clerk's isSignedIn only reflects a cached local token, not proof the backend
+  // still accepts it. AppNavigator waits on this before showing the app.
+  const [authChecked, setAuthChecked] = useState(false);
   const [restoringPurchases, setRestoringPurchases] = useState(false);
   const [achievementsUnseen, setAchievementsUnseen] = useState(false);
 
@@ -64,18 +68,28 @@ export function UserProvider({ children }) {
         } catch (createErr) {
           console.error("[UserContext] createUser failed:", createErr.message);
         }
+      } else if (err.response?.status === 401) {
+        // Clerk's local cache says signed in, but the server rejected the token
+        // (revoked or expired session). Trust the server, not the cache — force
+        // a real sign-out so the user lands back on the Auth screen instead of
+        // sitting on an empty Dashboard with no valid session behind it.
+        console.warn("[UserContext] Server rejected session token, signing out.");
+        setAuthToken(null);
+        await signOut().catch(() => {});
       } else {
         console.error("[UserContext] loadUser failed:", err.message);
       }
     }
-  }, [userId, refreshToken]);
+  }, [userId, refreshToken, signOut]);
 
   useEffect(() => {
     if (isSignedIn && userId) {
-      loadUser();
+      setAuthChecked(false);
+      loadUser().finally(() => setAuthChecked(true));
     } else {
       setUser(null);
       setAuthToken(null);
+      setAuthChecked(true);
     }
   }, [isSignedIn, userId]);
 
@@ -121,7 +135,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider value={{
-      user, fetchUser: loadUser, refreshToken, userId,
+      user, fetchUser: loadUser, refreshToken, userId, authChecked,
       restorePurchases, restoringPurchases,
       achievementsUnseen, markAchievementsUnseen, clearAchievementsUnseen,
     }}>

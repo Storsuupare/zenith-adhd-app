@@ -12,6 +12,7 @@ import StatHUD          from "../components/StatHUD";
 import MissionForm      from "../components/MissionForm";
 import ContractCard     from "../components/ContractCard";
 import DailyChallenge   from "../components/DailyChallenge";
+import StreakStrip      from "../components/StreakStrip";
 import NotificationToast from "../components/NotificationToast";
 import OnboardingModal, { ONBOARDING_KEY } from "../components/OnboardingModal";
 import WhatsNewModal from "../components/WhatsNewModal";
@@ -23,8 +24,18 @@ import { FONTS } from "../constants/fonts";
 import { RADIUS } from "../constants/layout";
 
 function getContextHint(user) {
-  const hour   = new Date().getHours();
-  const streak = user?.streak ?? 0;
+  const hour             = new Date().getHours();
+  const streak           = user?.streak ?? 0;
+  const daysSinceLast    = user?.days_since_last_session ?? 0;
+  const inGrace          = user?.streak_in_grace ?? false;
+
+  // Re-entry greeting takes priority — a gap of 3+ days means showing anything
+  // else first (REDZONE, streak count) would feel tone-deaf.
+  if (daysSinceLast >= 3) return { icon: "◎", text: "Good to have you back. One session at a time.", color: "#22d3ee" };
+
+  // Grace state — streak is frozen, one session saves it.
+  if (inGrace && streak > 0) return { icon: "☽", text: `Your ${streak}-day streak is on hold. Complete one session to save it.`, color: "#fb923c" };
+
   if (hour >= 0  && hour < 5)  return { icon: "⚠", text: "Red Zone active — rewards halved.",      color: "#ff3b3b" };
   if (hour >= 8  && hour < 11) return { icon: "◎", text: "Peak window. Best XP until 11am.",        color: "#f5c518" };
   if (hour >= 22)               return { icon: "◑", text: "Hyperfocus window. Best XP of the day.", color: "#a855f7" };
@@ -94,6 +105,9 @@ function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }
           style={skillCardStyles.prestigeButton}
           onPress={() => onPrestige(skill.skill_name)}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Prestige ${skill.skill_name}`}
+          accessibilityHint="Resets this skill to level 1 for a permanent 10 percent XP bonus. Costs 3,500 credits."
         >
           <Text style={skillCardStyles.prestigeButtonLabel}>PRESTIGE SKILL</Text>
           <Text style={skillCardStyles.prestigeButtonDetail}>
@@ -319,6 +333,8 @@ export default function DashboardScreen({ navigation }) {
           claimedToday={claimedToday}
           onClaim={handleDailyChallengeClaim}
         />
+
+        <StreakStrip last7Days={user?.last_7_days ?? []} />
 
         {/* Active contracts */}
         {activeCount > 0 && (

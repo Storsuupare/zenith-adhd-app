@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /login
+Disallow: /signup
+Disallow: /payment/success
+Disallow: /payment/cancel
+
+Sitemap: https://zenithapp.org/sitemap.xml

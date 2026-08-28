@@ -21,6 +21,7 @@ import RefundScreen         from "../screens/RefundScreen";
 import PaymentSuccessScreen from "../screens/PaymentSuccessScreen";
 import PaymentCancelScreen  from "../screens/PaymentCancelScreen";
 import SolarBackdrop        from "../components/SolarBackdrop";
+import LoadingScreen        from "../components/LoadingScreen";
 import { useTheme }         from "../context/ThemeContext";
 import { COLORS }           from "../constants/colors";
 import { useTasks }         from "../context/TaskContext";
@@ -179,7 +180,13 @@ function RootStack() {
 
 export default function AppNavigator() {
   const { isSignedIn, isLoaded } = useAuth();
-  if (!isLoaded) return null;
+  const { authChecked } = useUser() || {};
+
+  // Clerk resolving its cached token isn't proof the session still holds — wait
+  // for UserContext to confirm it against the server before showing the app.
+  // Without this, a stale-but-locally-cached session flashes the full Dashboard
+  // before anything has actually been verified.
+  if (!isLoaded || (isSignedIn && !authChecked)) return <LoadingScreen />;
 
   return (
     <SolarBackdrop>

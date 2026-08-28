@@ -16,7 +16,7 @@ export const SKILL_COLORS = {
   "CREATIVITY":  "#f472b6",
   "DISCIPLINE":  "#fb923c",
   "VITALITY":    "#4ade80",
-  "EXECUTION":   "#22d3ee",
+  "MOMENTUM":    "#22d3ee",
   "NUTRITION":   "#34d399",
   "LOGISTICS":   "#60a5fa",
   "PRESENCE":    "#a78bfa",

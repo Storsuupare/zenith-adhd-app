@@ -74,7 +74,13 @@ export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, sk
         </Text>
 
         {complete && !claimed && (
-          <TouchableOpacity style={[styles.claimBtn, { backgroundColor: accentColor }]} onPress={handleClaim} disabled={claiming}>
+          <TouchableOpacity
+            style={[styles.claimBtn, { backgroundColor: accentColor }]}
+            onPress={handleClaim}
+            disabled={claiming}
+            accessibilityRole="button"
+            accessibilityLabel="Claim daily challenge reward"
+          >
             {claiming
               ? <ActivityIndicator size="small" color="#030712" />
               : <Text style={styles.claimTxt}>CLAIM +150 Credits</Text>

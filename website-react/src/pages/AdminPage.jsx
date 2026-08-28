@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 const TIERS = ['FREE', 'PRO', 'ELITE']
 
@@ -14,6 +15,8 @@ const TIER_CLS = {
 }
 
 export default function AdminPage() {
+  useSEO({ title: 'Admin — Zenith', path: window.location.pathname, noindex: true })
+
   const { getToken, isLoaded, isSignedIn } = useAuth()
   const navigate = useNavigate()
 

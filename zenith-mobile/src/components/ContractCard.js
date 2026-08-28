@@ -126,6 +126,8 @@ function DoneCard({ contract, onComplete, skillColor }) {
             onPress={handleCollect}
             disabled={isPending}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Collect reward"
           >
             {isPending
               ? <ActivityIndicator color="#000" />
@@ -252,15 +254,30 @@ export default function ContractCard({ contract, onComplete, onAbort }) {
 
         {confirmDrop ? (
           <View style={styles.confirmGroup}>
-            <TouchableOpacity style={styles.abortConfirm} onPress={handleAbort}>
+            <TouchableOpacity
+              style={styles.abortConfirm}
+              onPress={handleAbort}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm drop mission"
+              accessibilityHint="Ends this session early and forfeits its XP and credits"
+            >
               <Text style={styles.abortConfirmText}>DROP</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setConfirmDrop(false)}>
+            <TouchableOpacity
+              onPress={() => setConfirmDrop(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Keep mission running"
+            >
               <Text style={styles.cancelText}>KEEP</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.abortBtn} onPress={() => setConfirmDrop(true)}>
+          <TouchableOpacity
+            style={styles.abortBtn}
+            onPress={() => setConfirmDrop(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Drop mission"
+          >
             <Text style={styles.abortText}>DROP</Text>
           </TouchableOpacity>
         )}

@@ -1,4 +1,4 @@
-const { assertNoUserContent } = require("../analytics.js");
+const { assertNoUserContent, captureException } = require("../analytics.js");
 
 // The one guarantee in the analytics layer that actually matters: a user's own
 // words never leave the server. Task titles here read like "call doctor about my
@@ -75,5 +75,18 @@ describe("analytics privacy guard", () => {
   it("allows a short string but rejects a long one under the same key", () => {
     expect(() => assertNoUserContent({ skill: "Logic Flow" })).not.toThrow();
     expect(() => assertNoUserContent({ skill: "L".repeat(65) })).toThrow(/free text/);
+  });
+});
+
+// captureException must inherit the same "analytics can never fail a request"
+// guarantee as track/identify — CI never sets POSTHOG_API_KEY, so client is
+// null here, which is exactly the no-op path a misconfigured environment hits.
+describe("captureException", () => {
+  it("no-ops without throwing when no PostHog client is configured", () => {
+    expect(() => captureException(new Error("boom"), "user_123", { platform: "ios" })).not.toThrow();
+  });
+
+  it("no-ops without throwing even with no externalId or properties", () => {
+    expect(() => captureException(new Error("boom"))).not.toThrow();
   });
 });

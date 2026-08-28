@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 export default function PaymentSuccessPage() {
+  useSEO({ title: 'Payment Successful — Zenith', path: '/payment/success', noindex: true })
+
   return (
     <>
       <SolarBackdrop />

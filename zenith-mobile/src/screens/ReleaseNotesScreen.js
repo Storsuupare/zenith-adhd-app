@@ -13,7 +13,6 @@ const TAG_COLORS = {
 const CHANGELOG = [
   {
     version: "1.0.0",
-    date:    "Coming Soon",
     title:   "Initial Release",
     entries: [
       { tag: "NEW", text: "Session-based XP and credit economy" },

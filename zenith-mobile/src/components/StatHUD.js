@@ -12,6 +12,7 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
   const credits      = user.system_credits ?? 0;
   const streak       = user.streak ?? 0;
   const streakShield = user.streak_shield ?? false;
+  const streakInGrace = user.streak_in_grace ?? false;
   const role         = user.role ?? "FREE";
   const nextLvlXP   = Math.max(1, Math.floor(100 * Math.pow(level, 1.6)));
   const pct         = Math.min((xp / nextLvlXP) * 100, 100);
@@ -67,8 +68,8 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
 
         {streak > 0 && (
           <View style={styles.streakGroup}>
-            <Text style={styles.streakFlame}>🔥</Text>
-            <Text style={styles.streakCount}>{streak}</Text>
+            <Text style={styles.streakFlame}>{streakInGrace ? "⏳" : "🔥"}</Text>
+            <Text style={[styles.streakCount, streakInGrace && { color: "#fb923c" }]}>{streak}</Text>
             <Text style={styles.streakLabel}>day{streak !== 1 ? "s" : ""}</Text>
             {streakShield && (
               <View style={styles.shieldBadge}>

@@ -2,8 +2,15 @@ import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 export default function PrivacyPage() {
+  useSEO({
+    title:       'Privacy Policy — Zenith',
+    description: 'How Zenith collects, uses, and protects your data.',
+    path:        '/privacy',
+  })
+
   return (
     <>
       <SolarBackdrop />

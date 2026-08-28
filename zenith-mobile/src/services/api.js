@@ -54,4 +54,9 @@ export const createCheckoutSession = (targetTier) =>
 export const createPortalSession = () => api.post("/payments/create-portal-session");
 export const syncSubscription    = () => api.post("/subscription/sync");
 
+// ── Error reporting ───────────────────────────────────────────────────────────
+// Fire-and-forget by design — a failure reporting a crash must never itself
+// throw, or a network hiccup during an actual crash turns one problem into two.
+export const reportClientError = (payload) => api.post("/api/client-error", payload).catch(() => {});
+
 export default api;

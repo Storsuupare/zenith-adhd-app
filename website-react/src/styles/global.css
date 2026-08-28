@@ -573,6 +573,13 @@ body::after {
   width: auto;
 }
 
+.hero-platform-note {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 8px;
+  letter-spacing: 0.04em;
+}
+
 @keyframes hero-in {
   from {
     opacity: 0;
@@ -1060,6 +1067,27 @@ body::after {
 @media (hover: hover) {
   .footer-links a:hover {
     color: rgba(255, 255, 255, 0.6);
+  }
+}
+.footer-social {
+  display: flex;
+  align-items: center;
+}
+.footer-social-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border-dim);
+  color: var(--text-muted);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+@media (hover: hover) {
+  .footer-social-badge:hover {
+    color: rgba(255, 255, 255, 0.85);
+    border-color: var(--ui-accent, #22d3ee);
   }
 }
 .footer-copy {

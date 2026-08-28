@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 const TOPICS = [
   'General Inquiry',
@@ -13,6 +14,12 @@ const TOPICS = [
 ]
 
 export default function ContactPage() {
+  useSEO({
+    title:       'Contact — Zenith',
+    description: 'Get in touch with the Zenith team — bug reports, billing questions, and feature requests.',
+    path:        '/contact',
+  })
+
   const { user } = useUser()
 
   const [form, setForm] = useState({

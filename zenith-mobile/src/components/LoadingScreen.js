@@ -1,18 +1,30 @@
 import React, { useEffect, useRef } from "react";
 import { View, Image, Text, Animated, StyleSheet } from "react-native";
 import { FONTS } from "../constants/fonts";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 
 export default function LoadingScreen() {
   const pulse = useRef(new Animated.Value(0.4)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: hold the dot at a fixed, visible opacity instead of pulsing.
+    // useReducedMotion() resolves asynchronously, so the loop may already be
+    // running by the time this fires — the cleanup below is what stops it.
+    if (reduceMotion) {
+      pulse.stopAnimation();
+      pulse.setValue(0.7);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0.4, duration: 900, useNativeDriver: true }),
       ])
-    ).start();
-  }, []);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduceMotion]);
 
   return (
     <View style={styles.root}>

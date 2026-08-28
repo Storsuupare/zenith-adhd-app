@@ -23,8 +23,8 @@ const CLOCK_ROWS = [
 ];
 
 const PLAN_DETAILS = {
-  PRO:   { price: "€3.99 / month", perks: "15 task slots · 6 months of history · Prestige · Streak shield" },
-  ELITE: { price: "€8.99 / month", perks: "Unlimited slots · All-time history · Auto-replenishing shield · CSV export" },
+  PRO:   { price: "€4.99 / month", perks: "15 task slots · 6 months of history · Prestige · Streak shield" },
+  ELITE: { price: "€9.99 / month", perks: "Unlimited slots · All-time history · Auto-replenishing shield · CSV export" },
 };
 
 const LEGAL_LINKS = [
@@ -57,6 +57,8 @@ function PurchaseButton({ purchasePackage, accentColor, purchaseLoading, onPress
       onPress={onPress}
       disabled={purchaseLoading}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${labelOverride ?? planTier ?? purchasePackage.product.title}, ${purchasePackage.product.priceString} per month`}
     >
       <View style={styles.planRow}>
         <Text style={[styles.upgradeBtnText, { color: accentColor }]}>
@@ -185,7 +187,12 @@ export default function SettingsScreen({ navigation }) {
   const isRedZone   = currentHour >= 0 && currentHour < 5;
 
   const NavRow = ({ label, screen }) => (
-    <TouchableOpacity style={styles.navRow} onPress={() => navigation.navigate(screen)}>
+    <TouchableOpacity
+      style={styles.navRow}
+      onPress={() => navigation.navigate(screen)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Text style={styles.navLabel}>{label}</Text>
       <Text style={styles.navArrow}>›</Text>
     </TouchableOpacity>
@@ -224,6 +231,8 @@ export default function SettingsScreen({ navigation }) {
               style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
               onPress={handleManageSubscription}
               disabled={subscriptionLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Manage subscription"
             >
               <Text style={styles.manageBtnText}>
                 {subscriptionLoading ? "Opening…" : "Manage subscription"}
@@ -235,6 +244,8 @@ export default function SettingsScreen({ navigation }) {
                 style={[styles.manageBtn, subscriptionLoading && { opacity: 0.5 }]}
                 onPress={handleManageSubscription}
                 disabled={subscriptionLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Manage subscription"
               >
                 <Text style={styles.manageBtnText}>
                   {subscriptionLoading ? "Opening…" : "Manage subscription"}
@@ -270,6 +281,8 @@ export default function SettingsScreen({ navigation }) {
                   style={[styles.upgradeBtn, { borderColor: accentColor + "40" }]}
                   onPress={() => loadOfferings({ announceFailure: true })}
                   activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${planTier}, ${plan.price}. Tap to retry loading plans.`}
                 >
                   <View style={styles.planRow}>
                     <Text style={[styles.upgradeBtnText, { color: accentColor }]}>{planTier}</Text>
@@ -292,6 +305,8 @@ export default function SettingsScreen({ navigation }) {
             style={[styles.restoreBtn, restoringPurchases && { opacity: 0.5 }]}
             onPress={restorePurchases}
             disabled={restoringPurchases}
+            accessibilityRole="button"
+            accessibilityLabel="Restore purchases"
           >
             <Text style={styles.restoreBtnText}>
               {restoringPurchases ? "Restoring…" : "Restore purchases"}
@@ -302,7 +317,12 @@ export default function SettingsScreen({ navigation }) {
             {LEGAL_LINKS.map((legalLink, linkIndex) => (
               <React.Fragment key={legalLink.screen}>
                 {linkIndex > 0 && <Text style={styles.legalSeparator}>·</Text>}
-                <TouchableOpacity onPress={() => navigation.navigate(legalLink.screen)} hitSlop={8}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate(legalLink.screen)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={legalLink.label}
+                >
                   <Text style={[styles.legalLink, { color: accentColor }]}>{legalLink.label}</Text>
                 </TouchableOpacity>
               </React.Fragment>
@@ -341,12 +361,19 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Account actions */}
         <View style={styles.actionCard}>
-          <TouchableOpacity style={styles.actionRow} onPress={() => signOut()}>
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => signOut()}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
             <Text style={styles.actionText}>Sign out</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionRow, styles.actionRowDivided]}
             onPress={() => setShowDeleteModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
           >
             <Text style={[styles.actionText, styles.actionTextDestructive]}>Delete account</Text>
           </TouchableOpacity>
@@ -372,6 +399,9 @@ export default function SettingsScreen({ navigation }) {
               style={styles.modalConfirmBtn}
               onPress={handleDeleteAccount}
               disabled={deleting}
+              accessibilityRole="button"
+              accessibilityLabel="Yes, delete my account"
+              accessibilityHint="This permanently deletes your account and cannot be undone"
             >
               <Text style={styles.modalConfirmText}>
                 {deleting ? "Deleting..." : "Yes, delete my account"}
@@ -381,6 +411,8 @@ export default function SettingsScreen({ navigation }) {
               style={styles.modalCancelBtn}
               onPress={() => setShowDeleteModal(false)}
               disabled={deleting}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
             >
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>

@@ -52,6 +52,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
   const [phase,        setPhase]        = useState("idle");
   const [displayXP,    setDisplayXP]    = useState(0);
   const [sessionCr,    setSessionCr]    = useState(0);
+  const [comebackCr,   setComebackCr]   = useState(0);
   const [isPending,    setIsPending]    = useState(false);
   const [neuralWindow, setNeuralWindow] = useState(() => getNeuralWindow());
   const [unlockedAchievements, setUnlockedAchievements] = useState([]);
@@ -105,6 +106,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
       const result = await onComplete(contract.id);
       const actualReward = result?.reward ?? result?.xp_earned ?? contract.stake_amount ?? 0;
       setSessionCr(result?.credits_earned ?? 0);
+      setComebackCr(result?.comeback_bonus ?? 0);
       setUnlockedAchievements(result?.achievements_unlocked ?? []);
       runReveal(actualReward);
     } catch (collectError) {
@@ -135,6 +137,10 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
 
       {phase === "done" && sessionCr > 0 && (
         <Text style={done.crEarned}>+{sessionCr} Credits</Text>
+      )}
+
+      {phase === "done" && comebackCr > 0 && (
+        <Text style={done.comebackBonus}>+{comebackCr} Welcome back bonus</Text>
       )}
 
       {phase === "done" && unlockedAchievements.map(achievement => (
@@ -172,6 +178,8 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
           style={[done.collectBtn, { backgroundColor: skillColor }]}
           onPress={handleCollect}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Collect reward"
         >
           <Text style={done.collectText}>COLLECT REWARD →</Text>
         </TouchableOpacity>
@@ -342,18 +350,34 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
       <View style={styles.dropArea}>
         {confirmDrop ? (
           <View style={styles.confirmRow}>
-            <TouchableOpacity style={styles.dropConfirmBtn} onPress={handleAbort}>
+            <TouchableOpacity
+              style={styles.dropConfirmBtn}
+              onPress={handleAbort}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm drop session"
+              accessibilityHint="Ends this session early and forfeits its XP and credits"
+            >
               <Text style={styles.dropConfirmText}>DROP SESSION</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.keepBtn} onPress={() => setConfirmDrop(false)}>
+            <TouchableOpacity
+              style={styles.keepBtn}
+              onPress={() => setConfirmDrop(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Keep session running"
+            >
               <Text style={styles.keepText}>KEEP GOING</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.dropBtn} onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setConfirmDrop(true);
-          }}>
+          <TouchableOpacity
+            style={styles.dropBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setConfirmDrop(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Drop session"
+          >
             <Text style={styles.dropText}>DROP</Text>
           </TouchableOpacity>
         )}
@@ -636,6 +660,13 @@ const done = StyleSheet.create({
     fontSize:      18,
     fontWeight:    "700",
     color:         "#fbbf24",
+    letterSpacing: 0.5,
+  },
+  comebackBonus: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      14,
+    fontWeight:    "700",
+    color:         "#4ade80",
     letterSpacing: 0.5,
   },
   achievementRow: {

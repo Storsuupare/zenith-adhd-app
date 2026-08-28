@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 export default function PaymentCancelPage() {
+  useSEO({ title: 'Payment Cancelled — Zenith', path: '/payment/cancel', noindex: true })
+
   return (
     <>
       <SolarBackdrop />

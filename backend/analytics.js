@@ -87,6 +87,33 @@ function identify(externalId, traits = {}) {
   }
 }
 
+/**
+ * Reports an error to PostHog's error tracking. Used both for backend
+ * exceptions and for client (mobile/website) errors relayed through
+ * /api/client-error — the client never talks to PostHog directly, so this
+ * function is the single place error data actually leaves the server.
+ *
+ * @param {Error}  error       The exception itself. Its message/stack are
+ *                             inherent free text and are not run through
+ *                             assertNoUserContent — sanitizing arbitrary
+ *                             stack traces generically isn't possible, and
+ *                             that's standard practice for error tracking.
+ * @param {string} [externalId] Clerk user ID, when known — many client
+ *                              errors happen before a session exists.
+ * @param {object} [properties] Our own controlled context (platform, screen,
+ *                              app version) — held to the same no-free-text
+ *                              standard as regular event properties.
+ */
+function captureException(error, externalId, properties = {}) {
+  if (!client) return;
+  try {
+    assertNoUserContent(properties);
+    client.captureException(error, externalId || undefined, properties);
+  } catch (err) {
+    console.error("[analytics] captureException failed:", err.message);
+  }
+}
+
 async function shutdownAnalytics() {
   if (!client) return;
   try {
@@ -97,6 +124,7 @@ async function shutdownAnalytics() {
 module.exports = {
   track,
   identify,
+  captureException,
   shutdownAnalytics,
   analyticsEnabled: Boolean(client),
   // Exported for tests: this guard is the only thing standing between a future

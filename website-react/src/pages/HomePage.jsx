@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 const FEATURES = [
-  { icon: '⬡', title: 'Session System',      desc: 'Every task is a timed contract. Complete it, earn XP and real loot drops.' },
+  { icon: '▶', title: 'Session System',      desc: 'Every task is a timed contract. Complete it, earn XP and real loot drops.' },
   { icon: '◎', title: 'Skill Mastery',       desc: '12 skills that level up as you work. Prestige when you reach the ceiling.' },
   { icon: '◈', title: 'Loot Drops',          desc: 'Finish a session and roll for a credit drop. Rare, Epic, Legendary — real randomness.' },
   { icon: '▲', title: 'Neural Clock',        desc: 'Time-based multipliers that reward your natural focus rhythm and punish late nights.' },
@@ -29,7 +30,7 @@ const FAQ = [
   },
   {
     q: 'Does paying give you an actual advantage?',
-    a: "PRO and ELITE give you more shop capacity and cosmetic themes — not more XP, not better loot rates, not exclusive skills. Paying buys comfort, not progression. A free user and a PRO user earn the same rewards for the same session.",
+    a: "No. Every user earns the same XP, loot rates, and skill progression regardless of tier. The only thing free users miss out on is access to Streak Shield in the shop — everything else, including all cosmetic themes, is available to everyone. Paying buys protection, not an edge.",
   },
 ]
 
@@ -55,11 +56,43 @@ function useScrollReveal() {
   return ref
 }
 
+const SOFTWARE_APPLICATION_SCHEMA = {
+  '@context':       'https://schema.org',
+  '@type':          'SoftwareApplication',
+  name:             'Zenith',
+  applicationCategory: 'ProductivityApplication',
+  operatingSystem:  'iOS',
+  description:      'Turn daily tasks into XP, loot drops, and real momentum. The gamified productivity system built for how your brain actually works.',
+  url:              'https://zenithapp.org',
+  offers: [
+    { '@type': 'Offer', name: 'Free',  price: '0',    priceCurrency: 'EUR' },
+    { '@type': 'Offer', name: 'Pro',   price: '4.99', priceCurrency: 'EUR' },
+    { '@type': 'Offer', name: 'Elite', price: '9.99', priceCurrency: 'EUR' },
+  ],
+}
+
+const FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type':    'FAQPage',
+  mainEntity: FAQ.map(item => ({
+    '@type': 'Question',
+    name:    item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+}
+
 export default function HomePage() {
   useScrollReveal()
+  useSEO({
+    title:       'Zenith — Your Brain Has a Skill Tree',
+    description: 'Turn daily tasks into XP, loot drops, and real momentum. The gamified productivity system built for how your brain actually works.',
+    path:        '/',
+  })
 
   return (
     <>
+      <script type="application/ld+json">{JSON.stringify(SOFTWARE_APPLICATION_SCHEMA)}</script>
+      <script type="application/ld+json">{JSON.stringify(FAQ_SCHEMA)}</script>
       <SolarBackdrop />
       <Nav />
 
@@ -71,8 +104,21 @@ export default function HomePage() {
             <h1 className="hero-headline hero-anim hero-anim--2">Your Brain Has<br />a Skill Tree.</h1>
             <p className="hero-sub hero-anim hero-anim--3">Turn daily tasks into XP, loot drops, and real momentum. Built for the way your brain actually works.</p>
             <div className="hero-cta-row hero-anim hero-anim--4">
-              <a className="btn btn--primary" href="#features">See how it works</a>
+              <a
+                href="https://apps.apple.com/app/id6778361410"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Download on the App Store"
+              >
+                <img
+                  src="/Download_on_the_App_Store_Badge_US-UK_RGB_blk_092917.svg"
+                  alt="Download on the App Store"
+                  className="hero-appstore-badge"
+                />
+              </a>
+              <a className="btn btn--ghost" href="#features">See how it works</a>
             </div>
+            <p className="hero-platform-note">Now Available on iOS</p>
           </div>
           <div className="hero-mockup hero-anim hero-anim--3" aria-hidden="true">
             <div className="mockup-frame">

@@ -1,12 +1,12 @@
 export const SKILLS = [
   "Resolve", "Logic Flow", "Creativity", "Discipline",
-  "Vitality", "Execution", "Nutrition", "Logistics",
+  "Vitality", "Momentum", "Nutrition", "Logistics",
   "Presence", "Recovery", "Learning", "Environment",
 ];
 
 export const SKILL_CATEGORIES = [
   { name: "Grit",   skills: ["Resolve", "Discipline"] },
-  { name: "Drive",  skills: ["Execution", "Logic Flow"] },
+  { name: "Drive",  skills: ["Momentum", "Logic Flow"] },
   { name: "Growth", skills: ["Creativity", "Learning"] },
   { name: "Body",   skills: ["Vitality", "Nutrition"] },
   { name: "Life",   skills: ["Logistics", "Environment"] },
@@ -20,7 +20,7 @@ export const SKILL_INFO = {
   "Creativity":  "Drawing, writing, designing, brainstorming, building something",
   "Discipline":  "Sticking to a routine, waking up on time, not skipping a habit",
   "Vitality":    "Working out, going for a walk, stretching, playing a sport",
-  "Execution":   "Sending that email, finishing an assignment, crossing something off",
+  "Momentum":    "Sending that email, finishing an assignment, crossing something off",
   "Nutrition":   "Cooking a meal, drinking enough water, meal prepping",
   "Logistics":   "Booking an appointment, packing a bag, sorting your schedule",
   "Presence":    "Meditating, journalling, a walk without your phone",
@@ -35,7 +35,7 @@ export const SKILL_ICONS = {
   "CREATIVITY":  "◆",
   "DISCIPLINE":  "◼",
   "VITALITY":    "◈",
-  "EXECUTION":   "◎",
+  "MOMENTUM":    "◎",
   "NUTRITION":   "⊕",
   "LOGISTICS":   "▤",
   "PRESENCE":    "⊙",

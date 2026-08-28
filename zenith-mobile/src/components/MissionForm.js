@@ -73,6 +73,9 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
                   : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
               onPress={() => setOpenCategory(isExpanded ? null : category.name)}
+              accessibilityRole="button"
+              accessibilityLabel={`${category.name} skill category`}
+              accessibilityState={{ expanded: isExpanded, selected: holdsSelection }}
             >
               <Text style={[
                 styles.chipText,
@@ -100,6 +103,9 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
                     : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
                 ]}
                 onPress={() => { setSkill(skillName); setOpenCategory(null); }}
+                accessibilityRole="button"
+                accessibilityLabel={skillName}
+                accessibilityState={{ selected: active }}
               >
                 <Text style={[styles.chipText, { color: active ? skillColor : "rgba(255,255,255,0.6)" }]}>
                   {skillName.toUpperCase()}
@@ -131,6 +137,9 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
                     isActive && { borderColor: buttonColor, backgroundColor: buttonColor + "1a" },
                   ]}
                   onPress={() => setDuration(dur.mins)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${dur.label} session`}
+                  accessibilityState={{ selected: isActive }}
                 >
                   <Text style={[styles.durLabel, isActive && { color: buttonColor }]}>{dur.label}</Text>
                 </TouchableOpacity>
@@ -151,6 +160,9 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
         onPress={handleStart}
         disabled={!canStart || busy}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={canStart ? `Begin ${duration} minute session` : "Name your task to begin"}
+        accessibilityState={{ disabled: !canStart || busy }}
       >
         {busy
           ? <ActivityIndicator color={canStart ? "#030712" : accentColor} />

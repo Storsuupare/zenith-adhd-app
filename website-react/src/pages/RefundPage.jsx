@@ -2,8 +2,15 @@ import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 export default function RefundPage() {
+  useSEO({
+    title:       'Refund Policy — Zenith',
+    description: 'Zenith’s refund policy for PRO and ELITE subscriptions.',
+    path:        '/refund',
+  })
+
   return (
     <>
       <SolarBackdrop />

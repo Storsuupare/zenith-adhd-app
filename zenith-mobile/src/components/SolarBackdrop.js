@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { View, StyleSheet, Animated, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../context/ThemeContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getMinuteOfDay() {
@@ -271,8 +272,8 @@ const THEME_STAR = {
 // everywhere else.
 const SUN_CONFIG = {
   morning: { sizeFraction: 0.1744, topF: 0.84, leftF: 0.28, color: "#ffe0a0", shadow: "rgba(255,140,60,1.0)",  shadowRadiusRatio: 0.882 },
-  day:     { sizeFraction: 0.2564, topF: 0.04, leftF: 0.70, color: "#ffffff", shadow: "rgba(255,255,220,1.0)", shadowRadiusRatio: 0.800 },
-  noon:    { sizeFraction: 0.2872, topF: 0.02, leftF: 0.52, color: "#ffffff", shadow: "rgba(255,255,240,1.0)", shadowRadiusRatio: 0.848 },
+  day:     { sizeFraction: 0.2564, topF: 0.08, leftF: 0.70, color: "#ffffff", shadow: "rgba(255,255,220,1.0)", shadowRadiusRatio: 0.800 },
+  noon:    { sizeFraction: 0.2872, topF: 0.06, leftF: 0.52, color: "#ffffff", shadow: "rgba(255,255,240,1.0)", shadowRadiusRatio: 0.848 },
   evening: { sizeFraction: 0.2154, topF: 0.60, leftF: 0.72, color: "#ffe566", shadow: "rgba(255,160,0,1.0)",   shadowRadiusRatio: 0.833 },
   sunset:  { sizeFraction: 0.2000, topF: 0.88, leftF: 0.80, color: "#ff8c55", shadow: "rgba(255,80,20,1.0)",   shadowRadiusRatio: 0.897 },
   night:   null,
@@ -314,17 +315,28 @@ const Cloud = React.memo(function Cloud({
   windowWidth, windowHeight,
 }) {
   const drift = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
   const width  = widthFraction * windowWidth;
   const height = width / aspectRatio;
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: leave the cloud at its resting position instead of drifting.
+    // useReducedMotion() resolves asynchronously, so the loop below may already
+    // be running by the time reduceMotion flips to true — the cleanup function
+    // is what actually stops it, not the early return on its own.
+    if (reduceMotion) {
+      drift.stopAnimation();
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(drift, { toValue: 60, duration, useNativeDriver: true, isInteraction: false }),
         Animated.timing(drift, { toValue: 0,  duration, useNativeDriver: true, isInteraction: false }),
       ])
-    ).start();
-  }, []);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduceMotion]);
 
   return (
     <Animated.View
@@ -346,17 +358,34 @@ const Cloud = React.memo(function Cloud({
 // ── Twinkling star ────────────────────────────────────────────────────────────
 const Star = React.memo(function Star({ x, y, size, delay, color }) {
   const twinkle = useRef(new Animated.Value(0.25)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    setTimeout(() => {
-      Animated.loop(
+    // Reduce Motion: hold stars at a fixed, visible brightness instead of
+    // pulsing — 0.25 (the loop's dim end) would leave the whole sky looking
+    // switched off rather than just still. useReducedMotion() resolves
+    // asynchronously, so a loop may already be running by the time this
+    // fires — stopAnimation() kills it before setValue takes over.
+    if (reduceMotion) {
+      twinkle.stopAnimation();
+      twinkle.setValue(0.6);
+      return;
+    }
+    let loop;
+    const timeoutId = setTimeout(() => {
+      loop = Animated.loop(
         Animated.sequence([
           Animated.timing(twinkle, { toValue: 1,    duration: 1250, useNativeDriver: true, isInteraction: false }),
           Animated.timing(twinkle, { toValue: 0.25, duration: 1250, useNativeDriver: true, isInteraction: false }),
         ])
-      ).start();
+      );
+      loop.start();
     }, delay * 1000);
-  }, []);
+    return () => {
+      clearTimeout(timeoutId);
+      loop?.stop();
+    };
+  }, [reduceMotion]);
 
   return (
     <Animated.View
@@ -476,7 +505,7 @@ export default function SolarBackdrop({ children }) {
       {moonOpacity > 0 && (
         <View style={{
           position:        "absolute",
-          top:             -moonSize * 0.28,
+          top:             -moonSize * 0.1,
           left:            windowWidth * 0.76 - moonSize / 2,
           width:           moonSize,
           height:          moonSize,

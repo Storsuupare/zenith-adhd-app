@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, useUser, useClerk } from '@clerk/clerk-react'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 
 export default function AccountPage() {
+  useSEO({ title: 'Account — Zenith', path: '/account', noindex: true })
+
   const { isSignedIn, getToken } = useAuth()
   const { user }                 = useUser()
   const { signOut }              = useClerk()

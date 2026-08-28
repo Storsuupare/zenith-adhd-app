@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 export default function NotFoundPage() {
+  useSEO({ title: 'Page Not Found — Zenith', path: window.location.pathname, noindex: true })
+
   return (
     <>
       <SolarBackdrop />

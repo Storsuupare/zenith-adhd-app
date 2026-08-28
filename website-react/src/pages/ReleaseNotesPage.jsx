@@ -3,6 +3,7 @@ import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
 import { CHANGELOG } from '../data/changelog.js'
+import { useSEO } from '../hooks/useSEO.js'
 
 const TYPE_META = {
   new:     { label: 'NEW',     cls: 'rn-chip--new'     },
@@ -12,6 +13,12 @@ const TYPE_META = {
 }
 
 export default function ReleaseNotesPage() {
+  useSEO({
+    title:       'Release Notes — Zenith',
+    description: 'What changed in the latest Zenith updates — new features, fixes, and improvements.',
+    path:        '/release-notes',
+  })
+
   useEffect(() => {
     localStorage.setItem('zenith_rn_seen', CHANGELOG[0].version)
   }, [])

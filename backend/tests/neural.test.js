@@ -1,4 +1,4 @@
-const { getNeuralMult } = require("../server");
+const { getNeuralMult } = require("../lib/economy.js");
 
 describe("getNeuralMult", () => {
   it("returns 0.5 during REDZONE", () => {

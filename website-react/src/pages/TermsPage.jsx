@@ -2,8 +2,15 @@ import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
+import { useSEO } from '../hooks/useSEO.js'
 
 export default function TermsPage() {
+  useSEO({
+    title:       'Terms of Service — Zenith',
+    description: 'The terms governing your use of Zenith.',
+    path:        '/terms',
+  })
+
   return (
     <>
       <SolarBackdrop />
@@ -31,7 +38,7 @@ export default function TermsPage() {
             <hr className="legal-divider" />
 
             <h2>Subscriptions and billing</h2>
-            <p>Zenith has two paid plans: PRO at €3.99/month and ELITE at €8.99/month, sold as auto-renewing subscriptions through the Apple App Store. Refunds are handled by Apple, not Zenith — see our <Link to="/refund">Refund Policy</Link>.</p>
+            <p>Zenith has two paid plans: PRO at €4.99/month and ELITE at €9.99/month, sold as auto-renewing subscriptions through the Apple App Store. Refunds are handled by Apple, not Zenith — see our <Link to="/refund">Refund Policy</Link>.</p>
 
             <hr className="legal-divider" />
 

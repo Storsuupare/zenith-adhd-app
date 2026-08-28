@@ -1,7 +1,10 @@
 import "react-native-gesture-handler";
 import React, { useState, useEffect } from "react";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
 import Purchases from "react-native-purchases";
 import { requestNotificationPermissions, scheduleNotifications } from "./src/services/notifications";
+import { reportClientError } from "./src/services/api";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
@@ -24,6 +27,7 @@ import LevelUpModal      from "./src/components/LevelUpModal";
 import PrestigeCinematic from "./src/components/PrestigeCinematic";
 import EarningSummary    from "./src/components/EarningSummary";
 import LoadingScreen     from "./src/components/LoadingScreen";
+import ErrorBoundary     from "./src/components/ErrorBoundary";
 
 const tokenCache = {
   async getToken(key) {
@@ -85,21 +89,40 @@ export default function App() {
     requestNotificationPermissions().then(granted => {
       if (granted) scheduleNotifications();
     });
+
+    // Catches JS exceptions that escape everywhere else — event handlers, async
+    // callbacks — which a React error boundary cannot see (it only catches
+    // errors thrown during rendering). Reports first, then always defers to the
+    // platform's own previous handler so React Native's normal crash/reload
+    // behavior is preserved, not silently swallowed.
+    const previousHandler = global.ErrorUtils?.getGlobalHandler?.();
+    global.ErrorUtils?.setGlobalHandler?.((error, isFatal) => {
+      reportClientError({
+        message:    error?.message ?? "Unknown error",
+        stack:      error?.stack,
+        platform:   Platform.OS,
+        screen:     isFatal ? "fatal_js_error" : "js_error",
+        appVersion: Constants.expoConfig?.version,
+      });
+      previousHandler?.(error, isFatal);
+    });
   }, []);
 
   if (!fontsLoaded && !fontError) return <LoadingScreen />;
 
   return (
-    <ClerkProvider publishableKey={CLERK_KEY} tokenCache={tokenCache}>
-      <StatusBar style="light" />
-      <ThemeProvider>
-        <UserProvider>
-          <TaskProvider>
-            <AppNavigator />
-            <Overlays />
-          </TaskProvider>
-        </UserProvider>
-      </ThemeProvider>
-    </ClerkProvider>
+    <ErrorBoundary>
+      <ClerkProvider publishableKey={CLERK_KEY} tokenCache={tokenCache}>
+        <StatusBar style="light" />
+        <ThemeProvider>
+          <UserProvider>
+            <TaskProvider>
+              <AppNavigator />
+              <Overlays />
+            </TaskProvider>
+          </UserProvider>
+        </ThemeProvider>
+      </ClerkProvider>
+    </ErrorBoundary>
   );
 }
