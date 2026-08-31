@@ -10,7 +10,7 @@ const {
 const { VALID_DURATIONS } = require("../lib/validation.js");
 const { CREDIT_BY_RARITY, rollRarity } = require("../LootData.js");
 const { evaluateAchievements } = require("../achievementService.js");
-const { track: trackEvent, captureException } = require("../analytics.js");
+const { track: trackEvent, captureException, identify: identifyUser } = require("../analytics.js");
 
 const router = express.Router();
 
