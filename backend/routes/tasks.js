@@ -5,6 +5,7 @@ const { mutationLimiter } = require("../lib/rateLimiters.js");
 const { pushUserPatch, presenceMap, broadcastPresence } = require("../lib/realtime.js");
 const {
   calculateStake, getNeuralMult, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
+  SESSION_CR_BY_DURATION,
 } = require("../lib/economy.js");
 const { VALID_DURATIONS } = require("../lib/validation.js");
 const { CREDIT_BY_RARITY, rollRarity } = require("../LootData.js");
