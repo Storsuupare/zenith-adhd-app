@@ -50,6 +50,7 @@ The economy is deliberately server-authoritative. XP, credits, loot rolls and st
 - **Webhooks**: Stripe webhooks are signature-verified with `constructEvent` before any payload is trusted.
 - **Headers**: Helmet on the API; HSTS, nosniff, frame-deny, Referrer-Policy and Permissions-Policy on the web front end.
 - **Analytics privacy**: events are emitted server-side and carry only numbers and short enums — duration, skill, rarity, tier. A guard rejects any property whose name suggests user-authored content, recurses into nested objects, and refuses strings over 64 characters on the assumption that free text is not an identifier. Task titles are the user's own words and never leave the server. Covered by tests.
+- **Error tracking**: routed through PostHog. Backend failures are captured server-side via `captureException`; mobile and web report client-side errors to `/api/client-error`, which validates and truncates the message/stack before forwarding — the client never talks to PostHog directly.
 
 ---
 
@@ -61,11 +62,11 @@ A completed session pays XP plus a fixed credit reward by duration (5 min → 25
 
 ### Neural Clock
 
-Rewards shift with time of day. A 12AM–5AM REDZONE halves rewards, an 8–11AM peak window pays ×1.25 XP, and a 10PM–midnight hyperfocus window pays ×1.5. This encodes a sleep-hygiene signal into the economy rather than treating time as decoration.
+Rewards shift with time of day. A 12AM–5AM REDZONE halves rewards, an 8–11AM peak window pays ×1.25 XP, and a 10PM–midnight hyperfocus window pays ×1.5. This encodes a sleep-hygiene signal into the economy rather than treating time as decoration. One exception: a prestiged skill is immune to REDZONE on its own XP specifically — the session's base reward still halves, but that skill's XP doesn't.
 
 ### Skill system
 
-12 independent skills — Resolve, Logic Flow, Creativity, Discipline, Vitality, Momentum, Nutrition, Logistics, Presence, Recovery, Learning, Environment — each with its own XP bar from level 1 to 99, following `100 × level^1.6`. PRO users can Prestige at 99: the skill resets to level 1 and gains a permanent +10% XP multiplier. Prestige stacks.
+12 independent skills — Resolve, Logic Flow, Creativity, Discipline, Vitality, Momentum, Nutrition, Logistics, Presence, Recovery, Learning, Environment — each with its own XP bar from level 1 to 99, following `100 × level^1.6`. Any user can Prestige at 99, on any tier: the skill resets to level 1, permanently immune to that skill's own REDZONE penalty from then on, plus a stacking +10% XP multiplier. Prestige stacks, and pays a flat one-time credit reward — deliberately not scaling with prestige level, since the perk is the point, not the currency.
 
 ### Streak system
 
@@ -97,15 +98,13 @@ The background renders a live sky that transitions through dawn, day, golden hou
 
 | Tier  | Price     | Task slots | History depth | Prestige | Streak shield    | CSV export |
 |-------|-----------|------------|---------------|----------|------------------|------------|
-| FREE  | —         | 5          | 7 days        | —        | —                | —          |
+| FREE  | —         | 5          | 7 days        | Yes      | —                | —          |
 | PRO   | €4.99/mo  | 15         | 6 months      | Yes      | One-time         | Yes        |
 | ELITE | €9.99/mo  | Unlimited  | All time      | Yes      | Auto-replenishes | Yes        |
 
-Paying buys capacity and depth. Loot drop odds and rarity weights are identical across every tier — a free account and an Elite account roll from the same table.
+Paying buys capacity and depth, never an outcome. Loot drop odds, rarity weights, cosmetics and Prestige are identical across every tier — a free account and an Elite account roll from the same table and hit the same ceiling. Prestige was PRO-gated at launch; it was reopened to every tier because gating a mastery reward behind a paywall put exactly the most engaged users — the ones who'd earned it — in front of a paywall at the worst possible moment to show them one.
 
-Achievements are open to every tier. All 26 are evaluated server-side against lifetime stats, unlock on the same thresholds regardless of plan, and pay the same loot rarity whether the account is FREE or ELITE. One is effectively out of reach on a free plan — "Second Ascent" requires prestiging a skill, and Prestige is PRO-gated — leaving 25 of 26 fully attainable without paying.
-
-One honest exception: Prestige is PRO-gated and grants a permanent, stacking +10% skill XP multiplier, so a paying user who has prestiged does earn XP faster. It sits behind level 99, so it affects very few accounts in practice — but it is a paid advantage, and calling it anything else would be dishonest. It is also the reason any future leaderboard needs to rank on sessions or minutes focused rather than raw XP.
+Achievements are open to every tier. All 26 are evaluated server-side against lifetime stats, unlock on the same thresholds regardless of plan, pay the same loot rarity, and are fully attainable on a free account — including "Second Ascent," which requires prestiging a skill.
 
 ---
 
@@ -116,8 +115,7 @@ Kept here deliberately — these are known, not overlooked.
 - **Single-instance assumptions.** Scheduled jobs run via `node-cron` inside the web process, SSE clients are held in an in-memory `Map`, and rate limiting uses an in-memory store. All three are correct for one instance and break on two: duplicate notifications, dropped live updates, and per-process rate limits. Fixing them means Redis for leader election, pub/sub and a shared limiter store.
 - **Test coverage is thin.** Jest covers the reward math (`calculateStake`, `getNeuralMult`, achievement evaluation). API routes have no integration tests.
 - **Schema migrations are ad-hoc.** Tables and columns are created via `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ... IF NOT EXISTS` at boot. Idempotent and simple, but there is no migration history and no rollback path.
-- **No error tracking yet.** Failures go to `console.error` and the platform log. Planned before public launch.
-- **Accessibility is incomplete.** No VoiceOver labelling, and the app does not yet respect the system Reduce Motion setting despite being animation-heavy.
+- **Accessibility is partial.** Reduce Motion is respected throughout (`useReducedMotion`, used across 9 components). VoiceOver labelling covers Dashboard, Session and Settings; Shop, Achievements, Archives and onboarding are not yet labelled.
 
 ---
 
