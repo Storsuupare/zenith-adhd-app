@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { FONTS } from "../constants/fonts";
+import { CREDITS_ICON } from "../constants/currency";
 
 // metric drives which stat is used for progress:
 //   sessions → sessions_today (count of completed sessions)
@@ -57,7 +58,7 @@ export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, sk
         <Text style={styles.eyebrow}>DAILY CHALLENGE</Text>
         {claimed
           ? <Text style={styles.doneBadge}>✓ CLAIMED</Text>
-          : <Text style={styles.reward}>+150 Credits</Text>
+          : <Text style={styles.reward} accessibilityLabel="150 Credits">{CREDITS_ICON} +150</Text>
         }
       </View>
 
@@ -83,7 +84,7 @@ export default function DailyChallenge({ sessionsToday = 0, minutesToday = 0, sk
           >
             {claiming
               ? <ActivityIndicator size="small" color="#030712" />
-              : <Text style={styles.claimTxt}>CLAIM +150 Credits</Text>
+              : <Text style={styles.claimTxt}>CLAIM {CREDITS_ICON} +150</Text>
             }
           </TouchableOpacity>
         )}
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
   },
   reward: {
     color:      "#fbbf24",
-    fontSize:   11,
+    fontSize:   15,
     fontFamily: FONTS.bold,
   },
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FONTS } from "../constants/fonts";
 import { getRankName } from "../utils/ranks";
+import { CREDITS_ICON } from "../constants/currency";
 
 export default function StatHUD({ user, accentColor = "#22d3ee" }) {
   if (!user) return null;
@@ -60,21 +61,21 @@ export default function StatHUD({ user, accentColor = "#22d3ee" }) {
 
       {/* ── Zone 3: Credits left · streak right ── */}
       <View style={styles.footer}>
-        <View style={styles.creditsGroup}>
-          <Text style={styles.creditsDiamond}>◈</Text>
+        <View style={styles.creditsGroup} accessible accessibilityLabel={`${credits.toLocaleString()} Credits`}>
+          <Text style={styles.creditsDiamond}>{CREDITS_ICON}</Text>
           <Text style={styles.creditsValue}>{credits.toLocaleString()}</Text>
-          <Text style={styles.creditsLabel}>Credits</Text>
         </View>
 
         {streak > 0 && (
-          <View style={styles.streakGroup}>
+          <View
+            style={styles.streakGroup}
+            accessible
+            accessibilityLabel={`${streak} day streak${streakInGrace ? ", on hold" : ""}${streakShield ? ", shield active" : ""}`}
+          >
             <Text style={styles.streakFlame}>{streakInGrace ? "⏳" : "🔥"}</Text>
             <Text style={[styles.streakCount, streakInGrace && { color: "#fb923c" }]}>{streak}</Text>
-            <Text style={styles.streakLabel}>day{streak !== 1 ? "s" : ""}</Text>
             {streakShield && (
-              <View style={styles.shieldBadge}>
-                <Text style={styles.shieldText}>SHIELD</Text>
-              </View>
+              <Text style={styles.shieldIcon}>▣</Text>
             )}
           </View>
         )}
@@ -162,12 +163,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight:    22,
   },
-  creditsLabel: {
-    color:         "rgba(255,255,255,0.4)",
-    fontSize:      11,
-    fontFamily:    FONTS.monoBold,
-    letterSpacing: 1.5,
-  },
 
   // ── Streak ──
   streakGroup: {
@@ -186,25 +181,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight:    22,
   },
-  streakLabel: {
-    color:         "rgba(255,255,255,0.4)",
-    fontSize:      11,
-    fontFamily:    FONTS.monoBold,
-    letterSpacing: 1,
-    marginLeft:    1,
-  },
-  shieldBadge: {
-    backgroundColor: "rgba(59,130,246,0.12)",
-    borderWidth:     1,
-    borderColor:     "rgba(59,130,246,0.3)",
-    borderRadius:    4,
-    paddingHorizontal: 5,
-    paddingVertical:   2,
-  },
-  shieldText: {
+  shieldIcon: {
     color:      "#3b82f6",
-    fontSize:   9,
-    fontFamily: FONTS.monoBold,
-    letterSpacing: 0.5,
+    fontSize:   13,
+    lineHeight: 20,
+    marginLeft: 1,
   },
 });

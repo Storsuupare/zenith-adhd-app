@@ -379,11 +379,11 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
         <Text style={styles.actionFootnote}>
-          Deleting your account permanently removes all progress, credits, and inventory.
+          Deleting your account permanently will remove all progress and credits!
         </Text>
 
         <View style={styles.versionBadge}>
-          <Text style={styles.versionText}>v1.0.0</Text>
+          <Text style={styles.versionText}>v1.1.0</Text>
         </View>
       </ScrollView>
 
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   },
   actionTextDestructive: { color: COLORS.red },
   actionFootnote: {
-    color:      "rgba(255,255,255,0.28)",
+    color:      COLORS.red,
     fontSize:   11,
     lineHeight: 16,
     textAlign:  "center",

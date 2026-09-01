@@ -11,6 +11,7 @@ import { fetchShopState, purchaseCosmetic, purchaseConsumable } from "../service
 import ScreenHeader from "../components/ScreenHeader";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
+import { CREDITS_ICON } from "../constants/currency";
 import onboardingRefs from "../utils/onboardingRefs";
 
 const CONSUMABLES = [
@@ -237,7 +238,9 @@ export default function ShopScreen() {
     <SafeAreaView style={styles.root}>
 
       <ScreenHeader title="Shop">
-        <Text style={styles.credits}>◈ {credits.toLocaleString()} Credits</Text>
+        <Text style={styles.credits} accessibilityLabel={`${credits.toLocaleString()} Credits`}>
+          {CREDITS_ICON} {credits.toLocaleString()}
+        </Text>
       </ScreenHeader>
 
       {/* Preview banner */}
@@ -314,13 +317,15 @@ export default function ShopScreen() {
                 onPress={() => handleBuyConsumable(item)}
                 disabled={!canAfford || !!isPurchasing}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={unavailable ? `${item.label}, streak already active` : `Buy ${item.label} for ${item.price} Credits`}
               >
                 <Text style={[
                   styles.consumableBtnTxt,
                   canAfford && { color: accentColor },
                   !canAfford && styles.consumableBtnTxtDisabled,
                 ]}>
-                  {isPurchasing ? "···" : unavailable ? "STREAK ACTIVE" : `${item.price} Credits`}
+                  {isPurchasing ? "···" : unavailable ? "STREAK ACTIVE" : `${CREDITS_ICON} ${item.price}`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -352,6 +357,12 @@ export default function ShopScreen() {
                   else handlePreview(item);
                 }}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  unlocked
+                    ? (active ? `${item.label} theme, currently active` : `Apply ${item.label} theme`)
+                    : `${item.label} theme, ${item.price} Credits${canBuy ? "" : ", not enough credits"}`
+                }
               >
                 {/* Color swatch */}
                 <View style={[styles.swatch, { backgroundColor: themeColor }]}>
@@ -369,7 +380,7 @@ export default function ShopScreen() {
                   <Text style={[styles.themePrice, { color: themeColor }]}>Preview</Text>
                 ) : !unlocked && item.price ? (
                   <Text style={[styles.themePrice, canBuy && { color: themeColor }]}>
-                    {isBuying ? "···" : canBuy ? `BUY · ${item.price} Credits` : `${item.price} Credits`}
+                    {isBuying ? "···" : canBuy ? `BUY · ${CREDITS_ICON} ${item.price}` : `${CREDITS_ICON} ${item.price}`}
                   </Text>
                 ) : unlocked && active ? (
                   <Text style={[styles.themePrice, { color: themeColor }]}>Active</Text>
@@ -448,13 +459,13 @@ const styles = StyleSheet.create({
   },
   shieldInfo:  { flex: 1, gap: 3 },
   shieldLabel: {
-    color:         "rgba(255,255,255,0.4)",
+    color:         "rgba(255,255,255,0.6)",
     fontSize:      12,
     fontFamily:    FONTS.bold,
     letterSpacing: 1,
   },
   shieldDesc: {
-    color:      "rgba(255,255,255,0.3)",
+    color:      "rgba(255,255,255,0.55)",
     fontSize:   11,
     fontFamily: FONTS.regular,
     lineHeight: 16,
@@ -487,7 +498,7 @@ const styles = StyleSheet.create({
   },
   consumableInfo:  { flex: 1 },
   consumableLabel: { color: "#f8fafc", fontSize: 13, fontFamily: FONTS.semiBold, marginBottom: 2 },
-  consumableDesc:  { color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: FONTS.regular, lineHeight: 16 },
+  consumableDesc:  { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: FONTS.regular, lineHeight: 16 },
   consumableBtn: {
     borderWidth:       1,
     borderColor:       "rgba(255,255,255,0.15)",
@@ -523,7 +534,7 @@ const styles = StyleSheet.create({
   },
   lockIcon:   { color: "#fff", fontSize: 9, fontFamily: FONTS.bold, letterSpacing: 1 },
   themeLabel: { color: "#f8fafc", fontSize: 11, fontFamily: FONTS.semiBold, marginTop: 7 },
-  themePrice: { color: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: FONTS.regular, marginTop: 2 },
+  themePrice: { color: "rgba(255,255,255,0.55)", fontSize: 10, fontFamily: FONTS.regular, marginTop: 2 },
   locked:     { opacity: 0.6 },
 
   // Upgrade

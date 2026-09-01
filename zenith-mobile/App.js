@@ -61,6 +61,7 @@ function Overlays() {
         skillName={prestigeData?.skillName}
         prestigeLevel={prestigeData?.prestigeLevel}
         creditReward={prestigeData?.creditReward}
+        redzoneImmunity={prestigeData?.redzoneImmunity}
         onDismiss={() => setPrestigeData(null)}
       />
 

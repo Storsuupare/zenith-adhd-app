@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { useUser } from "./UserContext";
 import { fetchTasks, createTask, completeTask, failTask } from "../services/api";
 import { beginSessionActivity, endSessionActivity } from "../services/liveActivity";
+import { CREDITS_ICON } from "../constants/currency";
 
 const TaskContext = createContext(null);
 
@@ -37,6 +38,13 @@ export function TaskProvider({ children }) {
     else setContracts([]);
   }, [user?.id]);
 
+  // Optimistic, local-only removal for a contract already confirmed complete —
+  // used to close the session-complete screen instantly instead of waiting on
+  // another network round trip that could stall or silently fail.
+  const removeContract = useCallback((taskId) => {
+    setContracts(prev => prev.filter(c => String(c.id) !== String(taskId)));
+  }, []);
+
   const addNotification = useCallback((notif) => {
     const id = Date.now();
     setNotifications(prev => [...prev, { ...notif, id }]);
@@ -61,12 +69,24 @@ export function TaskProvider({ children }) {
       const res = await completeTask(String(taskId));
       // Delay contract refresh so DoneOverlay has time to show the reward animation
       // before the modal closes due to the active contract disappearing.
+      // Caught rather than left to reject silently — this is the only thing that
+      // closes the session-complete modal, so a network hiccup here must never
+      // leave someone stuck looking at it with no way out (DoneOverlay's own
+      // "Continue" button covers the same case on demand, but this must not fail
+      // silently even if nobody notices they need to tap it).
       setTimeout(async () => {
-        const [freshContracts] = await Promise.all([loadContracts(), fetchUser()]);
-        if (freshContracts && freshContracts.length === 0) endSessionActivity();
+        try {
+          const [freshContracts] = await Promise.all([loadContracts(), fetchUser()]);
+          if (freshContracts && freshContracts.length === 0) endSessionActivity();
+        } catch (refreshError) {
+          console.error("[TaskContext] post-completion refresh failed:", refreshError.message);
+        }
       }, 4000);
 
-      const { reward, leveledUp, newLevel, drop, skillLeveledUp, skillHit99, newSkillLevel, milestone, streak_bonus } = res.data;
+      const {
+        reward, leveledUp, newLevel, drop, skillLeveledUp, skillHit99, newSkillLevel,
+        milestone, streak_bonus, skill_milestone_credits,
+      } = res.data;
       const newStreak = res.data.user?.streak ?? 0;
 
       // Trigger loot overlay if a drop was earned
@@ -108,6 +128,7 @@ export function TaskProvider({ children }) {
           level:     newSkillLevel,
           xpGain:    reward,
           tier:      user?.account_tier ?? 0,
+          skillMilestoneCredits: skill_milestone_credits || 0,
         });
       } else if (reward) {
         addNotification({ type: "success", message: `+${reward} XP earned` });
@@ -131,7 +152,7 @@ export function TaskProvider({ children }) {
 
       // Streak increment notification (only if no full milestone modal is showing)
       if (newStreak > oldStreak && !milestonePayload) {
-        addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  +${streak_bonus} Credits` : "") });
+        addNotification({ type: "success", message: `${newStreak}-day streak` + (streak_bonus ? `  ${CREDITS_ICON} +${streak_bonus} Credits` : "") });
       }
 
       if ((res.data.achievements_unlocked ?? []).length > 0) markAchievementsUnseen();
@@ -139,6 +160,11 @@ export function TaskProvider({ children }) {
       return res.data;
     } catch (err) {
       addNotification({ type: "error", message: "Could not collect reward" });
+      // Re-thrown so the caller (SessionScreen's handleCollect) knows the
+      // completion genuinely failed and doesn't fall back to a fake reward
+      // preview, then show the full celebration screen for a session the
+      // server never actually marked complete.
+      throw err;
     }
   }, [refreshToken, loadContracts, fetchUser, addNotification, markAchievementsUnseen, user?.streak, user?.account_tier]);
 
@@ -168,7 +194,7 @@ export function TaskProvider({ children }) {
 
   return (
     <TaskContext.Provider value={{
-      contracts, loadContracts,
+      contracts, loadContracts, removeContract,
       notifications, addNotification,
       loot, setLoot,
       levelUpData, setLevelUpData, dismissLevelUp,

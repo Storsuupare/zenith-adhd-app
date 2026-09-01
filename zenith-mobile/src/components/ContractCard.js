@@ -5,6 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
+import { CREDITS_ICON } from "../constants/currency";
 
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -114,7 +115,9 @@ function DoneCard({ contract, onComplete, skillColor }) {
               <Text style={[doneStyles.achievementName, { color: skillColor }]}>{achievement.title}</Text>
             </View>
             {achievement.credits > 0 && (
-              <Text style={doneStyles.achievementCredits}>+{achievement.credits} Credits</Text>
+              <Text style={doneStyles.achievementCredits} accessibilityLabel={`${achievement.credits} Credits`}>
+                {CREDITS_ICON} +{achievement.credits}
+              </Text>
             )}
           </View>
         ))}

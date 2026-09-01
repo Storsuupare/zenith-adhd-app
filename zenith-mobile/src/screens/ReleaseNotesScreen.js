@@ -12,6 +12,20 @@ const TAG_COLORS = {
 
 const CHANGELOG = [
   {
+    version: "1.1.0",
+    title:   "Prestige, Rebuilt",
+    entries: [
+      { tag: "NEW",    text: "Prestige is now available on every tier — resetting a maxed skill also unlocks permanent Red Zone immunity for it, no subscription required" },
+      { tag: "NEW",    text: "Share your Prestige moments straight from the celebration screen" },
+      { tag: "NEW",    text: "Last 7 Days — a quick strip on the Dashboard showing which days you completed a session" },
+      { tag: "FIX",    text: "Fixed session-complete UI pipeline to feel way smoother!" },
+      { tag: "FIX",    text: "Fixed streak counting being inaccurate for some timezones." },
+      { tag: "FIX",    text: "The Loot Drop UI has been improved for smoother visibility and accessibility." },
+      { tag: "CHANGE", text: "Refreshed overall rank names!" },
+      { tag: "CHANGE", text: "The skill Execution got renamed to Momentum." },
+    ],
+  },
+  {
     version: "1.0.0",
     title:   "Initial Release",
     entries: [

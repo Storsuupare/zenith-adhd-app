@@ -22,6 +22,7 @@ import { COLORS } from "../constants/colors";
 import { SKILL_ICONS } from "../constants/skills";
 import { FONTS } from "../constants/fonts";
 import { RADIUS } from "../constants/layout";
+import { CREDITS_ICON } from "../constants/currency";
 
 function getContextHint(user) {
   const hour             = new Date().getHours();
@@ -89,9 +90,11 @@ function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }
           <Text style={[skillCardStyles.levelText, { color: accentColor }]}>LVL {currentLevel}</Text>
         </View>
         {prestigeLevel > 0 && (
-          <Text style={skillCardStyles.prestigeStars} numberOfLines={1}>
-            {"★".repeat(Math.min(prestigeLevel, 5))}
-          </Text>
+          <View style={skillCardStyles.prestigeBadge}>
+            <Text style={skillCardStyles.prestigeBadgeText} numberOfLines={1}>
+              PRESTIGE {prestigeLevel}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -107,11 +110,11 @@ function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel={`Prestige ${skill.skill_name}`}
-          accessibilityHint="Resets this skill to level 1 for a permanent 10 percent XP bonus. Costs 3,500 credits."
+          accessibilityHint="Resets this skill to level 1, permanently unlocking REDZONE immunity and a stacking ten percent XP bonus for this skill."
         >
           <Text style={skillCardStyles.prestigeButtonLabel}>PRESTIGE SKILL</Text>
           <Text style={skillCardStyles.prestigeButtonDetail}>
-            RESET TO LVL 1 · +10% XP · 3,500 Credits
+            RESET TO LVL 1 · REDZONE IMMUNITY · +10% XP
           </Text>
         </TouchableOpacity>
       ) : (
@@ -144,7 +147,11 @@ const skillCardStyles = StyleSheet.create({
   levelRow:      { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6, overflow: "hidden" },
   levelBadge:    { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 0 },
   levelText:     { fontFamily: FONTS.bold, fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
-  prestigeStars: { color: "#fbbf24", fontSize: 11, lineHeight: 14, flexShrink: 0 },
+  // Persists next to the level badge at every prestige count, uncapped — the
+  // level number resets on Prestige, this doesn't, so the achievement never
+  // reads as erased.
+  prestigeBadge:     { backgroundColor: "rgba(251,191,36,0.12)", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 1 },
+  prestigeBadgeText: { color: "#fbbf24", fontSize: 9, fontFamily: FONTS.bold, fontWeight: "800", letterSpacing: 0.3 },
 
   skillName:  { fontFamily: FONTS.bold, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.9)", letterSpacing: -0.1, marginBottom: 4 },
   boostBadge: { fontSize: 10, fontWeight: "800", color: "#fbbf24" },
@@ -182,7 +189,7 @@ export default function DashboardScreen({ navigation }) {
   const handleDailyChallengeClaim = async () => {
     try {
       await claimDailyChallenge();
-      addNotification({ type: "success", message: "+150 Credits — challenge complete!" });
+      addNotification({ type: "success", message: `${CREDITS_ICON} +150 Credits — challenge complete!` });
       await fetchUser();
     } catch (err) {
       if (err.response?.status === 409) {
@@ -196,7 +203,7 @@ export default function DashboardScreen({ navigation }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert(
       "Prestige Skill",
-      `Reset ${skillName} to Level 1?\n\nYou earn a permanent +10% XP bonus to this skill. 3,500 Credits will be deducted.`,
+      `Reset ${skillName} to Level 1?\n\nYou'll unlock permanent REDZONE immunity for this skill, a stacking +10% XP bonus, and a Credits reward.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -211,8 +218,9 @@ export default function DashboardScreen({ navigation }) {
                 if (setPrestigeData) {
                   setPrestigeData({
                     skillName,
-                    prestigeLevel: res.data.prestige_level ?? 1,
-                    creditReward:  res.data.credits_earned ?? 0,
+                    prestigeLevel:   res.data.skill?.prestige_level ?? 1,
+                    creditReward:    res.data.drop?.credits_earned ?? 0,
+                    redzoneImmunity: Boolean(res.data.redzoneImmunity),
                   });
                 }
               }

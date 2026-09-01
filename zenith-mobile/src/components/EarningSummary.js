@@ -6,6 +6,7 @@ import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { SKILL_ICONS } from "../constants/skills";
 import { FONTS } from "../constants/fonts";
+import { CREDITS_ICON } from "../constants/currency";
 
 export default function EarningSummary({ data, onDismiss }) {
   const reduceMotion = useReducedMotion();
@@ -37,7 +38,7 @@ export default function EarningSummary({ data, onDismiss }) {
 
   const statRows = [
     data.duration   > 0           && { label: "Duration",   value: `${data.duration} min`,           valueColor: null },
-    data.creditsEarned > 0        && { label: "Credits",    value: `+${data.creditsEarned}`,      valueColor: COLORS.gold },
+    data.creditsEarned > 0        && { label: "Credits",    value: `${CREDITS_ICON} +${data.creditsEarned}`,      valueColor: COLORS.gold },
     data.streak     > 0           && { label: "Streak",     value: `${data.streak} days`,            valueColor: "#f97316" },
     data.perkActive && data.xpMultiplier > 1 && { label: "Multiplier", value: `${data.xpMultiplier}×`, valueColor: resolvedAccent },
   ].filter(Boolean);

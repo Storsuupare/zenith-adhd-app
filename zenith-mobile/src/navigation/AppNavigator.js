@@ -167,6 +167,7 @@ function RootStack() {
         <SolarBackdrop>
           {activeContract && (
             <SessionScreen
+              key={activeContract.id}
               contract={activeContract}
               onComplete={handleComplete}
               onAbort={handleAbort}

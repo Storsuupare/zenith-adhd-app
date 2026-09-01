@@ -2,11 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
 
-/**
- * Frosted glass card container.
- * Layers: [BlurView] + [dark tint] + [children] — all clipped to the card's borderRadiustyles.
- * The outer View must have overflow:"hidden" for border clipping to work on both platformstyles.
- */
+
 export default function GlassCard({
   style,
   children,

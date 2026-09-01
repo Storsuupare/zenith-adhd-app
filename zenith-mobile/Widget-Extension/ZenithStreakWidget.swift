@@ -70,14 +70,11 @@ struct StreakWidgetView: View {
                 .monospacedDigit()
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
-
-            Text("DAY STREAK")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.6))
-                .tracking(0.5)
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(entry.streak) day streak")
     }
 }
 

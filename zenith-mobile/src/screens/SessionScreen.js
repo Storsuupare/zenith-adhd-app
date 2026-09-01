@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, Animated, AppState, ActivityIndicator,
+  SafeAreaView, AppState, ActivityIndicator,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
+import { CREDITS_ICON } from "../constants/currency";
 import { useTheme } from "../context/ThemeContext";
+import { useTasks } from "../context/TaskContext";
 import { useReducedMotion } from "../hooks/useReducedMotion";
+import SparkBurst from "../components/SparkBurst";
 
 // ── Neural Clock window — mirrors server getNeuralMult() ─────────────────────
 function getNeuralWindow() {
@@ -46,40 +49,25 @@ function formatTime(totalSeconds) {
   return `${m}:${s}`;
 }
 
+// Single-tier celebration for a session that earned something extra — a
+// level-up, an achievement, a comeback bonus, or an active Neural Clock
+// multiplier. Not tiered like loot rarity since there's only one real
+// distinction here: routine session, or one that earned something more.
+const CELEBRATION = { sparkCount: 10, sparkDistance: 80, glowAlpha: "20", burstDuration: 750 };
+
 // ── Done state — mirrors ContractCard DoneCard but full-screen ────────────────
 function DoneOverlay({ contract, skillColor, onComplete }) {
+  const { loadContracts, removeContract } = useTasks();
   const reduceMotion = useReducedMotion();
   const [phase,        setPhase]        = useState("idle");
   const [displayXP,    setDisplayXP]    = useState(0);
   const [sessionCr,    setSessionCr]    = useState(0);
   const [comebackCr,   setComebackCr]   = useState(0);
   const [isPending,    setIsPending]    = useState(false);
+  const [isLeaving,    setIsLeaving]    = useState(false);
   const [neuralWindow, setNeuralWindow] = useState(() => getNeuralWindow());
   const [unlockedAchievements, setUnlockedAchievements] = useState([]);
-  const pulse             = useRef(new Animated.Value(0.3)).current;
-  const revealIntervalRef = useRef(null);
-
-  // Pulse the ??? while idle
-  useEffect(() => {
-    if (phase !== "idle") return;
-
-    // This one runs until the user taps to collect, so it's the longest-lived
-    // animation in the app. Under Reduce Motion it holds a steady opacity —
-    // still clearly visible, just not breathing at someone indefinitely.
-    if (reduceMotion) {
-      pulse.setValue(0.6);
-      return;
-    }
-
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.9, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.3, duration: 700, useNativeDriver: true }),
-      ])
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [phase, reduceMotion]);
+  const [isBigMoment,  setIsBigMoment]  = useState(false);
 
   const runReveal = (actualReward) => {
     setPhase("revealing");
@@ -104,10 +92,19 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
     setPhase("collecting");
     try {
       const result = await onComplete(contract.id);
-      const actualReward = result?.reward ?? result?.xp_earned ?? contract.stake_amount ?? 0;
+      const actualReward   = result?.reward ?? result?.xp_earned ?? contract.stake_amount ?? 0;
+      const achievements   = result?.achievements_unlocked ?? [];
+      const comebackReward = result?.comeback_bonus ?? 0;
       setSessionCr(result?.credits_earned ?? 0);
-      setComebackCr(result?.comeback_bonus ?? 0);
-      setUnlockedAchievements(result?.achievements_unlocked ?? []);
+      setComebackCr(comebackReward);
+      setUnlockedAchievements(achievements);
+      // "Something extra happened" — not just the baseline reward every
+      // session gets. Read straight off the server response (not the state
+      // setters above, which haven't applied yet within this same function).
+      setIsBigMoment(Boolean(
+        result?.leveledUp || result?.skillLeveledUp ||
+        comebackReward > 0 || achievements.length > 0 || neuralWindow.mult > 1
+      ));
       runReveal(actualReward);
     } catch (collectError) {
       console.error("[DoneOverlay] collect failed:", collectError?.message);
@@ -117,79 +114,121 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
     }
   };
 
+  // The task is already marked SUCCESS server-side by this point (onComplete
+  // already awaited it), so closing this screen doesn't need another network
+  // round trip to succeed — removeContract drops it from the list locally and
+  // instantly. loadContracts still runs after, but only to reconcile with the
+  // server in the background (e.g. other contracts that finished meanwhile);
+  // its outcome no longer gates whether this screen closes.
+  const handleContinue = () => {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    removeContract(contract.id);
+    loadContracts().catch(refreshError => {
+      console.error("[DoneOverlay] background refresh after continue failed:", refreshError?.message);
+    });
+  };
+
   return (
-    <View style={done.root}>
-      <View style={[done.strip, { backgroundColor: skillColor }]} />
-
-      <Text style={[done.skillLabel, { color: skillColor }]}>
-        {(contract.skill_name || "GENERAL").toUpperCase()}
-      </Text>
-      <Text style={done.title}>{(contract.title || "").toUpperCase()}</Text>
-
-      <View style={done.xpRow}>
-        {phase === "idle" || phase === "collecting" ? (
-          <Animated.Text style={[done.xpNum, { color: skillColor, opacity: pulse }]}>???</Animated.Text>
-        ) : (
-          <Text style={[done.xpNum, { color: skillColor }]}>+{displayXP}</Text>
+    <View style={done.overlay}>
+      <View style={[done.card, { borderColor: skillColor }]}>
+        {phase === "done" && isBigMoment && (
+          <View style={[done.glow, { backgroundColor: skillColor + CELEBRATION.glowAlpha }]} />
         )}
-        <Text style={done.xpLabel}>XP</Text>
-      </View>
+        {phase === "done" && isBigMoment && !reduceMotion && (
+          <SparkBurst color={skillColor} celebration={CELEBRATION} />
+        )}
 
-      {phase === "done" && sessionCr > 0 && (
-        <Text style={done.crEarned}>+{sessionCr} Credits</Text>
-      )}
+        <View style={[done.strip, { backgroundColor: skillColor }]} />
 
-      {phase === "done" && comebackCr > 0 && (
-        <Text style={done.comebackBonus}>+{comebackCr} Welcome back bonus</Text>
-      )}
+        <Text style={[done.skillLabel, { color: skillColor }]}>
+          {(contract.skill_name || "GENERAL").toUpperCase()}
+        </Text>
+        <Text style={done.title}>{(contract.title || "").toUpperCase()}</Text>
 
-      {phase === "done" && unlockedAchievements.map(achievement => (
-        <View key={achievement.key} style={done.achievementRow}>
-          <Text style={[done.achievementStar, { color: skillColor }]}>★</Text>
-          <View style={done.achievementBody}>
-            <Text style={done.achievementCaption}>ACHIEVEMENT UNLOCKED</Text>
-            <Text style={[done.achievementName, { color: skillColor }]}>{achievement.title}</Text>
+        {neuralWindow.isRedzone && (phase === "idle" || phase === "collecting") && (
+          <View style={done.redzoneNotice}>
+            <Text style={done.redzoneNoticeText}>REDZONE ACTIVE — REWARDS HALVED</Text>
           </View>
-          {achievement.credits > 0 && (
-            <Text style={done.achievementCredits}>+{achievement.credits} Credits</Text>
-          )}
-        </View>
-      ))}
+        )}
 
-      {neuralWindow.isRedzone && (phase === "idle" || phase === "collecting") && (
-        <View style={done.redzoneNotice}>
-          <Text style={done.redzoneNoticeText}>REDZONE ACTIVE — REWARDS HALVED</Text>
-        </View>
-      )}
+        {(phase === "revealing" || phase === "done") && (
+          <>
+            <View style={done.xpRow}>
+              <Text style={[done.xpNum, { color: skillColor }]}>+{displayXP}</Text>
+              <Text style={done.xpLabel}>XP</Text>
+            </View>
 
-      {phase === "done" && neuralWindow.label !== "STANDARD" && (
-        <View style={[done.neuralBadge, {
-          backgroundColor: neuralWindow.color + "18",
-          borderColor:     neuralWindow.color + "45",
-        }]}>
-          <Text style={[done.neuralBadgeText, { color: neuralWindow.color }]}>
-            {neuralWindow.label} ×{neuralWindow.mult} APPLIED
-          </Text>
-        </View>
-      )}
+            {phase === "done" && sessionCr > 0 && (
+              <Text style={done.crEarned} accessibilityLabel={`${sessionCr} Credits`}>{CREDITS_ICON} +{sessionCr}</Text>
+            )}
 
-      {phase === "idle" && (
-        <TouchableOpacity
-          style={[done.collectBtn, { backgroundColor: skillColor }]}
-          onPress={handleCollect}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Collect reward"
-        >
-          <Text style={done.collectText}>COLLECT REWARD →</Text>
-        </TouchableOpacity>
-      )}
+            {phase === "done" && comebackCr > 0 && (
+              <Text style={done.comebackBonus}>{CREDITS_ICON} +{comebackCr} Welcome back bonus</Text>
+            )}
 
-      {phase === "collecting" && (
-        <View style={[done.collectBtn, { backgroundColor: skillColor, opacity: 0.6 }]}>
-          <ActivityIndicator color="#000" />
-        </View>
-      )}
+            {phase === "done" && unlockedAchievements.map(achievement => (
+              <View key={achievement.key} style={done.achievementRow}>
+                <Text style={[done.achievementStar, { color: skillColor }]}>★</Text>
+                <View style={done.achievementBody}>
+                  <Text style={done.achievementCaption}>ACHIEVEMENT UNLOCKED</Text>
+                  <Text style={[done.achievementName, { color: skillColor }]}>{achievement.title}</Text>
+                </View>
+                {achievement.credits > 0 && (
+                  <Text style={done.achievementCredits} accessibilityLabel={`${achievement.credits} Credits`}>
+                    {CREDITS_ICON} +{achievement.credits}
+                  </Text>
+                )}
+              </View>
+            ))}
+
+            {phase === "done" && neuralWindow.label !== "STANDARD" && (
+              <View style={[done.neuralBadge, {
+                backgroundColor: neuralWindow.color + "18",
+                borderColor:     neuralWindow.color + "45",
+              }]}>
+                <Text style={[done.neuralBadgeText, { color: neuralWindow.color }]}>
+                  {neuralWindow.label} ×{neuralWindow.mult} APPLIED
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {phase === "idle" && (
+          <TouchableOpacity
+            style={[done.collectBtn, { backgroundColor: skillColor }]}
+            onPress={handleCollect}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Collect reward"
+          >
+            <Text style={done.collectText}>COLLECT REWARD →</Text>
+          </TouchableOpacity>
+        )}
+
+        {phase === "collecting" && (
+          <View style={[done.collectBtn, { backgroundColor: skillColor, opacity: 0.6 }]}>
+            <ActivityIndicator color="#000" />
+          </View>
+        )}
+
+        {phase === "done" && (
+          <TouchableOpacity
+            style={[done.continueBtn, { borderColor: skillColor }]}
+            onPress={handleContinue}
+            disabled={isLeaving}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Continue"
+          >
+            {isLeaving
+              ? <ActivityIndicator color={skillColor} />
+              : <Text style={[done.continueText, { color: skillColor }]}>CONTINUE →</Text>
+            }
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -417,7 +456,7 @@ const styles = StyleSheet.create({
   },
   skillName: {
     fontFamily:    FONTS.monoBold,
-    fontSize:      15,
+    fontSize:      16,
     fontWeight:    "900",
     letterSpacing: 3,
   },
@@ -439,11 +478,11 @@ const styles = StyleSheet.create({
   },
   missionTitle: {
     fontFamily:    FONTS.black,
-    fontSize:      26,
+    fontSize:      28,
     fontWeight:    "900",
     color:         "#ffffff",
     letterSpacing: -0.5,
-    lineHeight:    30,
+    lineHeight:    32,
     textAlign:     "center",
     paddingHorizontal: 8,
   },
@@ -582,12 +621,26 @@ const styles = StyleSheet.create({
 
 // ── Done overlay styles ───────────────────────────────────────────────────────
 const done = StyleSheet.create({
-  root: {
+  overlay: {
     flex:           1,
     alignItems:     "center",
     justifyContent: "center",
-    padding:        32,
-    gap:            16,
+    padding:        24,
+  },
+  card: {
+    width:           "100%",
+    maxWidth:        360,
+    backgroundColor: COLORS.surface,
+    borderWidth:     1,
+    borderRadius:    16,
+    padding:         32,
+    alignItems:      "center",
+    gap:             16,
+    overflow:        "hidden",
+  },
+  glow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
   },
   strip: {
     position:     "absolute",
@@ -726,5 +779,19 @@ const done = StyleSheet.create({
     fontWeight:    "900",
     letterSpacing: 1.5,
     color:         "#000",
+  },
+  continueBtn: {
+    width:             "100%",
+    paddingVertical:   16,
+    alignItems:        "center",
+    borderRadius:      4,
+    borderWidth:       1,
+    marginTop:         4,
+  },
+  continueText: {
+    fontFamily:    FONTS.black,
+    fontSize:      14,
+    fontWeight:    "900",
+    letterSpacing: 1.5,
   },
 });
