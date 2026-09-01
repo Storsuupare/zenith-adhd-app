@@ -17,6 +17,7 @@ export default function Nav() {
           ZENITH
         </Link>
         <div className="nav-right">
+          <a href="/#pricing" className="nav-link nav-link--always">Pricing</a>
           { isSignedIn ? (
             <>
               <Link to="/account" className="nav-link">My Account</Link>

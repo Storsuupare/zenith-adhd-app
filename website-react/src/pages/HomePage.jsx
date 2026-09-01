@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
@@ -6,9 +7,57 @@ import { useSEO } from '../hooks/useSEO.js'
 
 const FEATURES = [
   { icon: '▶', title: 'Session System',      desc: 'Every task is a timed contract. Complete it, earn XP and real loot drops.' },
-  { icon: '◎', title: 'Skill Mastery',       desc: '12 skills that level up as you work. Prestige when you reach the ceiling.' },
+  { icon: '◎', title: 'Skill Mastery',       desc: '12 skills that level up as you work. Prestige at the ceiling for permanent perks — open to every tier.' },
   { icon: '◈', title: 'Loot Drops',          desc: 'Finish a session and roll for a credit drop. Rare, Epic, Legendary — real randomness.' },
   { icon: '▲', title: 'Neural Clock',        desc: 'Time-based multipliers that reward your natural focus rhythm and punish late nights.' },
+]
+
+const TIERS = [
+  {
+    id:      'free',
+    name:    'FREE',
+    price:   '€0',
+    period:  '',
+    perks: [
+      'Unlimited focus sessions',
+      'All 12 skills, full progression to level 99',
+      'Prestige at level 99 — permanent perks, no paywall',
+      'Loot drops — identical odds to every other tier',
+      'Every cosmetic theme in the shop',
+      '5 active tasks at once · 7 days of history',
+    ],
+    cta:     'Start free',
+    variant: 'free',
+  },
+  {
+    id:      'pro',
+    name:    'PRO',
+    badge:   'MOST POPULAR',
+    price:   '€4.99',
+    period:  '/mo',
+    perks: [
+      'Everything in Free',
+      '15 active tasks at once · 6 months of history',
+      'Streak Shield, absorbs one missed day',
+      'CSV export',
+    ],
+    cta:     'Get PRO',
+    variant: 'pro',
+  },
+  {
+    id:      'elite',
+    name:    'ELITE',
+    price:   '€9.99',
+    period:  '/mo',
+    perks: [
+      'Everything in PRO',
+      'Unlimited active tasks',
+      'Full history, forever',
+      'Streak Shield auto-replenishes — no re-earning it',
+    ],
+    cta:     'Get ELITE',
+    variant: 'elite',
+  },
 ]
 
 const FAQ = [
@@ -18,7 +67,7 @@ const FAQ = [
   },
   {
     q: 'Is Zenith actually free?',
-    a: 'Yes. Free users get unlimited sessions, all 12 skills, loot drops, streaks, and the full progression system. PRO and ELITE unlock cosmetics and capacity — not outcomes. You can hit the ceiling on free.',
+    a: 'Yes. Free users get unlimited sessions, all 12 skills, loot drops, every cosmetic theme, and the full progression system, Prestige included. PRO and ELITE unlock capacity — more active tasks, longer history, CSV export, Streak Shield — not outcomes. You can hit the ceiling on free.',
   },
   {
     q: 'What happens if I miss a day?',
@@ -30,7 +79,7 @@ const FAQ = [
   },
   {
     q: 'Does paying give you an actual advantage?',
-    a: "No. Every user earns the same XP, loot rates, and skill progression regardless of tier. The only thing free users miss out on is access to Streak Shield in the shop — everything else, including all cosmetic themes, is available to everyone. Paying buys protection, not an edge.",
+    a: "No. Every account earns identical XP, loot rates, and skill progression — including Prestige at level 99, which is open to every tier. PRO and ELITE add Streak Shield and more capacity (task slots, history, CSV export). Paying buys room to grow, never an outcome you couldn't reach for free.",
   },
 ]
 
@@ -150,6 +199,47 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Pricing ── */}
+      <section className="section pricing-section" id="pricing">
+        <div className="section-inner">
+          <span className="eyebrow" data-reveal>◈ PRICING</span>
+          <h2 className="section-headline" data-reveal data-delay="1">Free works. Paying buys room to grow.</h2>
+          <p className="section-sub" data-reveal data-delay="2">
+            Every tier earns the same XP and rolls loot at the same odds. Paying buys capacity and depth — not an outcome you couldn't reach for free.
+          </p>
+          <div className="pricing-grid">
+            {TIERS.map((tier, i) => (
+              <div
+                key={tier.id}
+                className={
+                  'pricing-card'
+                  + (tier.variant === 'pro'   ? ' pricing-card--pro'   : '')
+                  + (tier.variant === 'elite' ? ' pricing-card--elite' : '')
+                }
+                data-reveal
+                data-delay={i + 1}
+              >
+                {tier.badge && <span className="pricing-badge">{tier.badge}</span>}
+                <span className="pricing-tier">{tier.name}</span>
+                <div className="pricing-price">
+                  {tier.price}
+                  {tier.period && <span className="pricing-period">{tier.period}</span>}
+                </div>
+                <ul className="pricing-perks">
+                  {tier.perks.map(perk => <li key={perk}>{perk}</li>)}
+                </ul>
+                <Link to="/signup" className={`pricing-btn pricing-btn--${tier.variant}`}>
+                  {tier.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+          <p className="pricing-trust">
+            No tier has a paid advantage. XP, loot odds, cosmetics and Prestige are identical everywhere — paying buys capacity, not an edge.
+          </p>
         </div>
       </section>
 

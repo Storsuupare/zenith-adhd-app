@@ -19,7 +19,7 @@ export default function PrivacyPage() {
         <div className="legal-section">
           <span className="legal-eyebrow">◈ Legal</span>
           <h1 className="legal-title">Privacy Policy</h1>
-          <span className="legal-updated">Effective August 2026</span>
+          <span className="legal-updated">Effective September 2026</span>
           <div className="legal-body">
 
             <h2>What we collect</h2>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
               <li><strong>Railway.</strong> We host the backend and database on Railway. Your data stays on EU-compliant servers.</li>
               <li><strong>Vercel.</strong> The frontend is served through Vercel.</li>
               <li><strong>RevenueCat.</strong> Processes subscription purchases and receipts. Receives your account ID and purchase history, never your payment card details — those stay with Apple.</li>
-              <li><strong>PostHog.</strong> Product analytics, hosted in the EU. Receives your account ID together with events like session length, skill, and subscription tier. Task names and other text you write are never sent.</li>
+              <li><strong>PostHog.</strong> Product analytics, hosted in the EU. Receives your account ID together with events like session length, skill, and subscription tier — task names and other text you write are never sent as analytics events. PostHog is also used for error tracking: when something goes wrong, the error message and a code-level stack trace are sent, which are technical by nature and not filtered the way analytics events are.</li>
             </ul>
             <p>Each provider operates under their own privacy policy and processes data only on our instructions.</p>
 
