@@ -3,16 +3,49 @@ const pool = require("../lib/db.js");
 const { requireAuth } = require("../lib/auth.js");
 const { bonusLimiter } = require("../lib/rateLimiters.js");
 const { sseClients, sseTokens, presenceMap, broadcastPresence, pushUserPatch } = require("../lib/realtime.js");
+const { getTodayChallenge } = require("../lib/dailyChallenge.js");
 
 const router = express.Router();
 
 // ── Daily challenge reward ─────────────────────────────────────────────────────
-// Awards 150 CR once per calendar day (UTC). Challenge completion is tracked
-// client-side (localStorage), so we can't verify it — but the once-per-day
-// gate makes this economically insignificant even if someone calls it directly.
+// Awards 150 CR once per calendar day (UTC). Re-derives which challenge is
+// active today and checks the matching stat — computed from real completed
+// tasks, same as /user/:externalId — before paying out, so this can't be
+// claimed by calling the endpoint directly without meeting the requirement.
 router.post("/api/daily-challenge/claim", requireAuth, bonusLimiter, async (req, res) => {
   const clerkId = req.auth.userId;
   try {
+    const challenge = getTodayChallenge();
+
+    const statsRes = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM tasks
+          WHERE user_id::text = users.id::text
+            AND status = 'SUCCESS'
+            AND completed_at::date = CURRENT_DATE) AS sessions_today,
+         (SELECT COALESCE(SUM(duration_minutes), 0) FROM tasks
+          WHERE user_id::text = users.id::text
+            AND status = 'SUCCESS'
+            AND completed_at::date = CURRENT_DATE) AS minutes_today,
+         (SELECT COUNT(DISTINCT skill_id) FROM tasks
+          WHERE user_id::text = users.id::text
+            AND status = 'SUCCESS'
+            AND completed_at::date = CURRENT_DATE) AS skills_today
+       FROM users WHERE external_id = $1`,
+      [clerkId],
+    );
+    if (statsRes.rows.length === 0) {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+
+    const progress = challenge.metric === "minutes" ? parseInt(statsRes.rows[0].minutes_today, 10)
+                    : challenge.metric === "skills"  ? parseInt(statsRes.rows[0].skills_today, 10)
+                    : parseInt(statsRes.rows[0].sessions_today, 10);
+
+    if (progress < challenge.target) {
+      return res.status(403).json({ error: "CHALLENGE_NOT_COMPLETE", message: "Today's challenge isn't complete yet." });
+    }
+
     const result = await pool.query(
       `UPDATE users
           SET system_credits             = system_credits + 150,

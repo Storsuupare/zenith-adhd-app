@@ -96,6 +96,19 @@ pool.query(`
 pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS halfway_ping_sent BOOLEAN DEFAULT false`).catch(() => {});
 
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reengagement_push_sent BOOLEAN DEFAULT false`).catch(() => {});
+
+// Tracks which per-skill level milestones (10/20/.../90) a user has already
+// claimed. Once per skill per account, not reset by Prestige — see the note
+// on SKILL_LEVEL_MILESTONES in lib/economy.js.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS skill_level_milestones (
+    user_id  INTEGER NOT NULL,
+    skill_id INTEGER NOT NULL,
+    level    INTEGER NOT NULL,
+    claimed_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, skill_id, level)
+  )
+`).catch(() => {});
 }
 
 module.exports = { runMigrations };

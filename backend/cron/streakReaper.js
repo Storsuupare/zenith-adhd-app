@@ -6,11 +6,18 @@ const { sendExpoPushToUser } = require("../lib/push.js");
 function registerStreakReaper() {
 cron.schedule("0 * * * *", async () => {
   try {
+    // A "missed day" is defined by the user's own local calendar date, not a
+    // rolling 24-hour window — matching the streak-increment logic in
+    // routes/tasks.js exactly. A gap of 2+ local calendar days between
+    // streak_last_updated and now means at least one full day passed with no
+    // completion (day N -> day N+1 is still "today" for them; day N+2 means
+    // day N+1 came and went with nothing logged).
     const expired = await pool.query(
       `SELECT id, external_id, username, streak, streak_shield, streak_in_grace
        FROM users
        WHERE streak > 0
-         AND streak_last_updated < NOW() - INTERVAL '24 hours'`,
+         AND DATE(NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))
+           - DATE(streak_last_updated AT TIME ZONE COALESCE(timezone, 'UTC')) >= 2`,
     );
     if (!expired.rows.length) return;
 
@@ -62,9 +69,10 @@ cron.schedule("0 * * * *", async () => {
             body:  `Your ${u.streak}-day streak was protected. Complete a session today to keep it.`,
           });
         } else if (!u.streak_in_grace) {
-          // First miss — entering grace. Encouraging, not alarming.
+          // First miss — entering grace. Encouraging, not alarming — the title
+          // should say the streak is safe, not name the internal mechanism.
           await sendExpoPushToUser(u.id, {
-            title: "One day grace",
+            title: "Streak on hold",
             body:  `Your ${u.streak}-day streak is on hold. Complete one session today to keep it.`,
           });
         } else {

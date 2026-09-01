@@ -4,8 +4,8 @@ const { requireAuth } = require("../lib/auth.js");
 const { mutationLimiter } = require("../lib/rateLimiters.js");
 const { pushUserPatch, presenceMap, broadcastPresence } = require("../lib/realtime.js");
 const {
-  calculateStake, getNeuralMult, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
-  SESSION_CR_BY_DURATION,
+  calculateStake, getNeuralMult, applyPrestigeImmunity, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
+  SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones, SESSION_CR_BY_DURATION,
 } = require("../lib/economy.js");
 const { VALID_DURATIONS } = require("../lib/validation.js");
 const { CREDIT_BY_RARITY, rollRarity } = require("../LootData.js");
@@ -269,10 +269,11 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
     let totalXpGained   = stakeXp;
     const sessionCr     = SESSION_CR_BY_DURATION[durationMins] ?? 0;
 
-    let completedSkillName = null;
-    let skillLeveledUp     = false;
-    let skillHit99         = false;
-    let returnedSkillLevel = null;
+    let completedSkillName         = null;
+    let skillLeveledUp             = false;
+    let skillHit99                 = false;
+    let returnedSkillLevel         = null;
+    let skillMilestoneCreditsEarned = 0;
     if (task.skillId) {
       const skillRow = await completeClient.query(
         `SELECT user_skills.id, user_skills.xp, user_skills.level, user_skills.next_level_xp, user_skills.prestige_level,
@@ -293,7 +294,8 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
         const boostActive  = skillData.prestige_boost_until && new Date(skillData.prestige_boost_until) > new Date();
         const boostMult    = boostActive ? 2.0 : 1.0;
         const neuralMult   = getNeuralMult();
-        const finalSkillXp = Math.round(baseSkillXp * prestigeMult * boostMult * neuralMult);
+        const effectiveNeuralMult = applyPrestigeImmunity(neuralMult, parseInt(skillData.prestige_level || 0));
+        const finalSkillXp = Math.round(baseSkillXp * prestigeMult * boostMult * effectiveNeuralMult);
         totalXpGained += finalSkillXp;
         let skillXp    = parseInt(skillData.xp) + finalSkillXp;
         let newSkillLevel = skillLevel;
@@ -306,6 +308,38 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
           `UPDATE user_skills SET xp = $1, level = $2, next_level_xp = $3 WHERE id = $4`,
           [skillXp, newSkillLevel, nextSkillLevelXpRequired, skillData.id],
         );
+
+        // Per-skill level milestones (10/20/.../90) — a big XP gain can cross
+        // more than one in a single session, so each crossed threshold is
+        // claimed independently. Same SAVEPOINT isolation as the streak
+        // milestone block below: a failure here must never cost the session
+        // its already-earned XP, credits, or loot.
+        const crossedLevels = crossedSkillLevelMilestones(skillLevel, newSkillLevel);
+        if (crossedLevels.length > 0) {
+          await completeClient.query("SAVEPOINT skill_milestone_processing");
+          try {
+            for (const crossedLevel of crossedLevels) {
+              const skillMilestoneInsert = await completeClient.query(
+                `INSERT INTO skill_level_milestones (user_id, skill_id, level)
+                 VALUES ($1::integer, $2, $3) ON CONFLICT DO NOTHING`,
+                [parseInt(task.userId, 10), skillData.id, crossedLevel],
+              );
+              if (skillMilestoneInsert.rowCount === 1) {
+                const reward = SKILL_LEVEL_MILESTONES[crossedLevel];
+                await completeClient.query(
+                  `UPDATE users SET system_credits = system_credits + $1 WHERE id::text = $2`,
+                  [reward, String(task.userId)],
+                );
+                skillMilestoneCreditsEarned += reward;
+              }
+            }
+            await completeClient.query("RELEASE SAVEPOINT skill_milestone_processing");
+          } catch (skillMilestoneError) {
+            console.error("[SKILL_MILESTONE] Processing failed:", skillMilestoneError.message);
+            await completeClient.query("ROLLBACK TO SAVEPOINT skill_milestone_processing");
+            await completeClient.query("RELEASE SAVEPOINT skill_milestone_processing");
+          }
+        }
       }
     }
 
@@ -323,7 +357,8 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
            system_credits = system_credits + $5,
            streak = CASE
              WHEN streak_last_updated IS NULL
-               OR DATE(streak_last_updated AT TIME ZONE 'UTC') < DATE(NOW() AT TIME ZONE 'UTC')
+               OR DATE(streak_last_updated AT TIME ZONE COALESCE(timezone, 'UTC'))
+                < DATE(NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))
              THEN streak + 1
              ELSE streak
            END,
@@ -541,6 +576,7 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
       streak_bonus:     streakBonus,
       comeback_bonus:   comebackBonus,
       milestone:        milestoneClaimed,
+      skill_milestone_credits: skillMilestoneCreditsEarned,
     });
   } catch (err) {
     await completeClient.query("ROLLBACK");

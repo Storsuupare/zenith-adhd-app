@@ -94,14 +94,14 @@ router.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) =
   try {
     await client.query("BEGIN");
 
+    // Open to every tier — Prestige is a mastery reward (level 99 in a skill),
+    // not a paid perk. Gating it behind PRO put a paywall in front of exactly
+    // the most engaged users at their proudest moment, which cuts against the
+    // "paying buys capacity, never an outcome" principle everywhere else.
     const prestigeUserRes = await client.query(
-      "SELECT id, COALESCE(account_tier, 0) AS account_tier FROM users WHERE external_id = $1 FOR UPDATE",
+      "SELECT id FROM users WHERE external_id = $1 FOR UPDATE",
       [externalId],
     );
-    if (prestigeUserRes.rows.length > 0 && prestigeUserRes.rows[0].account_tier < 1) {
-      await client.query("ROLLBACK");
-      return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Prestige requires PRO." });
-    }
     if (prestigeUserRes.rows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "USER_NOT_FOUND" });
@@ -128,9 +128,11 @@ router.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) =
       return res.status(400).json({ error: "REQUIREMENTS_NOT_MET" });
     }
 
-    // Credits scale with prestige level — each prestige pays more than the last
+    // Flat, not scaling with prestige level — credits are a nice-to-have here,
+    // not the point. The real reward is the perk: REDZONE immunity unlocks on
+    // the first Prestige and lasts forever after, on that skill specifically.
     const newPrestigeLevel = skillRes.rows[0].prestige_level;
-    const prestigeReward   = CREDIT_BY_RARITY["Mythic"] * newPrestigeLevel;
+    const prestigeReward   = CREDIT_BY_RARITY["Mythic"];
     const creditRes = await client.query(
       `UPDATE users
        SET system_credits = COALESCE(system_credits, 0) + $1
@@ -144,11 +146,12 @@ router.post("/skills/prestige", requireAuth, mutationLimiter, async (req, res) =
     await pushUserPatch(externalId).catch(() => {});
 
     res.json({
-      success:        true,
-      message:        "PRESTIGE_COMPLETE",
-      skill:          skillRes.rows[0],
-      system_credits: creditRes.rows[0]?.system_credits,
-      drop:           { rarity: "Mythic", credits_earned: prestigeReward },
+      success:          true,
+      message:          "PRESTIGE_COMPLETE",
+      skill:            skillRes.rows[0],
+      system_credits:   creditRes.rows[0]?.system_credits,
+      drop:             { rarity: "Mythic", credits_earned: prestigeReward },
+      redzoneImmunity:  newPrestigeLevel === 1,
     });
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
