@@ -38,7 +38,7 @@ export default function TermsPage() {
             <hr className="legal-divider" />
 
             <h2>Subscriptions and billing</h2>
-            <p>Zenith has two paid plans: PRO at €4.99/month and ELITE at €9.99/month, sold as auto-renewing subscriptions through the Apple App Store. Refunds are handled by Apple, not Zenith — see our <Link to="/refund">Refund Policy</Link>.</p>
+            <p>Zenith has two paid plans, PRO and ELITE, both billed monthly at the price shown on the App Store for your region — pricing varies by country and currency. Both are sold as auto-renewing subscriptions through the Apple App Store. Refunds are handled by Apple, not Zenith — see our <Link to="/refund">Refund Policy</Link>.</p>
 
             <hr className="legal-divider" />
 

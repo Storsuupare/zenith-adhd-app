@@ -22,7 +22,7 @@ export default function TermsScreen({ navigation }) {
         </Section>
 
         <Section title="Subscriptions and billing">
-          <Text style={styles.body}>Zenith has two paid plans: PRO at €4.99/month and ELITE at €9.99/month. All plans are billed monthly.</Text>
+          <Text style={styles.body}>Zenith has two paid plans, PRO and ELITE, both billed monthly at the price shown on the App Store for your region — pricing varies by country and currency.</Text>
           <Bullet text="Plans renew automatically each month." />
           <Bullet text="Cancel any time. You keep access until the end of the billing period." />
           <Bullet text="Refunds are handled by Apple, not Zenith — see our Refund Policy in Settings." />
