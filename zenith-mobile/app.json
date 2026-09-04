@@ -47,7 +47,14 @@
       ],
       "expo-font",
       "expo-sharing",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#090c13"
+        }
+      ]
     ],
     "extra": {
       "eas": {
