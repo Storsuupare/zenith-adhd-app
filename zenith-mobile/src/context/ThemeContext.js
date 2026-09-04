@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@clerk/clerk-expo";
 
 export const THEME_DATA = {
   default:  { accent: "#22d3ee", skyCore: "#03060b" },  // electric cyan
@@ -19,19 +20,28 @@ export const THEME_DATA = {
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
+  const { userId } = useAuth();
   const [activeTheme, setActiveThemeState] = useState("default");
 
-  // Load saved preferences on mount
+  // Keyed per Clerk user, not a single global key — ThemeProvider sits above
+  // sign-in/sign-out in the tree and never unmounts, so a bare "zenith_theme"
+  // key would leak whatever account was last signed in on this device into
+  // the next one, including a purchased theme nobody on the new account paid
+  // for. Reset to default immediately on every user change (never trust the
+  // previous account's in-memory value even for an instant), then load this
+  // specific user's own saved choice, if any.
   useEffect(() => {
-    AsyncStorage.getItem("zenith_theme").then(theme => {
+    setActiveThemeState("default");
+    if (!userId) return;
+    AsyncStorage.getItem(`zenith_theme_${userId}`).then(theme => {
       if (theme && THEME_DATA[theme]) setActiveThemeState(theme);
     });
-  }, []);
+  }, [userId]);
 
   const setActiveTheme = useCallback(async (id) => {
     setActiveThemeState(id);
-    await AsyncStorage.setItem("zenith_theme", id);
-  }, []);
+    if (userId) await AsyncStorage.setItem(`zenith_theme_${userId}`, id);
+  }, [userId]);
 
   // Preview-only: updates visuals without persisting to storage.
   // Force-closing during a preview reverts to the saved theme on next launch.
