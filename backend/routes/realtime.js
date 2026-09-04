@@ -21,15 +21,15 @@ router.post("/api/daily-challenge/claim", requireAuth, bonusLimiter, async (req,
       `SELECT
          (SELECT COUNT(*) FROM tasks
           WHERE user_id::text = users.id::text
-            AND status = 'SUCCESS'
+            AND status = 'SUCCESS' AND credited_minutes > 0
             AND completed_at::date = CURRENT_DATE) AS sessions_today,
-         (SELECT COALESCE(SUM(duration_minutes), 0) FROM tasks
+         (SELECT COALESCE(SUM(credited_minutes), 0) FROM tasks
           WHERE user_id::text = users.id::text
             AND status = 'SUCCESS'
             AND completed_at::date = CURRENT_DATE) AS minutes_today,
          (SELECT COUNT(DISTINCT skill_id) FROM tasks
           WHERE user_id::text = users.id::text
-            AND status = 'SUCCESS'
+            AND status = 'SUCCESS' AND credited_minutes > 0
             AND completed_at::date = CURRENT_DATE) AS skills_today
        FROM users WHERE external_id = $1`,
       [clerkId],

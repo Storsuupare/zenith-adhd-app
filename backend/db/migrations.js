@@ -95,6 +95,16 @@ pool.query(`
 
 pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS halfway_ping_sent BOOLEAN DEFAULT false`).catch(() => {});
 
+// credited_minutes: how many of a completed task's minutes actually earned
+// reward, after deduplicating overlap with the user's other completed tasks'
+// windows (see computeCreditableMinutes in lib/economy.js). Backfilling
+// existing history as fully creditable — there's no way to retroactively
+// determine real overlap for old data, and clawing back XP/credits/
+// achievements people already legitimately have would be unfair. Only
+// completions from here forward get the real deduplicated computation.
+pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS credited_minutes INTEGER`).catch(() => {});
+pool.query(`UPDATE tasks SET credited_minutes = duration_minutes WHERE status = 'SUCCESS' AND credited_minutes IS NULL`).catch(() => {});
+
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reengagement_push_sent BOOLEAN DEFAULT false`).catch(() => {});
 
 // Tracks which per-skill level milestones (10/20/.../90) a user has already
@@ -107,6 +117,20 @@ pool.query(`
     level    INTEGER NOT NULL,
     claimed_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, skill_id, level)
+  )
+`).catch(() => {});
+
+// Saved task presets (PRO+ feature) — lets a user re-use a task name/skill/
+// duration combo instead of retyping it each session. Count-per-user is
+// enforced in the route, not here; this table just stores them.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS task_templates (
+    id               SERIAL PRIMARY KEY,
+    user_id          INTEGER NOT NULL,
+    task_name        TEXT NOT NULL,
+    skill_id         INTEGER,
+    duration_minutes INTEGER NOT NULL,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
   )
 `).catch(() => {});
 }

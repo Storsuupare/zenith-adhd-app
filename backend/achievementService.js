@@ -12,11 +12,11 @@ const HYPERFOCUS_HOURS = [22, 23];
 async function buildAchievementStats(userId, client) {
   const statsResult = await client.query(
     `SELECT
-       (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS')                                      AS sessions_completed,
-       (SELECT COALESCE(SUM(duration_minutes),0) FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS')                                      AS focus_minutes,
-       (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS'
+       (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS' AND credited_minutes > 0)             AS sessions_completed,
+       (SELECT COALESCE(SUM(credited_minutes),0) FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS')                                      AS focus_minutes,
+       (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS' AND credited_minutes > 0
                                                               AND EXTRACT(HOUR FROM completed_at) = ANY($2::int[]))                                     AS peak_sessions,
-       (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS'
+       (SELECT COUNT(*)                          FROM tasks WHERE user_id::text = $1::text AND status = 'SUCCESS' AND credited_minutes > 0
                                                               AND EXTRACT(HOUR FROM completed_at) = ANY($3::int[]))                                     AS hyperfocus_sessions,
        (SELECT COALESCE(MAX(level),0)            FROM user_skills WHERE user_id = $1::int)                                                              AS highest_skill_level,
        (SELECT COUNT(*)                          FROM user_skills WHERE user_id = $1::int AND level > 10)                                               AS skills_above_ten,

@@ -85,7 +85,7 @@ export function TaskProvider({ children }) {
 
       const {
         reward, leveledUp, newLevel, drop, skillLeveledUp, skillHit99, newSkillLevel,
-        milestone, streak_bonus, skill_milestone_credits,
+        milestone, streak_bonus, skill_milestone_credits, overlap_minutes,
       } = res.data;
       const newStreak = res.data.user?.streak ?? 0;
 
@@ -156,6 +156,13 @@ export function TaskProvider({ children }) {
       }
 
       if ((res.data.achievements_unlocked ?? []).length > 0) markAchievementsUnseen();
+
+      // Reward was reduced or zeroed because this task's window overlapped
+      // another completed one — surfaced so a genuine overlap doesn't look
+      // like a shortfall with no explanation.
+      if (overlap_minutes > 0) {
+        addNotification({ type: "info", message: "Partial credit — overlapped another session" });
+      }
 
       return res.data;
     } catch (err) {

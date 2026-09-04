@@ -144,15 +144,15 @@ router.get("/user/:externalId", requireAuth, async (req, res) => {
               COALESCE(account_tier, 0)  AS account_tier,
               (SELECT COUNT(*) FROM tasks
                WHERE user_id::text = users.id::text
-                 AND status = 'SUCCESS'
+                 AND status = 'SUCCESS' AND credited_minutes > 0
                  AND completed_at::date = CURRENT_DATE) AS sessions_today,
-              (SELECT COALESCE(SUM(duration_minutes), 0) FROM tasks
+              (SELECT COALESCE(SUM(credited_minutes), 0) FROM tasks
                WHERE user_id::text = users.id::text
                  AND status = 'SUCCESS'
                  AND completed_at::date = CURRENT_DATE) AS minutes_today,
               (SELECT COUNT(DISTINCT skill_id) FROM tasks
                WHERE user_id::text = users.id::text
-                 AND status = 'SUCCESS'
+                 AND status = 'SUCCESS' AND credited_minutes > 0
                  AND completed_at::date = CURRENT_DATE) AS skills_today,
               CASE
                 WHEN streak_last_updated IS NULL THEN 0

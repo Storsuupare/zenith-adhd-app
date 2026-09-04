@@ -40,6 +40,11 @@ function isEligibleForReengagementPush(daysSinceLastSession) {
 const TIER_MAX_TASKS = { 0: 5, 1: 15, 2: Infinity };
 const LOOT_DROP_CHANCE = 0.25; // Flat 1-in-4 chance for all tiers
 
+// Saved task templates — comfort/capacity, same category as task slots and
+// history depth. FREE gets none; this is the one thing that's still tier-gated
+// on purpose (unlike Prestige), since it never touches XP, loot, or progression.
+const TIER_MAX_TEMPLATES = { 0: 0, 1: 5, 2: Infinity };
+
 
 // Server-side cosmetic prices for purchase validation.
 // null = tier-only (subscription required, not purchaseable with credits).
@@ -138,11 +143,46 @@ function crossedSkillLevelMilestones(oldLevel, newLevel) {
     .filter(threshold => threshold > oldLevel && threshold <= newLevel);
 }
 
+// A user can have several tasks active at once (task slots), but a human can
+// only actually focus on one at a time — without this, completing N tasks
+// whose windows overlap the same real minutes pays out N× the reward for
+// that time. Clips each other already-completed task's window to this task's
+// own window, merges the overlapping clipped ranges (a task can be double-
+// covered by more than one earlier completion), and returns how many of this
+// task's own minutes weren't already claimed by something else.
+// otherCompletedWindows: [{ start: Date, end: Date }] for this user's other
+// SUCCESS tasks whose window overlaps taskStart..taskEnd — the caller filters
+// to overlapping rows so this function doesn't need to touch the database.
+function computeCreditableMinutes(taskStart, taskEnd, otherCompletedWindows) {
+  const ownStartMs = taskStart.getTime();
+  const ownEndMs   = taskEnd.getTime();
+
+  const clipped = otherCompletedWindows
+    .map(({ start, end }) => [
+      Math.max(start.getTime(), ownStartMs),
+      Math.min(end.getTime(),   ownEndMs),
+    ])
+    .filter(([start, end]) => end > start)
+    .sort((a, b) => a[0] - b[0]);
+
+  let coveredMs  = 0;
+  let mergedEnd  = -Infinity;
+  for (const [start, end] of clipped) {
+    const effectiveStart = Math.max(start, mergedEnd);
+    if (end > effectiveStart) coveredMs += end - effectiveStart;
+    mergedEnd = Math.max(mergedEnd, end);
+  }
+
+  const creditableMs = Math.max(0, (ownEndMs - ownStartMs) - coveredMs);
+  return Math.floor(creditableMs / 60000);
+}
+
 module.exports = {
   STAKE_BY_DURATION, SESSION_CR_BY_DURATION, calculateStake, getNeuralMult, applyPrestigeImmunity,
   REENGAGEMENT_THRESHOLD_DAYS, isEligibleForReengagementPush,
-  TIER_MAX_TASKS, LOOT_DROP_CHANCE, COSMETICS_PRICES, CONSUMABLE_PRICES, STREAK_MILESTONES,
+  TIER_MAX_TASKS, TIER_MAX_TEMPLATES, LOOT_DROP_CHANCE, COSMETICS_PRICES, CONSUMABLE_PRICES, STREAK_MILESTONES,
   calculateNeuralCost, getEffectiveAccountTier,
   DAILY_BONUS_CREDITS, BONUS_WINDOW_MS,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones,
+  computeCreditableMinutes,
 };

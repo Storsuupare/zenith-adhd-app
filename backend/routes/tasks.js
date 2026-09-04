@@ -5,7 +5,7 @@ const { mutationLimiter } = require("../lib/rateLimiters.js");
 const { pushUserPatch, presenceMap, broadcastPresence } = require("../lib/realtime.js");
 const {
   calculateStake, getNeuralMult, applyPrestigeImmunity, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
-  SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones, SESSION_CR_BY_DURATION,
+  SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones, SESSION_CR_BY_DURATION, computeCreditableMinutes,
 } = require("../lib/economy.js");
 const { VALID_DURATIONS } = require("../lib/validation.js");
 const { CREDIT_BY_RARITY, rollRarity } = require("../LootData.js");
@@ -222,6 +222,7 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
               tasks.user_id          AS "userId",
               tasks.status,
               tasks.skill_id         AS "skillId",
+              tasks.created_at       AS "createdAt",
               tasks.deadline,
               (NOW() >= tasks.deadline)       AS "deadlinePassed",
               EXTRACT(EPOCH FROM (tasks.deadline - NOW()))::int AS "secondsRemaining"
@@ -265,9 +266,29 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
 
     const streakCount  = parseInt(streak || 0);
 
-    const stakeXp       = Math.floor(parseInt(task.stakeAmount || 0) * 1.5);
+    // A user can have several tasks active at once (task slots), but can only
+    // actually focus on one at a time — without this, stacking short tasks
+    // into the same real window pays out N× the reward for that time. Only
+    // the portion of this task's window not already claimed by one of the
+    // user's other completed tasks earns anything.
+    const overlappingRes = await completeClient.query(
+      `SELECT created_at AS "start", deadline AS "end"
+       FROM tasks
+       WHERE user_id::text = $1 AND status = 'SUCCESS' AND id::text != $2
+         AND created_at < $3 AND deadline > $4`,
+      [String(task.userId), String(id), task.deadline, task.createdAt],
+    );
+    const creditableMinutes = computeCreditableMinutes(
+      new Date(task.createdAt),
+      new Date(task.deadline),
+      overlappingRes.rows.map(row => ({ start: new Date(row.start), end: new Date(row.end) })),
+    );
+    const overlapMinutes = durationMins - creditableMinutes;
+    const creditRatio    = durationMins > 0 ? creditableMinutes / durationMins : 0;
+
+    const stakeXp       = Math.floor(Math.floor(parseInt(task.stakeAmount || 0) * 1.5) * creditRatio);
     let totalXpGained   = stakeXp;
-    const sessionCr     = SESSION_CR_BY_DURATION[durationMins] ?? 0;
+    const sessionCr     = Math.floor((SESSION_CR_BY_DURATION[durationMins] ?? 0) * creditRatio);
 
     let completedSkillName         = null;
     let skillLeveledUp             = false;
@@ -288,7 +309,7 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
         completedSkillName = skillData.skill_name;
         const skillLevel       = parseInt(skillData.level);
         const levelMult  = 1 + (skillLevel * 0.05);
-        const baseSkillXp  = Math.floor(durationMins * 50 * levelMult);
+        const baseSkillXp  = Math.floor(creditableMinutes * 50 * levelMult);
         const prestigeMult = 1 + (parseInt(skillData.prestige_level || 0) * 0.10);
         // 24h post-prestige boost: doubles skill XP for the first day of the new grind
         const boostActive  = skillData.prestige_boost_until && new Date(skillData.prestige_boost_until) > new Date();
@@ -462,9 +483,11 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
     }
 
     // Loot drop: guaranteed Epic on first ever session, normal RNG after that.
+    // Skipped entirely at zero credit (fully overlapped by another session) —
+    // a stacked completion shouldn't also buy an extra loot roll.
     const dropChance = LOOT_DROP_CHANCE;
     let drop = null;
-    if (!first_task_completed || Math.random() < dropChance) {
+    if (creditableMinutes > 0 && (!first_task_completed || Math.random() < dropChance)) {
       const rarity      = !first_task_completed ? "Epic" : rollRarity(Math.random() * 100);
       const dropCredits = CREDIT_BY_RARITY[rarity] ?? 50;
       await completeClient.query(
@@ -472,19 +495,17 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
         [dropCredits, task.userId],
       );
       drop = { rarity, credits_earned: dropCredits };
-    } else {
+    } else if (!first_task_completed) {
       // Still mark first task done even if no drop rolled after the first
-      if (!first_task_completed) {
-        await completeClient.query(
-          `UPDATE users SET first_task_completed = true WHERE id = $1`,
-          [task.userId],
-        );
-      }
+      await completeClient.query(
+        `UPDATE users SET first_task_completed = true WHERE id = $1`,
+        [task.userId],
+      );
     }
 
     await completeClient.query(
-      `UPDATE tasks SET status = 'SUCCESS', completed_at = NOW() WHERE id::text = $1`,
-      [String(id)],
+      `UPDATE tasks SET status = 'SUCCESS', completed_at = NOW(), credited_minutes = $2 WHERE id::text = $1`,
+      [String(id), creditableMinutes],
     );
 
     await completeClient.query(
@@ -492,7 +513,7 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
        VALUES ($1::integer, CURRENT_DATE, $2)
        ON CONFLICT (user_id, date)
        DO UPDATE SET focus_minutes = daily_stats.focus_minutes + EXCLUDED.focus_minutes`,
-      [task.userId, parseInt(task.durationMinutes) || 0],
+      [task.userId, creditableMinutes],
     );
 
     // Evaluated after the task is marked SUCCESS, because the thresholds count
@@ -527,6 +548,8 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
 
     trackEvent(externalId, "session_completed", {
       duration_minutes: parseInt(task.durationMinutes) || 0,
+      credited_minutes: creditableMinutes,
+      overlap_minutes:  overlapMinutes,
       skill:            completedSkillName,
       xp_earned:        totalXpGained,
       credits_earned:   sessionCr,
@@ -576,6 +599,8 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
       streak_bonus:     streakBonus,
       comeback_bonus:   comebackBonus,
       milestone:        milestoneClaimed,
+      credited_minutes: creditableMinutes,
+      overlap_minutes:  overlapMinutes,
       skill_milestone_credits: skillMilestoneCreditsEarned,
     });
   } catch (err) {
