@@ -7,40 +7,40 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		11FDFABF281049E587AD890C /* ZenithWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809D4D83C2A3459CBC57F8FB /* ZenithWidgetsBundle.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		15D3D1801269E23AAE1B5F5E /* libPods-ZenithWidgets.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E0272E73F3DA4707340C3921 /* libPods-ZenithWidgets.a */; };
-		32E6E33DE69F4196A6F31E3C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7CB69A464A5948FFA4BF3CA6 /* Assets.xcassets */; };
-		36D8E01EFD95283BE94FE4A2 /* libPods-Zenith.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 34C62BB04F500937119D7407 /* libPods-Zenith.a */; };
-		38D26F30AA051AEF1F12E7D8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C76A421C09882C6AA70A99A /* ExpoModulesProvider.swift */; };
+		2623BDBB84F945648F52009D /* ZenithSessionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F3D798CE594C59812D3C16 /* ZenithSessionLiveActivity.swift */; };
+		2ABB521653A7C17C91C9AF65 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 27FDEA13B61C720A782349FF /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		4DEBAC6DB9EE4730B46817BA /* ZenithSessionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C3DFF4AAC146E58D057FDD /* ZenithSessionLiveActivity.swift */; };
-		64B142C2323A46CEAB32AF6B /* Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 760A24C3775E4A55B6647F4F /* Attributes.swift */; };
-		AA5F94BA0548402D83620101 /* ZenithWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 11DF14AB05F54D4699B1C43D /* ZenithWidgets.appex */; };
+		48B6237DCF0D348E652FC41F /* libPods-Zenith.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 116AAA8552E91EAF23E0EC96 /* libPods-Zenith.a */; };
+		79C286BC88EA4517ABE4FAC9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 67E67D8DA8624D6A98B8A5A1 /* Assets.xcassets */; };
+		9A0C9691C9164E45A1BCC8A6 /* Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA0618FBDEA4DD79B9C4336 /* Attributes.swift */; };
+		B7ADDF09900F8D70B82C9527 /* libPods-ZenithWidgets.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6A86905D87883845FC6EAE33 /* libPods-ZenithWidgets.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C0A7B147BF0DB65AE0E91E4D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D1D3D8AF447DD4F97D9C914D /* PrivacyInfo.xcprivacy */; };
-		D3F52FE1D014410F9454267D /* ZenithStreakWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B924107FC9B3450786CC4A37 /* ZenithStreakWidget.swift */; };
+		BB79BAF1C46B4A70AC97D958 /* ZenithWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246569819F104238BFEDA4B1 /* ZenithWidgetsBundle.swift */; };
+		C4F71933FBAC4B289AB3EDE3 /* ZenithWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CF55ACC5B694438FAA616113 /* ZenithWidgets.appex */; };
+		D1B67C8B7C3C023EC428D06D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21DD69D5A26FC7C38C6810C /* ExpoModulesProvider.swift */; };
+		DBC34E4F23474AA490B3F842 /* ZenithStreakWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C80A7A99214416A6477A5D /* ZenithStreakWidget.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		E9FE6BB59CC4499B87C7192A /* PBXContainerItemProxy */ = {
+		B184C91E90564331BF50BF6E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 1A229627541A4C4C84CC702B;
+			remoteGlobalIDString = 519C1E3EFC6349DEB090B56F;
 			remoteInfo = ZenithWidgets;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		EB71406A5B9747F1A499EAF5 /* Embed Foundation Extensions */ = {
+		7661B8AB9DA84A3BA851F025 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				AA5F94BA0548402D83620101 /* ZenithWidgets.appex in Embed Foundation Extensions */,
+				C4F71933FBAC4B289AB3EDE3 /* ZenithWidgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -48,29 +48,29 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		00191D1AB636689F815B4607 /* Pods-Zenith.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Zenith.debug.xcconfig"; path = "Target Support Files/Pods-Zenith/Pods-Zenith.debug.xcconfig"; sourceTree = "<group>"; };
-		11DF14AB05F54D4699B1C43D /* ZenithWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = undefined; name = ZenithWidgets.appex; path = ZenithWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0CD8E67D558049EEB31287BD /* SwiftUI.framework */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		0E18C963D5AB1F6CD100F894 /* Pods-Zenith.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Zenith.release.xcconfig"; path = "Target Support Files/Pods-Zenith/Pods-Zenith.release.xcconfig"; sourceTree = "<group>"; };
+		116AAA8552E91EAF23E0EC96 /* libPods-Zenith.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Zenith.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* Zenith.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Zenith.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Zenith/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Zenith/Info.plist; sourceTree = "<group>"; };
-		34C62BB04F500937119D7407 /* libPods-Zenith.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Zenith.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5C56E873E19146B194B4ED4F /* SwiftUI.framework */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		5C76A421C09882C6AA70A99A /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Zenith/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		6ACEDF9B4D67274BE9A42BFD /* Pods-ZenithWidgets.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ZenithWidgets.debug.xcconfig"; path = "Target Support Files/Pods-ZenithWidgets/Pods-ZenithWidgets.debug.xcconfig"; sourceTree = "<group>"; };
-		760A24C3775E4A55B6647F4F /* Attributes.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = Attributes.swift; path = Attributes.swift; sourceTree = "<group>"; };
-		7CB69A464A5948FFA4BF3CA6 /* Assets.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = "<group>"; };
-		809D4D83C2A3459CBC57F8FB /* ZenithWidgetsBundle.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithWidgetsBundle.swift; path = ZenithWidgetsBundle.swift; sourceTree = "<group>"; };
-		849A1ED044644CDB808E498D /* ZenithWidgets.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = ZenithWidgets.entitlements; path = ZenithWidgets.entitlements; sourceTree = "<group>"; };
-		A2D335382D5FBEB6ADE2DE20 /* Pods-Zenith.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Zenith.release.xcconfig"; path = "Target Support Files/Pods-Zenith/Pods-Zenith.release.xcconfig"; sourceTree = "<group>"; };
-		A3389784F2574880AD35D958 /* WidgetKit.framework */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		246569819F104238BFEDA4B1 /* ZenithWidgetsBundle.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithWidgetsBundle.swift; path = ZenithWidgetsBundle.swift; sourceTree = "<group>"; };
+		24C80A7A99214416A6477A5D /* ZenithStreakWidget.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithStreakWidget.swift; path = ZenithStreakWidget.swift; sourceTree = "<group>"; };
+		27FDEA13B61C720A782349FF /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Zenith/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		31B5F5A067D9E1F9DFA9D661 /* Pods-ZenithWidgets.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ZenithWidgets.debug.xcconfig"; path = "Target Support Files/Pods-ZenithWidgets/Pods-ZenithWidgets.debug.xcconfig"; sourceTree = "<group>"; };
+		458BC22725EB476E951472F7 /* Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = Info.plist; path = Info.plist; sourceTree = "<group>"; };
+		5B64D51E41C94ACA896EB313 /* WidgetKit.framework */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		60F97510D0D74F2B89C28DF8 /* ZenithWidgets.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = ZenithWidgets.entitlements; path = ZenithWidgets.entitlements; sourceTree = "<group>"; };
+		67E67D8DA8624D6A98B8A5A1 /* Assets.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = "<group>"; };
+		69138FE319F9B4F331253258 /* Pods-Zenith.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Zenith.debug.xcconfig"; path = "Target Support Files/Pods-Zenith/Pods-Zenith.debug.xcconfig"; sourceTree = "<group>"; };
+		6A86905D87883845FC6EAE33 /* libPods-ZenithWidgets.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ZenithWidgets.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A80BEAD2B0F12A4799EDC5E /* Pods-ZenithWidgets.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ZenithWidgets.release.xcconfig"; path = "Target Support Files/Pods-ZenithWidgets/Pods-ZenithWidgets.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Zenith/SplashScreen.storyboard; sourceTree = "<group>"; };
-		B924107FC9B3450786CC4A37 /* ZenithStreakWidget.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithStreakWidget.swift; path = ZenithStreakWidget.swift; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		BD18E847E24756EE56E4FC75 /* Pods-ZenithWidgets.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ZenithWidgets.release.xcconfig"; path = "Target Support Files/Pods-ZenithWidgets/Pods-ZenithWidgets.release.xcconfig"; sourceTree = "<group>"; };
-		C3C2B3AFD15546E6871CB0EC /* Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = Info.plist; path = Info.plist; sourceTree = "<group>"; };
-		D1D3D8AF447DD4F97D9C914D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Zenith/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		E0272E73F3DA4707340C3921 /* libPods-ZenithWidgets.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ZenithWidgets.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E1C3DFF4AAC146E58D057FDD /* ZenithSessionLiveActivity.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithSessionLiveActivity.swift; path = ZenithSessionLiveActivity.swift; sourceTree = "<group>"; };
+		C21DD69D5A26FC7C38C6810C /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Zenith/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		CF55ACC5B694438FAA616113 /* ZenithWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = undefined; name = ZenithWidgets.appex; path = ZenithWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DBA0618FBDEA4DD79B9C4336 /* Attributes.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = Attributes.swift; path = Attributes.swift; sourceTree = "<group>"; };
+		E6F3D798CE594C59812D3C16 /* ZenithSessionLiveActivity.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithSessionLiveActivity.swift; path = ZenithSessionLiveActivity.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Zenith/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Zenith-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Zenith-Bridging-Header.h"; path = "Zenith/Zenith-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -81,21 +81,29 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				36D8E01EFD95283BE94FE4A2 /* libPods-Zenith.a in Frameworks */,
+				48B6237DCF0D348E652FC41F /* libPods-Zenith.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		4B9397C99690496CBB118289 /* Frameworks */ = {
+		985FC2BFF1CA450A87062BA9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				15D3D1801269E23AAE1B5F5E /* libPods-ZenithWidgets.a in Frameworks */,
+				B7ADDF09900F8D70B82C9527 /* libPods-ZenithWidgets.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		045791102E454563E1A4ED69 /* Zenith */ = {
+			isa = PBXGroup;
+			children = (
+				C21DD69D5A26FC7C38C6810C /* ExpoModulesProvider.swift */,
+			);
+			name = Zenith;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* Zenith */ = {
 			isa = PBXGroup;
 			children = (
@@ -105,29 +113,56 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				D1D3D8AF447DD4F97D9C914D /* PrivacyInfo.xcprivacy */,
+				27FDEA13B61C720A782349FF /* PrivacyInfo.xcprivacy */,
 			);
 			name = Zenith;
+			sourceTree = "<group>";
+		};
+		26876D3F485C514532849C43 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				045791102E454563E1A4ED69 /* Zenith */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				A3389784F2574880AD35D958 /* WidgetKit.framework */,
-				5C56E873E19146B194B4ED4F /* SwiftUI.framework */,
-				34C62BB04F500937119D7407 /* libPods-Zenith.a */,
-				E0272E73F3DA4707340C3921 /* libPods-ZenithWidgets.a */,
+				5B64D51E41C94ACA896EB313 /* WidgetKit.framework */,
+				0CD8E67D558049EEB31287BD /* SwiftUI.framework */,
+				116AAA8552E91EAF23E0EC96 /* libPods-Zenith.a */,
+				6A86905D87883845FC6EAE33 /* libPods-ZenithWidgets.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		30A019EF7E6EFD60025121B0 /* Zenith */ = {
+		4ADC1B4411DB0A1458BBE323 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				5C76A421C09882C6AA70A99A /* ExpoModulesProvider.swift */,
+				69138FE319F9B4F331253258 /* Pods-Zenith.debug.xcconfig */,
+				0E18C963D5AB1F6CD100F894 /* Pods-Zenith.release.xcconfig */,
+				31B5F5A067D9E1F9DFA9D661 /* Pods-ZenithWidgets.debug.xcconfig */,
+				8A80BEAD2B0F12A4799EDC5E /* Pods-ZenithWidgets.release.xcconfig */,
 			);
-			name = Zenith;
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		7962F774754A47EBBB907FB8 /* ZenithWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				DBA0618FBDEA4DD79B9C4336 /* Attributes.swift */,
+				E6F3D798CE594C59812D3C16 /* ZenithSessionLiveActivity.swift */,
+				24C80A7A99214416A6477A5D /* ZenithStreakWidget.swift */,
+				246569819F104238BFEDA4B1 /* ZenithWidgetsBundle.swift */,
+				458BC22725EB476E951472F7 /* Info.plist */,
+				67E67D8DA8624D6A98B8A5A1 /* Assets.xcassets */,
+				60F97510D0D74F2B89C28DF8 /* ZenithWidgets.entitlements */,
+			);
+			name = ZenithWidgets;
+			path = ZenithWidgets;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -144,9 +179,9 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				AC27AE78AE6B458794B96CC7 /* ZenithWidgets */,
-				9A48E340C35A4043C93CDF0F /* Pods */,
-				C0C08FB34AE79F3359612DCB /* ExpoModulesProviders */,
+				7962F774754A47EBBB907FB8 /* ZenithWidgets */,
+				4ADC1B4411DB0A1458BBE323 /* Pods */,
+				26876D3F485C514532849C43 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -157,36 +192,9 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* Zenith.app */,
-				11DF14AB05F54D4699B1C43D /* ZenithWidgets.appex */,
+				CF55ACC5B694438FAA616113 /* ZenithWidgets.appex */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		9A48E340C35A4043C93CDF0F /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				00191D1AB636689F815B4607 /* Pods-Zenith.debug.xcconfig */,
-				A2D335382D5FBEB6ADE2DE20 /* Pods-Zenith.release.xcconfig */,
-				6ACEDF9B4D67274BE9A42BFD /* Pods-ZenithWidgets.debug.xcconfig */,
-				BD18E847E24756EE56E4FC75 /* Pods-ZenithWidgets.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		AC27AE78AE6B458794B96CC7 /* ZenithWidgets */ = {
-			isa = PBXGroup;
-			children = (
-				760A24C3775E4A55B6647F4F /* Attributes.swift */,
-				E1C3DFF4AAC146E58D057FDD /* ZenithSessionLiveActivity.swift */,
-				B924107FC9B3450786CC4A37 /* ZenithStreakWidget.swift */,
-				809D4D83C2A3459CBC57F8FB /* ZenithWidgetsBundle.swift */,
-				C3C2B3AFD15546E6871CB0EC /* Info.plist */,
-				7CB69A464A5948FFA4BF3CA6 /* Assets.xcassets */,
-				849A1ED044644CDB808E498D /* ZenithWidgets.entitlements */,
-			);
-			name = ZenithWidgets;
-			path = ZenithWidgets;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -198,14 +206,6 @@
 			path = Zenith/Supporting;
 			sourceTree = "<group>";
 		};
-		C0C08FB34AE79F3359612DCB /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				30A019EF7E6EFD60025121B0 /* Zenith */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -214,33 +214,33 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Zenith" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				A445D539BC646796DCEB548D /* [Expo] Configure project */,
+				DF8E8ABFA11A063C0DDF3199 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				EB71406A5B9747F1A499EAF5 /* Embed Foundation Extensions */,
-				423BA082DA3AC4DFE59A6ECC /* [CP] Embed Pods Frameworks */,
+				7661B8AB9DA84A3BA851F025 /* Embed Foundation Extensions */,
+				DE54B5F4A718AA8212098881 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				01247F634D2D4D518E843ABD /* PBXTargetDependency */,
+				6CB7AA1E7FBB4C41B31948BC /* PBXTargetDependency */,
 			);
 			name = Zenith;
 			productName = Zenith;
 			productReference = 13B07F961A680F5B00A75B9A /* Zenith.app */;
 			productType = "com.apple.product-type.application";
 		};
-		1A229627541A4C4C84CC702B /* ZenithWidgets */ = {
+		519C1E3EFC6349DEB090B56F /* ZenithWidgets */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 88129B38FB2A44A1AD5ABED4 /* Build configuration list for PBXNativeTarget "ZenithWidgets" */;
+			buildConfigurationList = 3154CB2005BA44939171C4CC /* Build configuration list for PBXNativeTarget "ZenithWidgets" */;
 			buildPhases = (
-				D4E4148B6A8FEE99D96BBA5D /* [CP] Check Pods Manifest.lock */,
-				29FE5B1CFA8D4E6EB1734544 /* Sources */,
-				4B9397C99690496CBB118289 /* Frameworks */,
-				34BDC8343DF7478B808CB546 /* Resources */,
+				0AA392C9785013987A5E6589 /* [CP] Check Pods Manifest.lock */,
+				CD84BB46CB4B4CF99A347A38 /* Sources */,
+				985FC2BFF1CA450A87062BA9 /* Frameworks */,
+				0090AA29C98A4540BF846809 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -248,7 +248,7 @@
 			);
 			name = ZenithWidgets;
 			productName = ZenithWidgets;
-			productReference = 11DF14AB05F54D4699B1C43D /* ZenithWidgets.appex */;
+			productReference = CF55ACC5B694438FAA616113 /* ZenithWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -261,13 +261,9 @@
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
-						DevelopmentTeam = "5Y6EKGA7K8";
-						ProvisioningStyle = Automatic;
 					};
-					1A229627541A4C4C84CC702B = {
+					519C1E3EFC6349DEB090B56F = {
 						LastSwiftMigration = 1250;
-						DevelopmentTeam = "5Y6EKGA7K8";
-						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -285,12 +281,20 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* Zenith */,
-				1A229627541A4C4C84CC702B /* ZenithWidgets */,
+				519C1E3EFC6349DEB090B56F /* ZenithWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0090AA29C98A4540BF846809 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				79C286BC88EA4517ABE4FAC9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		13B07F8E1A680F5B00A75B9A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -298,15 +302,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				C0A7B147BF0DB65AE0E91E4D /* PrivacyInfo.xcprivacy in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		34BDC8343DF7478B808CB546 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				32E6E33DE69F4196A6F31E3C /* Assets.xcassets in Resources */,
+				2ABB521653A7C17C91C9AF65 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -352,26 +348,26 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		423BA082DA3AC4DFE59A6ECC /* [CP] Embed Pods Frameworks */ = {
+		0AA392C9785013987A5E6589 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Zenith/Pods-Zenith-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			inputFileListPaths = (
 			);
-			name = "[CP] Embed Pods Frameworks";
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+				"$(DERIVED_FILE_DIR)/Pods-ZenithWidgets-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Zenith/Pods-Zenith-frameworks.sh\"\n";
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
@@ -384,33 +380,69 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXApplication/ExpoApplication_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/EXNotifications/ExpoNotifications_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoNotifications/ExpoNotifications_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/PurchasesHybridCommon/PurchasesHybridCommon.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/React-timing/React-timing_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RevenueCat/RevenueCat.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/react-native-view-shot/RNViewShotPrivacyInfo.bundle",
 			);
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoApplication_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoNotifications_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoNotifications_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PurchasesHybridCommon.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-timing_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RevenueCat.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNViewShotPrivacyInfo.bundle",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Zenith/Pods-Zenith-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		A445D539BC646796DCEB548D /* [Expo] Configure project */ = {
+		DE54B5F4A718AA8212098881 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Zenith/Pods-Zenith-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem.framework/ExpoFileSystem",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoFont/ExpoFont.framework/ExpoFont",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoModulesCore/ExpoModulesCore.framework/ExpoModulesCore",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoModulesJSI/ExpoModulesJSI.framework/ExpoModulesJSI",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoModulesWorklets/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermesvm.framework/hermesvm",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoFileSystem.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoFont.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoModulesCore.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoModulesJSI.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoModulesWorklets.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermesvm.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Zenith/Pods-Zenith-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		DF8E8ABFA11A063C0DDF3199 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -434,28 +466,6 @@
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Zenith/expo-configure-project.sh\"\n";
 		};
-		D4E4148B6A8FEE99D96BBA5D /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-ZenithWidgets-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -464,35 +474,35 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				38D26F30AA051AEF1F12E7D8 /* ExpoModulesProvider.swift in Sources */,
+				D1B67C8B7C3C023EC428D06D /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		29FE5B1CFA8D4E6EB1734544 /* Sources */ = {
+		CD84BB46CB4B4CF99A347A38 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				64B142C2323A46CEAB32AF6B /* Attributes.swift in Sources */,
-				4DEBAC6DB9EE4730B46817BA /* ZenithSessionLiveActivity.swift in Sources */,
-				D3F52FE1D014410F9454267D /* ZenithStreakWidget.swift in Sources */,
-				11FDFABF281049E587AD890C /* ZenithWidgetsBundle.swift in Sources */,
+				9A0C9691C9164E45A1BCC8A6 /* Attributes.swift in Sources */,
+				2623BDBB84F945648F52009D /* ZenithSessionLiveActivity.swift in Sources */,
+				DBC34E4F23474AA490B3F842 /* ZenithStreakWidget.swift in Sources */,
+				BB79BAF1C46B4A70AC97D958 /* ZenithWidgetsBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		01247F634D2D4D518E843ABD /* PBXTargetDependency */ = {
+		6CB7AA1E7FBB4C41B31948BC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 1A229627541A4C4C84CC702B /* ZenithWidgets */;
-			targetProxy = E9FE6BB59CC4499B87C7192A /* PBXContainerItemProxy */;
+			target = 519C1E3EFC6349DEB090B56F /* ZenithWidgets */;
+			targetProxy = B184C91E90564331BF50BF6E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 00191D1AB636689F815B4607 /* Pods-Zenith.debug.xcconfig */;
+			baseConfigurationReference = 69138FE319F9B4F331253258 /* Pods-Zenith.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -504,11 +514,12 @@
 					"FB_SONARKIT_ENABLED=1",
 				);
 				INFOPLIST_FILE = Zenith/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
 				MARKETING_VERSION = 1.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -523,26 +534,24 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
-				DEVELOPMENT_TEAM = "5Y6EKGA7K8";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A2D335382D5FBEB6ADE2DE20 /* Pods-Zenith.release.xcconfig */;
+			baseConfigurationReference = 0E18C963D5AB1F6CD100F894 /* Pods-Zenith.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Zenith/Zenith.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Zenith/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
 				MARKETING_VERSION = 1.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -556,15 +565,12 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
-				DEVELOPMENT_TEAM = "5Y6EKGA7K8";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Release;
 		};
-		4213A5573A474F4DB9FBE3C6 /* Release */ = {
+		383B9984B95349F3942268C2 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BD18E847E24756EE56E4FC75 /* Pods-ZenithWidgets.release.xcconfig */;
+			baseConfigurationReference = 8A80BEAD2B0F12A4799EDC5E /* Pods-ZenithWidgets.release.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ZenithWidgets/ZenithWidgets.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
@@ -580,9 +586,6 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				DEVELOPMENT_TEAM = "5Y6EKGA7K8";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Release;
 		};
@@ -633,7 +636,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
@@ -641,6 +644,15 @@
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				PODFILE_DIR = "$(SRCROOT)";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -689,13 +701,22 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				PODFILE_DIR = "$(SRCROOT)";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
@@ -704,9 +725,9 @@
 			};
 			name = Release;
 		};
-		CE193690C74D497990CF5AC5 /* Debug */ = {
+		84485C8CD34C4110A053D415 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 6ACEDF9B4D67274BE9A42BFD /* Pods-ZenithWidgets.debug.xcconfig */;
+			baseConfigurationReference = 31B5F5A067D9E1F9DFA9D661 /* Pods-ZenithWidgets.debug.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ZenithWidgets/ZenithWidgets.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
@@ -722,9 +743,6 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				DEVELOPMENT_TEAM = "5Y6EKGA7K8";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Debug;
 		};
@@ -740,20 +758,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		3154CB2005BA44939171C4CC /* Build configuration list for PBXNativeTarget "ZenithWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84485C8CD34C4110A053D415 /* Debug */,
+				383B9984B95349F3942268C2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Zenith" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		88129B38FB2A44A1AD5ABED4 /* Build configuration list for PBXNativeTarget "ZenithWidgets" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CE193690C74D497990CF5AC5 /* Debug */,
-				4213A5573A474F4DB9FBE3C6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -17,7 +17,7 @@ struct ZenithSessionLiveActivity: Widget {
                     skillBadge(skillName: context.attributes.skillName)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    statusView(endTime: context.state.endTime, font: .title3.bold())
+                    countdownText(endTime: context.state.endTime, font: .title3.bold())
                         .frame(width: 70, alignment: .center)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -30,7 +30,7 @@ struct ZenithSessionLiveActivity: Widget {
                 Image(systemName: "bolt.fill")
                     .foregroundStyle(Color.zenithAccent)
             } compactTrailing: {
-                statusView(endTime: context.state.endTime, font: .caption.bold())
+                countdownText(endTime: context.state.endTime, font: .caption.bold())
                     .frame(width: 44, alignment: .center)
             } minimal: {
                 Image(systemName: "bolt.fill")
@@ -42,7 +42,7 @@ struct ZenithSessionLiveActivity: Widget {
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<ZenithSessionAttributes>) -> some View {
         HStack(spacing: 14) {
-            statusView(endTime: context.state.endTime, font: .title2.bold())
+            countdownText(endTime: context.state.endTime, font: .title2.bold())
                 .frame(width: 88, alignment: .center)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -77,21 +77,6 @@ struct ZenithSessionLiveActivity: Widget {
             .minimumScaleFactor(0.5)
             .multilineTextAlignment(.center)
             .foregroundStyle(Color.zenithAccent)
-    }
-
-    // Text(timerInterval:) already forces the system to redraw this view every
-    // second to keep the countdown live — this check rides that same redraw
-    // cadence, so the swap to a checkmark lands right as the timer hits zero,
-    // without needing a push from the app to trigger it.
-    @ViewBuilder
-    private func statusView(endTime: Date, font: Font) -> some View {
-        if Date() >= endTime {
-            Image(systemName: "checkmark.circle.fill")
-                .font(font)
-                .foregroundStyle(Color.green)
-        } else {
-            countdownText(endTime: endTime, font: font)
-        }
     }
 
     private func skillBadge(skillName: String) -> some View {
