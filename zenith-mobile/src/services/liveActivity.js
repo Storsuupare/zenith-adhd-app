@@ -35,3 +35,16 @@ export function endSessionActivity() {
     console.warn("[liveActivity] endActivity failed:", err?.message);
   }
 }
+
+// Pushes the current streak into the App Group UserDefaults the home-screen
+// widget reads from, and asks WidgetKit to redraw it immediately — without this,
+// the widget only ever shows its zero-value fallback, since nothing else in the
+// app ever writes to that shared storage.
+export function updateStreakWidget(streak) {
+  if (!widgetModule) return;
+  try {
+    widgetModule.updateStreak(streak);
+  } catch (err) {
+    console.warn("[liveActivity] updateStreak failed:", err?.message);
+  }
+}

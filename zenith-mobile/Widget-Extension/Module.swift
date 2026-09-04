@@ -1,9 +1,22 @@
 import ExpoModulesCore
 import ActivityKit
+import WidgetKit
+
+// Must match the "groupIdentifier" set in app.json for react-native-widget-extension,
+// and the same literal in ZenithStreakWidget.swift — this file compiles into the main
+// app target, that one into the widget extension target, so the constant can't be
+// shared directly across the two.
+private let zenithAppGroup = "group.org.zenithapp.mobile"
+private let streakDefaultsKey = "currentStreak"
 
 public class ReactNativeWidgetExtensionModule: Module {
     public func definition() -> ModuleDefinition {
         Name("ReactNativeWidgetExtension")
+
+        Function("updateStreak") { (streak: Int) -> Void in
+            UserDefaults(suiteName: zenithAppGroup)?.set(streak, forKey: streakDefaultsKey)
+            WidgetCenter.shared.reloadTimelines(ofKind: "ZenithStreakWidget")
+        }
 
         Function("areActivitiesEnabled") { () -> Bool in
             if #available(iOS 16.2, *) {

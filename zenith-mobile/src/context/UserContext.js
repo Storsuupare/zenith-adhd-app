@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
 import { fetchUser, createUser, setAuthToken, syncSubscription } from "../services/api";
 import { registerPushToken } from "../services/notifications";
+import { updateStreakWidget } from "../services/liveActivity";
 import Purchases from "react-native-purchases";
 
 const REVENUECAT_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY;
@@ -92,6 +93,13 @@ export function UserProvider({ children }) {
       setAuthChecked(true);
     }
   }, [isSignedIn, userId]);
+
+  // Keeps the home-screen streak widget in sync with whatever the app just
+  // learned — fires on every loadUser() call (launch, post-session, pull to
+  // refresh) since they all flow through this same user state.
+  useEffect(() => {
+    if (user?.streak != null) updateStreakWidget(user.streak);
+  }, [user?.streak]);
 
   // Re-links an existing App Store purchase to this account (reinstall, new device),
   // and also repairs a role that's drifted out of sync with what Apple actually has —
