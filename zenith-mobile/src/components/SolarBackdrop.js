@@ -475,10 +475,22 @@ export default function SolarBackdrop({ children }) {
   return (
     <View style={styles.root}>
       {/* Sky gradient — updates every 60 s with interpolated colors */}
-      <LinearGradient colors={sky} style={styles.fill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+      <LinearGradient
+        colors={sky}
+        style={{ position: "absolute", top: 0, left: 0, width: windowWidth, height: windowHeight }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        pointerEvents="none"
+      />
 
       {/* Clouds */}
-      <Animated.View style={[styles.fill, { opacity: cloudGroupOpacity }]} pointerEvents="none">
+      <Animated.View
+        style={{
+          position: "absolute", top: 0, left: 0, width: windowWidth, height: windowHeight,
+          opacity:  cloudGroupOpacity,
+        }}
+        pointerEvents="none"
+      >
         {cloudElements}
       </Animated.View>
 
@@ -523,18 +535,27 @@ export default function SolarBackdrop({ children }) {
       {/* Stars */}
       {starElements}
 
-      <View style={styles.overlay} />
+      <View
+        style={{
+          position: "absolute", top: 0, left: 0, width: windowWidth, height: windowHeight,
+          backgroundColor: "rgba(4,6,12,0.28)",
+        }}
+      />
       {accentColor && (
-        <View style={[styles.fill, { backgroundColor: accentColor + "0e" }]} pointerEvents="none" />
+        <View
+          style={{
+            position: "absolute", top: 0, left: 0, width: windowWidth, height: windowHeight,
+            backgroundColor: accentColor + "0e",
+          }}
+          pointerEvents="none"
+        />
       )}
-      <View style={styles.content}>{children}</View>
+      <View style={[styles.content, { zIndex: 1 }]}>{children}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: "#03060b" },
-  fill:    { ...StyleSheet.absoluteFillObject },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4,6,12,0.28)" },
   content: { flex: 1 },
 });
