@@ -44,7 +44,10 @@
           "icon": "./assets/logo2.png",
           "color": "#090c13"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-sharing",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {
