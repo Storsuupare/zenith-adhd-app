@@ -42,7 +42,8 @@
         "expo-notifications",
         {
           "icon": "./assets/logo2.png",
-          "color": "#090c13"
+          "color": "#090c13",
+          "sounds": ["./assets/833599__subquire__bright-synth-ping-ui-bell-tone.wav"]
         }
       ],
       "expo-font",
