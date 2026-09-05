@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ScrollView,
+  StyleSheet, ActivityIndicator, ScrollView, Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
 import { SKILL_CATEGORIES, DURATIONS, SKILL_INFO } from "../constants/skills";
+import { useUser } from "../context/UserContext";
+import { fetchTaskTemplates, createTaskTemplate, deleteTaskTemplate } from "../services/api";
 
 const LAST_SKILL_KEY    = "zenith_last_skill";
 const LAST_DURATION_KEY = "zenith_last_duration";
@@ -14,11 +16,16 @@ const DEFAULT_SKILL     = "Resolve";
 const DEFAULT_DURATION  = 30;
 
 export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
+  const { user } = useUser();
+  const accountTier = user?.account_tier ?? 0;
+
   const [taskName, setTaskName] = useState("");
   const [duration, setDuration] = useState(DEFAULT_DURATION);
   const [skill,    setSkill]    = useState(DEFAULT_SKILL);
   const [openCategory, setOpenCategory] = useState(null);
   const [busy,     setBusy]     = useState(false);
+  const [templates,      setTemplates]      = useState([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
     AsyncStorage.multiGet([LAST_SKILL_KEY, LAST_DURATION_KEY])
@@ -28,6 +35,14 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
       })
       .catch(() => {});
   }, []);
+
+  // No point calling the API for a tier that can't have any templates.
+  useEffect(() => {
+    if (accountTier <= 0) { setTemplates([]); return; }
+    fetchTaskTemplates()
+      .then(res => setTemplates(res.data || []))
+      .catch(() => {});
+  }, [accountTier]);
 
   const canStart = taskName.trim().length > 0;
 
@@ -41,8 +56,85 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
     } finally { setBusy(false); }
   };
 
+  const handleUseTemplate = (template) => {
+    setTaskName(template.task_name);
+    if (template.skill_name) setSkill(template.skill_name);
+    setDuration(template.duration_minutes);
+    setOpenCategory(null);
+  };
+
+  const handleDeleteTemplate = (template) => {
+    Alert.alert(
+      "Delete Template",
+      `Remove "${template.task_name}" from your saved templates?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            setTemplates(prev => prev.filter(t => t.id !== template.id));
+            deleteTaskTemplate(template.id).catch(() => {});
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!canStart || savingTemplate) return;
+
+    if (accountTier <= 0) {
+      Alert.alert(
+        "Task Templates",
+        "Saving tasks as reusable templates requires PRO or ELITE.",
+      );
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      const res = await createTaskTemplate({
+        taskName: taskName.trim(),
+        durationMinutes: duration,
+        skillName: skill,
+      });
+      setTemplates(prev => [...prev, res.data]);
+    } catch (err) {
+      Alert.alert(
+        "Couldn't Save Template",
+        err.response?.data?.message || "Something went wrong — try again.",
+      );
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
+
+      {/* Saved templates (PRO+) */}
+      {templates.length > 0 && (
+        <>
+          <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>QUICK START</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skillRow}>
+            {templates.map(template => (
+              <TouchableOpacity
+                key={template.id}
+                style={styles.templateChip}
+                onPress={() => handleUseTemplate(template)}
+                onLongPress={() => handleDeleteTemplate(template)}
+                accessibilityRole="button"
+                accessibilityLabel={`Use template ${template.task_name}, ${template.duration_minutes} minutes`}
+                accessibilityHint="Double tap to fill in this task. Long press to delete it."
+              >
+                <Text style={styles.templateChipText} numberOfLines={1}>{template.task_name}</Text>
+                <Text style={styles.templateChipMeta}>{template.duration_minutes}m</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
 
       {/* Task name input */}
       <TextInput
@@ -149,6 +241,24 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
         ))}
       </View>
 
+      {/* Save as template */}
+      {canStart && (
+        <TouchableOpacity
+          style={styles.saveTemplateBtn}
+          onPress={handleSaveTemplate}
+          disabled={savingTemplate}
+          accessibilityRole="button"
+          accessibilityLabel={accountTier > 0 ? "Save this task as a template" : "Save as template, requires PRO or ELITE"}
+        >
+          {savingTemplate
+            ? <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+            : <Text style={styles.saveTemplateText}>
+                {accountTier > 0 ? "+ Save as Template" : "+ Save as Template (PRO)"}
+              </Text>
+          }
+        </TouchableOpacity>
+      )}
+
       {/* Start button */}
       <TouchableOpacity
         style={[
@@ -239,6 +349,38 @@ const styles = StyleSheet.create({
     fontWeight:    "700",
     letterSpacing: 1,
     textTransform: "uppercase",
+  },
+
+  templateChip: {
+    paddingHorizontal: 12,
+    paddingVertical:   8,
+    borderRadius:      10,
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.1)",
+    backgroundColor:   "rgba(255,255,255,0.04)",
+    maxWidth:          140,
+  },
+  templateChipText: {
+    fontFamily: FONTS.bold,
+    fontSize:   11,
+    color:      "#fff",
+  },
+  templateChipMeta: {
+    fontFamily: FONTS.regular,
+    fontSize:   10,
+    color:      "rgba(255,255,255,0.4)",
+    marginTop:  2,
+  },
+
+  saveTemplateBtn: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  saveTemplateText: {
+    fontFamily:    FONTS.semiBold,
+    fontSize:      11,
+    color:         "rgba(255,255,255,0.4)",
+    letterSpacing: 0.3,
   },
 
   skillHint: {

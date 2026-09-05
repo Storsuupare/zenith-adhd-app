@@ -88,6 +88,7 @@ if (require.main === module) {
 
 app.use(require("./routes/users.js"));
 app.use(require("./routes/tasks.js"));
+app.use(require("./routes/taskTemplates.js"));
 app.use(require("./routes/achievements.js"));
 app.use(require("./routes/subscription.js"));
 app.use(require("./routes/misc.js"));
@@ -96,6 +97,7 @@ app.use(require("./routes/stats.js"));
 app.use(require("./routes/shop.js"));
 app.use(require("./routes/admin.js"));
 app.use(require("./routes/realtime.js"));
+app.use(require("./routes/social.js"));
 app.use(require("./routes/pushSubscriptions.js"));
 app.use(require("./routes/clientError.js"));
 

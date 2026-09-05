@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, RefreshControl, Modal, Alert, Linking,
 } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
+import Constants from "expo-constants";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
 import ScreenHeader from "../components/ScreenHeader";
@@ -200,7 +201,7 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScreenHeader title="Settings" />
+      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
 
       <ScrollView
         ref={onboardingRefs.settingsScroll}
@@ -383,7 +384,7 @@ export default function SettingsScreen({ navigation }) {
         </Text>
 
         <View style={styles.versionBadge}>
-          <Text style={styles.versionText}>v1.1.0</Text>
+          <Text style={styles.versionText}>v{Constants.expoConfig?.version ?? "1.1.0"}</Text>
         </View>
       </ScrollView>
 

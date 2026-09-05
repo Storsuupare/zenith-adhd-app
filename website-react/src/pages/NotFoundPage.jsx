@@ -12,8 +12,8 @@ export default function NotFoundPage() {
       <Nav />
       <div className="notfound-wrap">
         <div className="notfound-code">404</div>
-        <h1 className="notfound-title">Mission not found.</h1>
-        <p className="notfound-sub">This page doesn't exist — or it moved. Head back to base and try again.</p>
+        <h1 className="notfound-title">Yikes! Looks like this link lost focus.</h1>
+        <p className="notfound-sub">Even the best sessions get interrupted. This page isn't one of them — it just doesn't exist.</p>
         <Link to="/" className="notfound-btn">Back to Zenith</Link>
       </div>
     </>

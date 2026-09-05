@@ -88,7 +88,7 @@ function AchievementCard({ achievement, accentColor }) {
   );
 }
 
-export default function AchievementsScreen() {
+export default function AchievementsScreen({ navigation }) {
   const { accentColor } = useTheme() || {};
   const { clearAchievementsUnseen } = useUser() || {};
   const activeAccentColor = accentColor || COLORS.accent;
@@ -127,7 +127,7 @@ export default function AchievementsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <ScreenHeader title="Awards" />
+        <ScreenHeader title="Awards" onBack={() => navigation.goBack()} />
         <ActivityIndicator color={activeAccentColor} style={{ marginTop: 40 }} />
       </SafeAreaView>
     );
@@ -136,7 +136,7 @@ export default function AchievementsScreen() {
   if (loadError) {
     return (
       <SafeAreaView style={styles.root}>
-        <ScreenHeader title="Awards" />
+        <ScreenHeader title="Awards" onBack={() => navigation.goBack()} />
         <View style={styles.errorState}>
           <Text style={styles.errorIcon}>☆</Text>
           <Text style={styles.errorTitle}>Couldn't load awards</Text>
@@ -161,7 +161,7 @@ export default function AchievementsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScreenHeader title="Awards" subtitle={`${unlockedCount} of ${totalCount} earned`}>
+      <ScreenHeader title="Awards" subtitle={`${unlockedCount} of ${totalCount} earned`} onBack={() => navigation.goBack()}>
         <Text style={[styles.completionValue, { color: activeAccentColor }]}>{completionPercent}%</Text>
       </ScreenHeader>
 

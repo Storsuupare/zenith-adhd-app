@@ -145,7 +145,7 @@ function WeeklyActivityChart({ days, accentColor }) {
   );
 }
 
-export default function ArchivesScreen() {
+export default function ArchivesScreen({ navigation }) {
   const { user } = useUser();
   const { accentColor } = useTheme();
   const [sessions,   setSessions]   = useState([]);
@@ -234,7 +234,7 @@ export default function ArchivesScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScreenHeader title="History" subtitle={historyLabel}>
+      <ScreenHeader title="History" subtitle={historyLabel} onBack={() => navigation.goBack()}>
         {isPro && (
           <TouchableOpacity
             style={[styles.exportButton, { borderColor: accentColor + "55" }, exporting && { opacity: 0.5 }]}
