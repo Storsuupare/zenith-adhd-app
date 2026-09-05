@@ -6,7 +6,7 @@ const createRateLimiter = (windowMin, max) => rateLimit({
   max,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "TOO_MANY_REQUESTS" },
+  message: { error: "Too Many Requests! Try again later." },
 });
 const globalLimiter   = createRateLimiter(15, 300);  // 300 req per 15 min — general abuse guard
 const mutationLimiter = createRateLimiter(60, 60);   // 60 mutations per hour — task/loot/prestige/inventory
@@ -15,6 +15,7 @@ const bonusLimiter    = createRateLimiter(60, 5);    // 5 attempts per hour — 
 const adminLimiter    = createRateLimiter(15, 20);   // 20 req per 15 min — admin panel
 const paymentLimiter  = createRateLimiter(60, 5);    // 5 Stripe session creations per hour — prevents API abuse
 const syncLimiter      = createRateLimiter(60, 60);  // 60 syncs per hour — Restore Purchases, kept off the shared mutation pool
+const searchLimiter    = createRateLimiter(15, 20);
 
 module.exports = {
   createRateLimiter,
@@ -25,4 +26,5 @@ module.exports = {
   adminLimiter,
   paymentLimiter,
   syncLimiter,
+  searchLimiter,
 };

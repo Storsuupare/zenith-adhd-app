@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { useUser } from "./UserContext";
-import { fetchTasks, createTask, completeTask, failTask } from "../services/api";
+import { fetchTasks, createTask, completeTask, failTask, pauseTask, resumeTask } from "../services/api";
 import { beginSessionActivity, endSessionActivity } from "../services/liveActivity";
 import { CREDITS_ICON } from "../constants/currency";
 
@@ -192,6 +192,39 @@ export function TaskProvider({ children }) {
     }
   }, [refreshToken, loadContracts, fetchUser, addNotification, user?.streak]);
 
+  const handlePause = useCallback(async (taskId) => {
+    try {
+      await refreshToken();
+      const res = await pauseTask(String(taskId));
+      setContracts(prev => prev.map(contract => (
+        String(contract.id) === String(taskId)
+          ? { ...contract, paused_at: res.data.paused_at }
+          : contract
+      )));
+    } catch {
+      addNotification({ type: "error", message: "Could not pause session" });
+    }
+  }, [refreshToken, addNotification]);
+
+  const handleResume = useCallback(async (taskId) => {
+    try {
+      await refreshToken();
+      const res = await resumeTask(String(taskId));
+      setContracts(prev => prev.map(contract => (
+        String(contract.id) === String(taskId)
+          ? {
+              ...contract,
+              paused_at:          null,
+              deadline:           res.data.deadline,
+              pause_seconds_used: res.data.pause_seconds_used,
+            }
+          : contract
+      )));
+    } catch {
+      addNotification({ type: "error", message: "Could not resume session" });
+    }
+  }, [refreshToken, addNotification]);
+
   const dismissLevelUp = useCallback(() => {
     // If the user manually taps to dismiss before the auto-dismiss fires, cancel
     // any pending milestone so it doesn't appear several seconds later unexpectedly.
@@ -206,7 +239,7 @@ export function TaskProvider({ children }) {
       loot, setLoot,
       levelUpData, setLevelUpData, dismissLevelUp,
       prestigeData, setPrestigeData,
-      handleCreateTask, handleComplete, handleAbort,
+      handleCreateTask, handleComplete, handleAbort, handlePause, handleResume,
     }}>
       {children}
     </TaskContext.Provider>

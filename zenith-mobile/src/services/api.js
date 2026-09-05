@@ -25,6 +25,13 @@ export const fetchTasks    = (clerkId) => api.get(`/api/tasks?externalId=${clerk
 export const createTask    = (data)    => api.post("/api/tasks", data);
 export const completeTask  = (taskId)  => api.post(`/api/tasks/${taskId}/complete`, {});
 export const failTask      = (taskId)  => api.post(`/api/tasks/${taskId}/fail`, {});
+export const pauseTask     = (taskId)  => api.post(`/api/tasks/${taskId}/pause`, {});
+export const resumeTask    = (taskId)  => api.post(`/api/tasks/${taskId}/resume`, {});
+
+// ── Task templates (PRO+) ────────────────────────────────────────────────────
+export const fetchTaskTemplates  = ()       => api.get("/api/task-templates");
+export const createTaskTemplate  = (data)   => api.post("/api/task-templates", data);
+export const deleteTaskTemplate  = (id)     => api.delete(`/api/task-templates/${id}`);
 
 // ── Daily ─────────────────────────────────────────────────────────────────────
 export const claimDailyBonus     = () => api.post("/api/daily-bonus/claim");
@@ -53,6 +60,15 @@ export const createCheckoutSession = (targetTier) =>
 
 export const createPortalSession = () => api.post("/payments/create-portal-session");
 export const syncSubscription    = () => api.post("/subscription/sync");
+
+export const setUsername           = (username) => api.patch("/api/username", { username });
+export const searchUsers           = (query)     => api.get(`/api/users/search?q=${encodeURIComponent(query)}`);
+export const sendFriendRequest     = (userId)    => api.post("/api/friends/request", { userId });
+export const acceptFriendRequest   = (id)        => api.post(`/api/friends/${id}/accept`);
+export const declineFriendRequest  = (id)        => api.post(`/api/friends/${id}/decline`);
+export const removeFriend          = (id)        => api.delete(`/api/friends/${id}`);
+export const fetchFriends          = ()          => api.get("/api/friends");
+export const fetchWeeklyLeaderboard = ()         => api.get("/api/leaderboard/weekly");
 
 // ── Error reporting ───────────────────────────────────────────────────────────
 // Fire-and-forget by design — a failure reporting a crash must never itself

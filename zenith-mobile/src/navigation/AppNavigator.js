@@ -14,6 +14,9 @@ import ArchivesScreen       from "../screens/ArchivesScreen";
 import SettingsScreen       from "../screens/SettingsScreen";
 import SessionScreen        from "../screens/SessionScreen";
 import AchievementsScreen   from "../screens/AchievementsScreen";
+import MoreScreen           from "../screens/MoreScreen";
+import LeaderboardScreen    from "../screens/LeaderboardScreen";
+import FriendsScreen        from "../screens/FriendsScreen";
 import ReleaseNotesScreen   from "../screens/ReleaseNotesScreen";
 import PrivacyScreen        from "../screens/PrivacyScreen";
 import TermsScreen          from "../screens/TermsScreen";
@@ -21,6 +24,7 @@ import RefundScreen         from "../screens/RefundScreen";
 import PaymentSuccessScreen from "../screens/PaymentSuccessScreen";
 import PaymentCancelScreen  from "../screens/PaymentCancelScreen";
 import SolarBackdrop        from "../components/SolarBackdrop";
+import NotificationToast    from "../components/NotificationToast";
 import LoadingScreen        from "../components/LoadingScreen";
 import { useTheme }         from "../context/ThemeContext";
 import { COLORS }           from "../constants/colors";
@@ -44,10 +48,14 @@ function TabBarBackground() {
   const { activeTheme } = useTheme() || {};
   return (
     <View
-      style={[
-        StyleSheet.absoluteFillObject,
-        { backgroundColor: TAB_BAR_BG[activeTheme] ?? DEFAULT_NAV_BG },
-      ]}
+      style={{
+        position:        "absolute",
+        top:             0,
+        left:            0,
+        width:           "100%",
+        height:          "100%",
+        backgroundColor: TAB_BAR_BG[activeTheme] ?? DEFAULT_NAV_BG,
+      }}
     />
   );
 }
@@ -85,11 +93,18 @@ function AuthStack() {
   );
 }
 
-// Settings slides into sub-pages via its own stack
-function SettingsStack() {
+// Settings, Achievements and History all check in occasionally rather than
+// every session, so they live behind one "More" tab instead of each holding
+// their own slot on a bottom bar that was already at the usual 5-tab ceiling.
+function MoreStack() {
   return (
     <Stack.Navigator screenOptions={stackOpts}>
-      <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+      <Stack.Screen name="MoreMain"     component={MoreScreen} />
+      <Stack.Screen name="Leaderboard"  component={LeaderboardScreen} />
+      <Stack.Screen name="Friends"      component={FriendsScreen} />
+      <Stack.Screen name="Awards"       component={AchievementsScreen} />
+      <Stack.Screen name="History"      component={ArchivesScreen} />
+      <Stack.Screen name="Settings"     component={SettingsScreen} />
       <Stack.Screen name="ReleaseNotes" component={ReleaseNotesScreen} />
       <Stack.Screen name="Privacy"      component={PrivacyScreen} />
       <Stack.Screen name="Terms"        component={TermsScreen} />
@@ -117,36 +132,33 @@ function AppTabs() {
         tabBarLabelStyle: { fontSize: 10, marginBottom: 2, fontFamily: FONTS.semiBold, letterSpacing: 0.5 },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = {
-            Home:         focused ? "home"       : "home-outline",
-            Shop:         focused ? "storefront" : "storefront-outline",
-            History:      focused ? "time"       : "time-outline",
-            Achievements: focused ? "trophy"     : "trophy-outline",
-            Settings:     focused ? "settings"   : "settings-outline",
+            Home: focused ? "home"       : "home-outline",
+            Shop: focused ? "storefront" : "storefront-outline",
+            More: focused ? "menu"       : "menu-outline",
           };
           return <Ionicons name={icons[route.name]} size={size - 2} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="Home"    component={DashboardScreen} />
-      <Tab.Screen name="Shop"    component={ShopScreen} />
-      <Tab.Screen name="History" component={ArchivesScreen} />
+      <Tab.Screen name="Home" component={DashboardScreen} />
+      <Tab.Screen name="Shop" component={ShopScreen} />
       <Tab.Screen
-        name="Achievements"
-        component={AchievementsScreen}
+        name="More"
+        component={MoreStack}
         options={{
-          tabBarLabel: "Awards",
           // Dot only — a count would imply a to-do list rather than a reward.
+          // Carries the same unseen-achievements signal the Awards tab used
+          // to show directly, now that Awards lives one level deeper.
           tabBarBadge: achievementsUnseen ? "" : undefined,
           tabBarBadgeStyle: { backgroundColor: accentColor, minWidth: 10, maxHeight: 10, borderRadius: 5 },
         }}
       />
-      <Tab.Screen name="Settings" component={SettingsStack} />
     </Tab.Navigator>
   );
 }
 
 function RootStack() {
-  const { contracts, handleComplete, handleAbort } = useTasks();
+  const { contracts, notifications, handleComplete, handleAbort, handlePause, handleResume } = useTasks();
   const activeContract = contracts?.[0] ?? null;
 
   return (
@@ -156,6 +168,8 @@ function RootStack() {
         <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
         <Stack.Screen name="PaymentCancel"  component={PaymentCancelScreen} />
       </Stack.Navigator>
+
+      <NotificationToast notifications={notifications} />
 
       {/* Full-screen session takeover — floats above everything when a session is running */}
       <Modal
@@ -171,8 +185,11 @@ function RootStack() {
               contract={activeContract}
               onComplete={handleComplete}
               onAbort={handleAbort}
+              onPause={handlePause}
+              onResume={handleResume}
             />
           )}
+          <NotificationToast notifications={notifications} />
         </SolarBackdrop>
       </Modal>
     </>

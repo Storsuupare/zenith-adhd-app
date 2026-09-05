@@ -44,6 +44,7 @@ const LOOT_DROP_CHANCE = 0.25; // Flat 1-in-4 chance for all tiers
 // history depth. FREE gets none; this is the one thing that's still tier-gated
 // on purpose (unlike Prestige), since it never touches XP, loot, or progression.
 const TIER_MAX_TEMPLATES = { 0: 0, 1: 5, 2: Infinity };
+const TIER_MAX_PAUSE_SECONDS = { 0: 180, 1: 480, 2: 900 };
 
 
 // Server-side cosmetic prices for purchase validation.
@@ -180,7 +181,7 @@ function computeCreditableMinutes(taskStart, taskEnd, otherCompletedWindows) {
 module.exports = {
   STAKE_BY_DURATION, SESSION_CR_BY_DURATION, calculateStake, getNeuralMult, applyPrestigeImmunity,
   REENGAGEMENT_THRESHOLD_DAYS, isEligibleForReengagementPush,
-  TIER_MAX_TASKS, TIER_MAX_TEMPLATES, LOOT_DROP_CHANCE, COSMETICS_PRICES, CONSUMABLE_PRICES, STREAK_MILESTONES,
+  TIER_MAX_TASKS, TIER_MAX_TEMPLATES, TIER_MAX_PAUSE_SECONDS, LOOT_DROP_CHANCE, COSMETICS_PRICES, CONSUMABLE_PRICES, STREAK_MILESTONES,
   calculateNeuralCost, getEffectiveAccountTier,
   DAILY_BONUS_CREDITS, BONUS_WINDOW_MS,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones,

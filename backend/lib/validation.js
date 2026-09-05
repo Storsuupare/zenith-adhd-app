@@ -26,6 +26,11 @@ function isReservedUsername(username) {
   );
 }
 
+const USERNAME_FORMAT = /^[a-zA-Z0-9_]{3,20}$/;
+function isValidUsernameFormat(username) {
+  return typeof username === "string" && USERNAME_FORMAT.test(username);
+}
+
 const VALID_DURATIONS = new Set([5, 15, 30, 60, 90, 120]);
 const VALID_SKILLS    = new Set([
   "LOGIC FLOW","VITALITY","NUTRITION","ENVIRONMENT","MOMENTUM",
@@ -41,4 +46,4 @@ function escapeHtml(raw) {
     .replace(/'/g,  "&#39;");
 }
 
-module.exports = { isReservedUsername, VALID_DURATIONS, VALID_SKILLS, escapeHtml };
+module.exports = { isReservedUsername, isValidUsernameFormat, VALID_DURATIONS, VALID_SKILLS, escapeHtml };

@@ -13,7 +13,6 @@ import MissionForm      from "../components/MissionForm";
 import ContractCard     from "../components/ContractCard";
 import DailyChallenge   from "../components/DailyChallenge";
 import StreakStrip      from "../components/StreakStrip";
-import NotificationToast from "../components/NotificationToast";
 import OnboardingModal, { ONBOARDING_KEY } from "../components/OnboardingModal";
 import WhatsNewModal from "../components/WhatsNewModal";
 import { WHATS_NEW, WHATS_NEW_KEY } from "../constants/whatsNew";
@@ -90,9 +89,13 @@ function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }
           <Text style={[skillCardStyles.levelText, { color: accentColor }]}>LVL {currentLevel}</Text>
         </View>
         {prestigeLevel > 0 && (
-          <View style={skillCardStyles.prestigeBadge}>
+          <View
+            style={skillCardStyles.prestigeBadge}
+            accessible
+            accessibilityLabel={`Prestige ${prestigeLevel}`}
+          >
             <Text style={skillCardStyles.prestigeBadgeText} numberOfLines={1}>
-              PRESTIGE {prestigeLevel}
+              ✦ {prestigeLevel}
             </Text>
           </View>
         )}
@@ -112,10 +115,7 @@ function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }
           accessibilityLabel={`Prestige ${skill.skill_name}`}
           accessibilityHint="Resets this skill to level 1, permanently unlocking REDZONE immunity and a stacking ten percent XP bonus for this skill."
         >
-          <Text style={skillCardStyles.prestigeButtonLabel}>PRESTIGE SKILL</Text>
-          <Text style={skillCardStyles.prestigeButtonDetail}>
-            RESET TO LVL 1 · REDZONE IMMUNITY · +10% XP
-          </Text>
+          <Text style={skillCardStyles.prestigeButtonLabel}>PRESTIGE →</Text>
         </TouchableOpacity>
       ) : (
         <View style={skillCardStyles.progressTrack}>
@@ -160,9 +160,23 @@ const skillCardStyles = StyleSheet.create({
   progressFill:      { height: "100%", borderRadius: 20 },
   progressProjected: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)" },
 
-  prestigeButton:       { marginTop: 10, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 10, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
-  prestigeButtonLabel:  { fontFamily: FONTS.black, fontSize: 13, fontWeight: "800", color: "#fff", letterSpacing: -0.1 },
-  prestigeButtonDetail: { fontFamily: FONTS.regular, fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 3, textAlign: "center" },
+  prestigeButton: {
+    marginTop:         10,
+    backgroundColor:   "#fbbf24",
+    borderRadius:      10,
+    paddingVertical:   14,
+    paddingHorizontal: 10,
+    alignItems:        "center",
+    // Static glow, not animated — this button can sit on the Dashboard for
+    // days before someone acts on it, so it needs to stand out every time
+    // without looping motion on a screen people open dozens of times a day.
+    shadowColor:   "#fbbf24",
+    shadowOffset:  { width: 0, height: 0 },
+    shadowRadius:  10,
+    shadowOpacity: 0.6,
+    elevation:     6,
+  },
+  prestigeButtonLabel: { fontFamily: FONTS.black, fontSize: 13, fontWeight: "800", color: "#000", letterSpacing: -0.1 },
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -178,7 +192,7 @@ export default function DashboardScreen({ navigation }) {
   };
   const {
     contracts, handleCreateTask, handleComplete, handleAbort,
-    notifications, addNotification, setPrestigeData,
+    addNotification, setPrestigeData,
   } = useTasks();
 
   const skills       = user?.mastery ?? [];
@@ -388,8 +402,6 @@ export default function DashboardScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
-
-      <NotificationToast notifications={notifications} />
 
       <OnboardingModal
         visible={showOnboarding}

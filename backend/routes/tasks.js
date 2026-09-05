@@ -6,6 +6,7 @@ const { pushUserPatch, presenceMap, broadcastPresence } = require("../lib/realti
 const {
   calculateStake, getNeuralMult, applyPrestigeImmunity, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones, SESSION_CR_BY_DURATION, computeCreditableMinutes,
+  TIER_MAX_PAUSE_SECONDS,
 } = require("../lib/economy.js");
 const { VALID_DURATIONS } = require("../lib/validation.js");
 const { CREDIT_BY_RARITY, rollRarity } = require("../LootData.js");
@@ -224,6 +225,7 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
               tasks.skill_id         AS "skillId",
               tasks.created_at       AS "createdAt",
               tasks.deadline,
+              tasks.paused_at        AS "pausedAt",
               (NOW() >= tasks.deadline)       AS "deadlinePassed",
               EXTRACT(EPOCH FROM (tasks.deadline - NOW()))::int AS "secondsRemaining"
        FROM tasks
@@ -241,6 +243,10 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
       await completeClient.query("ROLLBACK");
       return res.status(400).json({ error: "TASK_ALREADY_COMPLETED" });
     }
+    if (task.pausedAt) {
+      await completeClient.query("ROLLBACK");
+      return res.status(400).json({ error: "TASK_PAUSED" });
+    }
     if (!task.deadlinePassed) {
       await completeClient.query("ROLLBACK");
       return res.status(425).json({
@@ -255,11 +261,12 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
               COALESCE(account_tier, 0)   AS account_tier,
               COALESCE(role, 'FREE')      AS role,
               COALESCE(streak, 0)         AS streak,
-              COALESCE(first_task_completed, false) AS first_task_completed
+              COALESCE(first_task_completed, false) AS first_task_completed,
+              COALESCE(timezone, 'UTC')   AS timezone
        FROM users WHERE id::text = $1`,
       [String(task.userId)],
     );
-    const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed } = userRow.rows[0];
+    const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed, timezone } = userRow.rows[0];
 
     const durationMins = Math.min(parseInt(task.durationMinutes) || 0, 180);
     const xpRequiredForLevel = (lvl) => Math.max(1, Math.floor(100 * Math.pow(lvl, 1.6)));
@@ -510,10 +517,10 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
 
     await completeClient.query(
       `INSERT INTO daily_stats (user_id, date, focus_minutes)
-       VALUES ($1::integer, CURRENT_DATE, $2)
+       VALUES ($1::integer, DATE(NOW() AT TIME ZONE $3), $2)
        ON CONFLICT (user_id, date)
        DO UPDATE SET focus_minutes = daily_stats.focus_minutes + EXCLUDED.focus_minutes`,
-      [task.userId, creditableMinutes],
+      [task.userId, creditableMinutes, timezone],
     );
 
     // Evaluated after the task is marked SUCCESS, because the thresholds count
@@ -610,6 +617,122 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
     res.status(500).json({ error: err.message });
   } finally {
     completeClient.release();
+  }
+});
+
+router.post("/api/tasks/:id/pause", requireAuth, mutationLimiter, async (req, res) => {
+  const { id } = req.params;
+  const externalId = req.auth.userId;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const taskRes = await client.query(
+      `SELECT tasks.status, tasks.paused_at AS "pausedAt",
+              tasks.pause_seconds_used AS "pauseSecondsUsed",
+              COALESCE(users.account_tier, 0) AS "accountTier",
+              COALESCE(users.role, 'FREE')    AS role
+       FROM tasks
+       JOIN users ON tasks.user_id::text = users.id::text
+       WHERE tasks.id::text = $1 AND users.external_id::text = $2`,
+      [String(id), String(externalId)],
+    );
+
+    const task = taskRes.rows[0];
+    if (!task) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "TASK_NOT_FOUND" });
+    }
+    if (task.status !== "ACTIVE") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "TASK_NOT_ACTIVE" });
+    }
+    if (task.pausedAt) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "TASK_ALREADY_PAUSED" });
+    }
+
+    const maxPauseSeconds = task.role === "ADMIN" ? Infinity : (TIER_MAX_PAUSE_SECONDS[task.accountTier] ?? 0);
+    if (parseInt(task.pauseSecondsUsed) >= maxPauseSeconds) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "PAUSE_LIMIT_REACHED" });
+    }
+
+    const updateRes = await client.query(
+      `UPDATE tasks SET paused_at = NOW() WHERE id::text = $1 RETURNING paused_at`,
+      [String(id)],
+    );
+
+    await client.query("COMMIT");
+    res.json({ paused_at: updateRes.rows[0].paused_at });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("TASK_PAUSE_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.post("/api/tasks/:id/resume", requireAuth, mutationLimiter, async (req, res) => {
+  const { id } = req.params;
+  const externalId = req.auth.userId;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const taskRes = await client.query(
+      `SELECT tasks.paused_at AS "pausedAt",
+              tasks.pause_seconds_used AS "pauseSecondsUsed",
+              EXTRACT(EPOCH FROM (NOW() - tasks.paused_at))::int AS "elapsedSeconds",
+              COALESCE(users.account_tier, 0) AS "accountTier",
+              COALESCE(users.role, 'FREE')    AS role
+       FROM tasks
+       JOIN users ON tasks.user_id::text = users.id::text
+       WHERE tasks.id::text = $1 AND users.external_id::text = $2`,
+      [String(id), String(externalId)],
+    );
+
+    const task = taskRes.rows[0];
+    if (!task) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "TASK_NOT_FOUND" });
+    }
+    if (!task.pausedAt) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "TASK_NOT_PAUSED" });
+    }
+
+    const maxPauseSeconds = task.role === "ADMIN" ? Infinity : (TIER_MAX_PAUSE_SECONDS[task.accountTier] ?? 0);
+    const remainingAllowance = Math.max(0, maxPauseSeconds - parseInt(task.pauseSecondsUsed));
+    const grantedSeconds = Math.max(0, Math.min(task.elapsedSeconds, remainingAllowance));
+
+    const updateRes = await client.query(
+      `UPDATE tasks
+       SET paused_at = NULL,
+           pause_seconds_used = pause_seconds_used + $2,
+           deadline = deadline + ($2::text || ' seconds')::interval
+       WHERE id::text = $1
+       RETURNING deadline, pause_seconds_used`,
+      [String(id), grantedSeconds],
+    );
+
+    await client.query("COMMIT");
+    res.json({
+      deadline: updateRes.rows[0].deadline,
+      pause_seconds_used: updateRes.rows[0].pause_seconds_used,
+      pause_seconds_remaining: maxPauseSeconds === Infinity
+        ? null
+        : Math.max(0, maxPauseSeconds - updateRes.rows[0].pause_seconds_used),
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("TASK_RESUME_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

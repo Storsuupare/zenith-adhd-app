@@ -9,6 +9,7 @@ import { FONTS } from "../constants/fonts";
 import { CREDITS_ICON } from "../constants/currency";
 import { useTheme } from "../context/ThemeContext";
 import { useTasks } from "../context/TaskContext";
+import { useUser } from "../context/UserContext";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import SparkBurst from "../components/SparkBurst";
 
@@ -20,6 +21,8 @@ function getNeuralWindow() {
   if (hour >= 22)              return { mult: 1.5,  label: "HYPERFOCUS", color: "#a78bfa", isRedzone: false };
   return { mult: 1.0, label: "STANDARD", color: "rgba(255,255,255,0.25)", isRedzone: false };
 }
+
+const TIER_MAX_PAUSE_SECONDS = { 0: 180, 1: 480, 2: 900 };
 
 // ── Solar phase accent for the "REMAINING" label ──────────────────────────────
 // Colors sampled from the sky palette bottom gradients so the label feels
@@ -234,12 +237,19 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
 }
 
 // ── Main session screen ───────────────────────────────────────────────────────
-export default function SessionScreen({ contract, onComplete, onAbort }) {
+export default function SessionScreen({ contract, onComplete, onAbort, onPause, onResume }) {
   const { accentColor } = useTheme() || {};
+  const { user } = useUser() || {};
   const duration     = Number(contract.duration_minutes || 30);
   const totalSeconds = duration * 60;
   const prestige     = Number(contract.prestige_level || 0);
   const skillColor   = SKILL_COLORS[(contract.skill_name || "").toUpperCase()] || COLORS.accent;
+
+  const isPaused = !!contract.paused_at;
+  const accountTier = user?.account_tier ?? 0;
+  const maxPauseSeconds = TIER_MAX_PAUSE_SECONDS[accountTier] ?? 0;
+  const pauseSecondsUsed = Number(contract.pause_seconds_used || 0);
+  const pauseSecondsRemaining = Math.max(0, maxPauseSeconds - pauseSecondsUsed);
 
   const getInitial = () => {
     const deadlineMs  = contract.deadline   ? Date.parse(contract.deadline)   : null;
@@ -250,14 +260,24 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
     return totalSeconds;
   };
 
-  const [timeLeft,     setTimeLeft]     = useState(getInitial);
-  const [confirmDrop,  setConfirmDrop]  = useState(false);
-  const [neural,       setNeural]       = useState(getNeuralWindow);
-  const [labelColor,   setLabelColor]   = useState(getSolarLabelColor);
+  const getInitialPauseTimeLeft = () => {
+    if (!contract.paused_at) return pauseSecondsRemaining;
+    const pausedAtMs = Date.parse(contract.paused_at);
+    if (isNaN(pausedAtMs)) return pauseSecondsRemaining;
+    const elapsed = Math.floor((Date.now() - pausedAtMs) / 1000);
+    return Math.max(0, pauseSecondsRemaining - elapsed);
+  };
+
+  const [timeLeft,      setTimeLeft]      = useState(getInitial);
+  const [confirmDrop,   setConfirmDrop]   = useState(false);
+  const [neural,        setNeural]        = useState(getNeuralWindow);
+  const [labelColor,    setLabelColor]    = useState(getSolarLabelColor);
+  const [pauseBusy,     setPauseBusy]     = useState(false);
+  const [pauseTimeLeft, setPauseTimeLeft] = useState(getInitialPauseTimeLeft);
 
   // Tick every second
   useEffect(() => {
-    if (timeLeft <= 0) return;
+    if (isPaused || timeLeft <= 0) return;
     const tick = setTimeout(() => {
       setTimeLeft(prev => {
         const next = Math.max(0, prev - 1);
@@ -266,10 +286,11 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
       });
     }, 1000);
     return () => clearTimeout(tick);
-  }, [timeLeft]);
+  }, [timeLeft, isPaused]);
 
   // Re-sync to absolute deadline when app returns to foreground
   useEffect(() => {
+    if (isPaused) return;
     const deadlineMs = contract.deadline ? Date.parse(contract.deadline) : null;
     if (!deadlineMs) return;
     const sub = AppState.addEventListener("change", state => {
@@ -279,7 +300,63 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
       }
     });
     return () => sub.remove();
+  }, [contract.deadline, isPaused]);
+
+  // Resuming a paused session pushes contract.deadline forward without this
+  // component remounting (same key), so timeLeft needs its own re-sync here
+  // rather than relying on the tick or the AppState effects above.
+  useEffect(() => {
+    if (isPaused) return;
+    const deadlineMs = contract.deadline ? Date.parse(contract.deadline) : null;
+    if (!deadlineMs) return;
+    setTimeLeft(Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000)));
   }, [contract.deadline]);
+
+  const handlePauseToggle = useCallback(async () => {
+    if (pauseBusy) return;
+    setPauseBusy(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      if (isPaused) {
+        await onResume(contract.id);
+      } else {
+        await onPause(contract.id);
+      }
+    } finally {
+      setPauseBusy(false);
+    }
+  }, [isPaused, onPause, onResume, contract.id, pauseBusy]);
+
+  // Re-sync the pause countdown whenever a fresh pause begins (paused_at
+  // changes from null to a real timestamp), so it starts from the correct
+  // remaining allowance rather than the full budget every time.
+  useEffect(() => {
+    if (!contract.paused_at) return;
+    setPauseTimeLeft(getInitialPauseTimeLeft());
+  }, [contract.paused_at]);
+
+  // Ticks the pause allowance down while paused. Reaching zero auto-resumes
+  // the session rather than waiting on a manual tap — the allowance is a
+  // timed break, not an indefinite hold. Resuming early by tapping the
+  // button is still possible at any point before this fires.
+  useEffect(() => {
+    if (!isPaused) return;
+    if (pauseTimeLeft <= 0) {
+      handlePauseToggle();
+      return;
+    }
+    const tick = setTimeout(() => setPauseTimeLeft(prev => Math.max(0, prev - 1)), 1000);
+    return () => clearTimeout(tick);
+  }, [isPaused, pauseTimeLeft, handlePauseToggle]);
+
+  // Re-sync the pause countdown when the app returns to foreground while paused.
+  useEffect(() => {
+    if (!isPaused) return;
+    const sub = AppState.addEventListener("change", state => {
+      if (state === "active") setPauseTimeLeft(getInitialPauseTimeLeft());
+    });
+    return () => sub.remove();
+  }, [isPaused, contract.paused_at]);
 
   // Re-check neural window and solar label color every minute
   useEffect(() => {
@@ -345,8 +422,39 @@ export default function SessionScreen({ contract, onComplete, onAbort }) {
 
       {/* ── Timer ── */}
       <View style={styles.timerBlock}>
-        <Text style={[styles.timer, { color: timerColor }]}>{formatTime(timeLeft)}</Text>
-        <Text style={[styles.timerLabel, { color: labelColor }]}>REMAINING</Text>
+        <Text style={[styles.timer, { color: isPaused ? "rgba(255,255,255,0.35)" : timerColor }]}>
+          {formatTime(timeLeft)}
+        </Text>
+        <Text style={[styles.timerLabel, { color: isPaused ? "rgba(255,255,255,0.35)" : labelColor }]}>
+          {isPaused ? "PAUSED" : "REMAINING"}
+        </Text>
+
+        {!confirmDrop && (
+          <TouchableOpacity
+            style={[
+              styles.pauseToggle,
+              { borderColor: isPaused ? accentColor : "rgba(255,255,255,0.18)" },
+              !isPaused && pauseSecondsRemaining <= 0 && styles.pauseToggleDisabled,
+            ]}
+            onPress={handlePauseToggle}
+            disabled={(!isPaused && pauseSecondsRemaining <= 0) || pauseBusy}
+            accessibilityRole="button"
+            accessibilityLabel={isPaused ? "Resume session" : "Pause session"}
+          >
+            {pauseBusy ? (
+              <ActivityIndicator color={isPaused ? accentColor : "rgba(255,255,255,0.6)"} size="small" />
+            ) : (
+              <Text
+                style={[
+                  styles.pauseToggleText,
+                  isPaused ? { color: accentColor } : pauseSecondsRemaining <= 0 && styles.pauseToggleTextDisabled,
+                ]}
+              >
+                {isPaused ? `PAUSED · ${formatTime(pauseTimeLeft)}` : `PAUSE · ${formatTime(pauseSecondsRemaining)} LEFT`}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ── Progress bar ── */}
@@ -556,6 +664,25 @@ const styles = StyleSheet.create({
     height:          32,
     backgroundColor: "rgba(255,255,255,0.07)",
   },
+
+  pauseToggle: {
+    marginTop:         16,
+    borderWidth:       1,
+    borderRadius:      10,
+    paddingVertical:   10,
+    paddingHorizontal: 20,
+    minWidth:          180,
+    alignItems:        "center",
+  },
+  pauseToggleDisabled: { opacity: 0.4 },
+  pauseToggleText: {
+    fontFamily:    FONTS.monoBold,
+    fontSize:      13,
+    fontWeight:    "800",
+    color:         "rgba(255,255,255,0.75)",
+    letterSpacing: 1.5,
+  },
+  pauseToggleTextDisabled: { color: "rgba(255,255,255,0.25)" },
 
   // ── REDZONE bar ──
   redzoneBar: {

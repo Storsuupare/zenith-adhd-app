@@ -107,6 +107,37 @@ pool.query(`UPDATE tasks SET credited_minutes = duration_minutes WHERE status = 
 
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reengagement_push_sent BOOLEAN DEFAULT false`).catch(() => {});
 
+// users.username already existed (Clerk-derived fallback: username, then
+// full name, then email prefix, then raw Clerk ID — set at account creation,
+// see routes/webhooks.js), but was never user-editable, never shown to other
+// users, and had no uniqueness constraint. has_set_username is an explicit
+// flag rather than inferring "did they choose this" from the value's shape,
+// since an auto-derived name and a real chosen handle aren't reliably
+// distinguishable after the fact. The unique index is best-effort like every
+// other migration here — if legacy auto-derived rows already collide it
+// simply won't apply, which is fine: the leaderboard only ever surfaces
+// users who've gone through the explicit-set flow, and that endpoint
+// enforces uniqueness itself as the real guarantee, not this index.
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS has_set_username BOOLEAN DEFAULT false`).catch(() => {});
+pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_unique ON users (LOWER(username))`).catch(() => {});
+
+// Friend requests for the weekly leaderboard — PENDING until the addressee
+// accepts, so search-adding someone never exposes your stats to them without
+// consent.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS friendships (
+    id SERIAL PRIMARY KEY,
+    requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (requester_id, addressee_id)
+  )
+`).catch(() => {});
+
+pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ`).catch(() => {});
+pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS pause_seconds_used INTEGER DEFAULT 0`).catch(() => {});
+
 // Tracks which per-skill level milestones (10/20/.../90) a user has already
 // claimed. Once per skill per account, not reset by Prestige — see the note
 // on SKILL_LEVEL_MILESTONES in lib/economy.js.
