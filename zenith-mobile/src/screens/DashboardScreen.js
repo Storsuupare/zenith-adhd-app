@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, Alert, RefreshControl,
@@ -13,10 +13,7 @@ import MissionForm      from "../components/MissionForm";
 import ContractCard     from "../components/ContractCard";
 import DailyChallenge   from "../components/DailyChallenge";
 import StreakStrip      from "../components/StreakStrip";
-import OnboardingModal, { ONBOARDING_KEY } from "../components/OnboardingModal";
-import WhatsNewModal from "../components/WhatsNewModal";
-import { WHATS_NEW, WHATS_NEW_KEY } from "../constants/whatsNew";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import onboardingRefs   from "../utils/onboardingRefs";
 import { COLORS } from "../constants/colors";
 import { SKILL_ICONS } from "../constants/skills";
 import { FONTS } from "../constants/fonts";
@@ -180,7 +177,7 @@ const skillCardStyles = StyleSheet.create({
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-export default function DashboardScreen({ navigation }) {
+export default function DashboardScreen() {
   const { user, fetchUser, refreshToken } = useUser();
   const { accentColor } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -249,41 +246,6 @@ export default function DashboardScreen({ navigation }) {
 
   const activeCount = contracts.length;
 
-  // Scroll ref lets OnboardingModal call scrollRef.current.scrollTo()
-  const scrollRef = useRef(null);
-
-  // Refs for each spotlightable section — OnboardingModal calls measureInWindow on these
-  const statHudRef   = useRef(null);
-  const missionRef   = useRef(null);
-  const contractsRef = useRef(null);
-  const skillsRef    = useRef(null);
-
-  // Y offsets of key sections, populated by onLayout callbacks below
-  const [sectionYs, setSectionYs] = useState({});
-
-  // Show onboarding once per new user, or the "what's new" card once per update for returning
-  // users — never both. New users already get the current feature set via onboarding, so a
-  // redundant "what's new" popup right after would be noise, not signal. Sequenced in one
-  // effect (not two separate ones) to avoid a race between the onboarding-seen read and the
-  // whats-new-seen write for brand-new users.
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showWhatsNew,   setShowWhatsNew]   = useState(false);
-  const introChecked = useRef(false);
-  useEffect(() => {
-    if (!user?.external_id || introChecked.current) return;
-    introChecked.current = true;
-    (async () => {
-      const onboardingSeen = await AsyncStorage.getItem(ONBOARDING_KEY(user.external_id));
-      if (!onboardingSeen) {
-        setShowOnboarding(true);
-        await AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version);
-        return;
-      }
-      const whatsNewSeenVersion = await AsyncStorage.getItem(WHATS_NEW_KEY);
-      if (whatsNewSeenVersion !== WHATS_NEW.version) setShowWhatsNew(true);
-    })();
-  }, [user?.external_id]);
-
   // Track how far through the active session we are (updates every 10s)
   const [elapsedFraction, setElapsedFraction] = useState(0);
   useEffect(() => {
@@ -307,14 +269,14 @@ export default function DashboardScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView
-        ref={scrollRef}
+        ref={onboardingRefs.dashboardScroll}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
       >
-        <View ref={statHudRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, statHud: y })); }}>
+        <View ref={onboardingRefs.statHud} onLayout={event => { onboardingRefs.sectionYs.current.statHud = event.nativeEvent.layout.y; }}>
           <StatHUD user={user} accentColor={accentColor} />
         </View>
 
@@ -342,7 +304,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Mission form (only when no active tasks) */}
         {activeCount === 0 && (
-          <View ref={missionRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, mission: y })); }}>
+          <View ref={onboardingRefs.mission} onLayout={event => { onboardingRefs.sectionYs.current.mission = event.nativeEvent.layout.y; }}>
             <MissionForm onStart={handleCreateTask} accentColor={accentColor} />
           </View>
         )}
@@ -360,7 +322,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Active contracts */}
         {activeCount > 0 && (
-          <View ref={contractsRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, contracts: y })); }}>
+          <View ref={onboardingRefs.contracts} onLayout={event => { onboardingRefs.sectionYs.current.contracts = event.nativeEvent.layout.y; }}>
             <Text style={styles.sectionLabel}>ACTIVE TASKS</Text>
             {contracts.map(contract => (
               <ContractCard
@@ -375,7 +337,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Skills grid */}
         {skills.length > 0 && (
-          <View ref={skillsRef} onLayout={event => { const y = event.nativeEvent.layout.y; setSectionYs(prev => ({ ...prev, skills: y })); }}>
+          <View ref={onboardingRefs.skills} onLayout={event => { onboardingRefs.sectionYs.current.skills = event.nativeEvent.layout.y; }}>
             <Text style={styles.sectionLabel}>SKILLS</Text>
             <View style={styles.skillGrid}>
               {skills.map(skill => (
@@ -402,29 +364,6 @@ export default function DashboardScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
-
-      <OnboardingModal
-        visible={showOnboarding}
-        userId={user?.external_id}
-        onClose={() => setShowOnboarding(false)}
-        navigation={navigation}
-        scrollRef={scrollRef}
-        sectionYs={sectionYs}
-        sectionRefs={{
-          statHud:   statHudRef,
-          mission:   missionRef,
-          contracts: contractsRef,
-          skills:    skillsRef,
-        }}
-      />
-
-      <WhatsNewModal
-        visible={showWhatsNew}
-        onClose={() => {
-          setShowWhatsNew(false);
-          AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version).catch(() => {});
-        }}
-      />
     </SafeAreaView>
   );
 }

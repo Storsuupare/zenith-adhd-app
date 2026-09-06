@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Modal } from "react-native";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useAuth } from "@clerk/clerk-expo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FONTS } from "../constants/fonts";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -26,10 +27,18 @@ import PaymentCancelScreen  from "../screens/PaymentCancelScreen";
 import SolarBackdrop        from "../components/SolarBackdrop";
 import NotificationToast    from "../components/NotificationToast";
 import LoadingScreen        from "../components/LoadingScreen";
+import OnboardingModal, { ONBOARDING_KEY } from "../components/OnboardingModal";
+import WhatsNewModal        from "../components/WhatsNewModal";
+import { WHATS_NEW, WHATS_NEW_KEY } from "../constants/whatsNew";
 import { useTheme }         from "../context/ThemeContext";
 import { COLORS }           from "../constants/colors";
 import { useTasks }         from "../context/TaskContext";
 import { useUser }          from "../context/UserContext";
+
+// Lets OnboardingModal navigate (e.g. to Settings for the Neural Clock step)
+// without needing a navigation prop — it's mounted at the root, above every
+// tab, so it isn't a screen inside any Navigator and has no such prop of its own.
+const navigationRef = createNavigationContainerRef();
 
 // Per-theme dark base that tints the navbar glass —
 // matched to each theme's night sky top color at ~72% opacity
@@ -158,8 +167,34 @@ function AppTabs() {
 }
 
 function RootStack() {
+  const { user } = useUser() || {};
   const { contracts, notifications, handleComplete, handleAbort, handlePause, handleResume } = useTasks();
   const activeContract = contracts?.[0] ?? null;
+
+  // Show onboarding once per new user, or the "what's new" card once per update for returning
+  // users — never both. New users already get the current feature set via onboarding, so a
+  // redundant "what's new" popup right after would be noise, not signal. Sequenced in one
+  // effect (not two separate ones) to avoid a race between the onboarding-seen read and the
+  // whats-new-seen write for brand-new users.
+  // Lives here (not on DashboardScreen) so the overlay it drives can stay visible across tab
+  // switches — see the OnboardingModal import above for why.
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWhatsNew,   setShowWhatsNew]   = useState(false);
+  const introChecked = useRef(false);
+  useEffect(() => {
+    if (!user?.external_id || introChecked.current) return;
+    introChecked.current = true;
+    (async () => {
+      const onboardingSeen = await AsyncStorage.getItem(ONBOARDING_KEY(user.external_id));
+      if (!onboardingSeen) {
+        setShowOnboarding(true);
+        await AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version);
+        return;
+      }
+      const whatsNewSeenVersion = await AsyncStorage.getItem(WHATS_NEW_KEY);
+      if (whatsNewSeenVersion !== WHATS_NEW.version) setShowWhatsNew(true);
+    })();
+  }, [user?.external_id]);
 
   return (
     <>
@@ -170,6 +205,21 @@ function RootStack() {
       </Stack.Navigator>
 
       <NotificationToast notifications={notifications} />
+
+      <OnboardingModal
+        visible={showOnboarding}
+        userId={user?.external_id}
+        onClose={() => setShowOnboarding(false)}
+        navigation={navigationRef}
+      />
+
+      <WhatsNewModal
+        visible={showWhatsNew}
+        onClose={() => {
+          setShowWhatsNew(false);
+          AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version).catch(() => {});
+        }}
+      />
 
       {/* Full-screen session takeover — floats above everything when a session is running */}
       <Modal
@@ -208,7 +258,7 @@ export default function AppNavigator() {
 
   return (
     <SolarBackdrop>
-      <NavigationContainer theme={ZenithTheme}>
+      <NavigationContainer ref={navigationRef} theme={ZenithTheme}>
         {isSignedIn ? <RootStack /> : <AuthStack />}
       </NavigationContainer>
     </SolarBackdrop>

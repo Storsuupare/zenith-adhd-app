@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Modal, View, Text, TouchableOpacity,
+  View, Text, TouchableOpacity,
   StyleSheet, Dimensions, Animated, PanResponder,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -10,6 +10,11 @@ import { FONTS } from "../constants/fonts";
 import onboardingRefs from "../utils/onboardingRefs";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// StyleSheet.absoluteFillObject alone doesn't reliably fill its parent on this
+// SDK (same rendering regression fixed in SolarBackdrop) — use explicit
+// dimensions everywhere instead of the bare spread.
+const ABSOLUTE_FILL = { position: "absolute", top: 0, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
 
 const SPOTLIGHT_PADDING   = 12;  // gap between element edge and the spotlight ring
 const SCROLL_SETTLE_DELAY = 380; // ms to wait after scroll before measuring
@@ -23,7 +28,7 @@ const MAX_SPOTLIGHT_HEIGHT = 160;
 const ESTIMATED_CARD_HEIGHT = 320;
 
 // ── Step definitions ──────────────────────────────────────────────────────────
-// scrollTo           — key in sectionRefs / sectionYs (Dashboard sections)
+// scrollTo           — key in onboardingRefs (Dashboard sections) to scroll to and measure
 // scrollToCenter     — when true, scrolls the element to vertical screen center
 //                      so there is room above it for the card (used for skills)
 // navigateTo         — tab name to switch to when pressing Next
@@ -77,9 +82,6 @@ export default function OnboardingModal({
   userId,
   onClose,
   navigation,
-  scrollRef,
-  sectionYs,
-  sectionRefs,
 }) {
   const { accentColor } = useTheme() || {};
   const activeAccentColor = accentColor || COLORS.accent;
@@ -158,8 +160,9 @@ export default function OnboardingModal({
     // ── Dashboard spotlight (Home steps with scrollTo) ─────────────────────
     if (!currentStep.scrollTo) return;
 
-    const targetScrollY = sectionYs?.[currentStep.scrollTo];
-    if (targetScrollY == null || !scrollRef?.current) return;
+    const targetScrollY = onboardingRefs.sectionYs.current?.[currentStep.scrollTo];
+    const dashboardScrollRef = onboardingRefs.dashboardScroll;
+    if (targetScrollY == null || !dashboardScrollRef?.current) return;
 
     // scrollToCenter: true brings the section to vertical screen-center so
     // there is room above it for the card. Used for tall sections like skills.
@@ -167,10 +170,10 @@ export default function OnboardingModal({
       ? Math.max(0, targetScrollY - SCREEN_HEIGHT * 0.5)
       : Math.max(0, targetScrollY - 16);
 
-    scrollRef.current.scrollTo({ y: scrollOffsetY, animated: true });
+    dashboardScrollRef.current.scrollTo({ y: scrollOffsetY, animated: true });
 
     const measureTimer = setTimeout(() => {
-      const targetRef = sectionRefs?.[currentStep.scrollTo];
+      const targetRef = onboardingRefs[currentStep.scrollTo];
       if (!targetRef?.current) return;
 
       targetRef.current.measureInWindow((screenX, screenY, elementWidth, elementHeight) => {
@@ -188,18 +191,23 @@ export default function OnboardingModal({
   }, [currentStepIndex, visible]);
 
   // ── Navigation helpers ────────────────────────────────────────────────────────
+  // `navigation` is the root navigationRef (this component is mounted above every
+  // tab, not inside one, so it has no navigation prop of its own — see AppNavigator).
+  // navigateTo targets (currently just "Settings") live inside the nested MoreStack,
+  // not as a top-level tab — route through "More" so it can resolve the screen.
   function navigateForStep(step) {
+    if (!navigation?.isReady?.()) return;
     if (step.navigateTo) {
-      navigation?.navigate(step.navigateTo);
+      navigation.navigate("More", { screen: step.navigateTo });
     } else {
-      navigation?.navigate("Home");
+      navigation.navigate("Home");
     }
   }
 
   const goToNextStep = async () => {
     if (isLastStep) {
       await AsyncStorage.setItem(ONBOARDING_KEY(userId), "1");
-      navigation?.navigate("Home");
+      if (navigation?.isReady?.()) navigation.navigate("Home");
       onClose();
       return;
     }
@@ -215,7 +223,7 @@ export default function OnboardingModal({
 
   const skipOnboarding = async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY(userId), "1");
-    navigation?.navigate("Home");
+    if (navigation?.isReady?.()) navigation.navigate("Home");
     onClose();
   };
 
@@ -237,7 +245,7 @@ export default function OnboardingModal({
 
     if (belowFits) {
       return {
-        ...StyleSheet.absoluteFillObject,
+        ...ABSOLUTE_FILL,
         justifyContent:    "flex-start",
         alignItems:        "center",
         paddingTop:        cardTopIfBelow,
@@ -251,7 +259,7 @@ export default function OnboardingModal({
 
     if (aboveFits) {
       return {
-        ...StyleSheet.absoluteFillObject,
+        ...ABSOLUTE_FILL,
         justifyContent:    "flex-end",
         alignItems:        "center",
         paddingBottom:     cardBottomPadding,
@@ -262,7 +270,7 @@ export default function OnboardingModal({
     // Neither fits cleanly — pin the card to the top of the screen,
     // floating above the spotlighted element.
     return {
-      ...StyleSheet.absoluteFillObject,
+      ...ABSOLUTE_FILL,
       justifyContent:    "flex-start",
       alignItems:        "center",
       paddingTop:        50,
@@ -273,7 +281,8 @@ export default function OnboardingModal({
   // ── Overlay ───────────────────────────────────────────────────────────────────
   // Without spotlight: full-screen dim.
   // With spotlight: four dim panels around a transparent cutout + glowing ring.
-  // All Views use pointerEvents="none" so scroll gestures pass through on Dashboard.
+  // All Views use pointerEvents="none" so scroll gestures pass through to
+  // whichever screen is behind the overlay.
   function renderOverlay() {
     if (!spotlight) {
       return <View style={styles.fullScreenDim} pointerEvents="none" />;
@@ -378,29 +387,14 @@ export default function OnboardingModal({
 
   if (!visible) return null;
 
-  // ── Two rendering modes ───────────────────────────────────────────────────────
-  //
-  // MODAL — Shop and Profile steps. React Native's <Modal> sits at native-window
-  // level, so the card is visible above whichever tab is active. The spotlight
-  // overlay is rendered inside the Modal so it frames elements on that tab.
-  //
-  // INLINE ABSOLUTE VIEW — all Dashboard steps. A plain absoluteFill View means
-  // the underlying ScrollView still receives scroll gestures (pointerEvents="none"
-  // on all dim panels passes touches straight through).
-
-  if (currentStep.navigateTo) {
-    return (
-      <Modal transparent animationType="none" visible>
-        {renderOverlay()}
-        <View style={getCardContainerStyle()} pointerEvents="box-none">
-          {renderDraggableCard()}
-        </View>
-      </Modal>
-    );
-  }
-
+  // Mounted once at the navigator root, above the whole tab navigator (see
+  // AppNavigator's RootStack), so this plain absoluteFill View sits above
+  // whichever tab is currently focused — no native <Modal> needed, which
+  // means the screen underneath (Dashboard or Settings) keeps receiving
+  // scroll gestures the whole time (pointerEvents="none" on the dim panels
+  // passes everything but the card itself straight through).
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+    <View style={ABSOLUTE_FILL} pointerEvents="box-none">
       {renderOverlay()}
       <View style={getCardContainerStyle()} pointerEvents="box-none">
         {renderDraggableCard()}
@@ -411,7 +405,7 @@ export default function OnboardingModal({
 
 const styles = StyleSheet.create({
   fullScreenDim: {
-    ...StyleSheet.absoluteFillObject,
+    ...ABSOLUTE_FILL,
     backgroundColor: "rgba(0,0,0,0.75)",
   },
 
@@ -431,7 +425,7 @@ const styles = StyleSheet.create({
   },
 
   cardContainerCentered: {
-    ...StyleSheet.absoluteFillObject,
+    ...ABSOLUTE_FILL,
     alignItems:     "center",
     justifyContent: "center",
     padding:        24,
