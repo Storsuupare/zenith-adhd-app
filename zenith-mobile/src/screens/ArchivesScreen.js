@@ -357,7 +357,7 @@ export default function ArchivesScreen({ navigation }) {
         {!isPro && (
           <View style={styles.upgradeNotice}>
             <Text style={styles.upgradeNoticeText}>
-              PRO unlocks 6 months of history, prestige, and CSV export.
+              PRO unlocks 6 months of history and CSV export.
               ELITE unlocks all-time history and an auto-replenishing streak shield.
             </Text>
           </View>

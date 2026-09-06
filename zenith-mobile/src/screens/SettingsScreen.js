@@ -24,7 +24,7 @@ const CLOCK_ROWS = [
 ];
 
 const PLAN_DETAILS = {
-  PRO:   { price: "€4.99 / month", perks: "15 task slots · 6 months of history · Prestige · Streak shield" },
+  PRO:   { price: "€4.99 / month", perks: "15 task slots · 6 months of history · One-Time Streak shield · CSV export" },
   ELITE: { price: "€9.99 / month", perks: "Unlimited slots · All-time history · Auto-replenishing shield · CSV export" },
 };
 

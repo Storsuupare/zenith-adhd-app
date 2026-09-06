@@ -10,9 +10,9 @@ Live at [zenithapp.org](https://zenithapp.org) · Mobile on the App Store (Live 
 
 | Layer       | Technology                                                   |
 |-------------|--------------------------------------------------------------|
-| Mobile      | React Native 0.81 + Expo SDK 54                              |
-| Web         | React 18 + Vite                                              |
-| Backend     | Node.js 22 + Express 4 + PostgreSQL 16                       |
+| Mobile      | React Native 0.86 + Expo SDK 57                              |
+| Web         | React 19 + Vite                                              |
+| Backend     | Node.js 22 + Express 5 + PostgreSQL 16                       |
 | Auth        | Clerk (JWT, verified server-side on every protected route)   |
 | Payments    | Apple IAP via RevenueCat (live) · Stripe (implemented, dormant) |
 | Native iOS  | Swift — WidgetKit widgets, ActivityKit Live Activities       |
@@ -43,7 +43,7 @@ The economy is deliberately server-authoritative. XP, credits, loot rolls and st
 - **Auth**: every protected route validates the Clerk JWT via the Clerk SDK. No custom JWT parsing.
 - **IDOR**: user-scoped queries join on `external_id = req.auth.userId` rather than trusting any client-supplied identifier. Identity is read from the verified token, never the request body.
 - **SQL injection**: parameterised queries throughout. No string interpolation into SQL.
-- **Rate limiting**: six independent limiters scoped by operation — global abuse guard, mutations, shop purchases, daily bonus claims, admin routes, and payment session creation — rather than one blanket limit.
+- **Rate limiting**: eight independent limiters scoped by operation — global abuse guard, mutations, shop purchases, daily bonus claims, admin routes, payment session creation, subscription sync, and user/friend search — rather than one blanket limit.
 - **Idempotency**: the daily challenge claim uses `WHERE daily_challenge_claimed_date < CURRENT_DATE` as its update predicate, making a double claim impossible at the database level with no application lock.
 - **Transactions**: session completion runs in a single transaction, with `SAVEPOINT` isolating streak-milestone processing so a failure there cannot roll back an already-earned session.
 - **Secrets**: all credentials live in `.env` or Railway environment variables. The repository contains no keys, tokens, or database URLs.
