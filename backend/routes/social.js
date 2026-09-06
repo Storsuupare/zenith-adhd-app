@@ -101,6 +101,16 @@ router.post("/api/friends/request", requireAuth, mutationLimiter, async (req, re
     );
     if (targetRes.rows.length === 0) return res.status(404).json({ error: "USER_NOT_FOUND" });
 
+    const reverseRes = await pool.query(
+      `UPDATE friendships SET status = 'ACCEPTED'
+       WHERE requester_id = $1 AND addressee_id = $2 AND status = 'PENDING'
+       RETURNING id, status`,
+      [targetId, selfId],
+    );
+    if (reverseRes.rows.length > 0) {
+      return res.json(reverseRes.rows[0]);
+    }
+
     const insertRes = await pool.query(
       `INSERT INTO friendships (requester_id, addressee_id, status)
        VALUES ($1, $2, 'PENDING')

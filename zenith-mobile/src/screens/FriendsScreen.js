@@ -60,8 +60,9 @@ export default function FriendsScreen({ navigation }) {
 
   const handleAdd = async (userId) => {
     try {
-      await sendFriendRequest(userId);
-      setResults(prev => prev.map(row => (row.id === userId ? { ...row, friendship_status: "PENDING", requested_by_me: true } : row)));
+      const response = await sendFriendRequest(userId);
+      const status = response.data?.status === "ACCEPTED" ? "ACCEPTED" : "PENDING";
+      setResults(prev => prev.map(row => (row.id === userId ? { ...row, friendship_status: status, requested_by_me: true } : row)));
       loadFriends();
     } catch {}
   };
