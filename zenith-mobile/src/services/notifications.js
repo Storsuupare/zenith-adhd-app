@@ -40,6 +40,38 @@ export async function registerPushToken(clerkJwt) {
   }
 }
 
+const sessionCompleteNotificationIds = new Map();
+
+export async function scheduleSessionCompleteNotification(taskId, deadline) {
+  try {
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Session complete',
+        body: 'Come collect your reward before it disappears.',
+        sound: SOUND,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(deadline),
+      },
+    });
+    sessionCompleteNotificationIds.set(String(taskId), identifier);
+  } catch {
+    // Best-effort -- a scheduling failure shouldn't block starting the session
+  }
+}
+
+export async function cancelSessionCompleteNotification(taskId) {
+  const identifier = sessionCompleteNotificationIds.get(String(taskId));
+  if (!identifier) return;
+  sessionCompleteNotificationIds.delete(String(taskId));
+  try {
+    await Notifications.cancelScheduledNotificationAsync(identifier);
+  } catch {
+    // Already fired or already cancelled -- fine either way
+  }
+}
+
 export async function scheduleNotifications() {
   await Notifications.cancelAllScheduledNotificationsAsync();
 

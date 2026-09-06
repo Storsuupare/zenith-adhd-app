@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { useUser } from "./UserContext";
 import { fetchTasks, createTask, completeTask, failTask, pauseTask, resumeTask } from "../services/api";
 import { beginSessionActivity, endSessionActivity } from "../services/liveActivity";
+import { scheduleSessionCompleteNotification, cancelSessionCompleteNotification } from "../services/notifications";
 import { CREDITS_ICON } from "../constants/currency";
 
 const TaskContext = createContext(null);
@@ -59,6 +60,9 @@ export function TaskProvider({ children }) {
     if (hadNoActiveSession) {
       beginSessionActivity({ title: taskName, skillName, durationMinutes });
     }
+    if (res.data?.deadline) {
+      scheduleSessionCompleteNotification(res.data.id, res.data.deadline);
+    }
     return res.data;
   }, [refreshToken, loadContracts, contracts]);
 
@@ -67,6 +71,7 @@ export function TaskProvider({ children }) {
       await refreshToken();
       const oldStreak = user?.streak ?? 0;
       const res = await completeTask(String(taskId));
+      cancelSessionCompleteNotification(taskId);
       // Delay contract refresh so DoneOverlay has time to show the reward animation
       // before the modal closes due to the active contract disappearing.
       // Caught rather than left to reject silently — this is the only thing that
@@ -180,6 +185,7 @@ export function TaskProvider({ children }) {
       await refreshToken();
       const oldStreak = user?.streak ?? 0;
       const res = await failTask(String(taskId));
+      cancelSessionCompleteNotification(taskId);
       const [freshContracts] = await Promise.all([loadContracts(), fetchUser()]);
       if (freshContracts && freshContracts.length === 0) endSessionActivity();
 
@@ -196,6 +202,7 @@ export function TaskProvider({ children }) {
     try {
       await refreshToken();
       const res = await pauseTask(String(taskId));
+      cancelSessionCompleteNotification(taskId);
       setContracts(prev => prev.map(contract => (
         String(contract.id) === String(taskId)
           ? { ...contract, paused_at: res.data.paused_at }
@@ -210,6 +217,9 @@ export function TaskProvider({ children }) {
     try {
       await refreshToken();
       const res = await resumeTask(String(taskId));
+      if (res.data?.deadline) {
+        scheduleSessionCompleteNotification(taskId, res.data.deadline);
+      }
       setContracts(prev => prev.map(contract => (
         String(contract.id) === String(taskId)
           ? {
