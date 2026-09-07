@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import SolarBackdrop from '../components/SolarBackdrop.jsx'
 import Nav from '../components/Nav.jsx'
 import Footer from '../components/Footer.jsx'
 import { useSEO } from '../hooks/useSEO.js'
 
 const FEATURES = [
-  { icon: '▶', title: 'Session System',      desc: 'Every task is a timed contract. Complete it, earn XP and real loot drops.' },
+  { icon: '▶', title: 'Session System',      desc: 'Every task is a timed session. Complete it, earn XP and real loot drops.' },
   { icon: '◎', title: 'Skill Mastery',       desc: '12 skills that level up as you work. Prestige at the ceiling for permanent perks — open to every tier.' },
-  { icon: '◈', title: 'Loot Drops',          desc: 'Finish a session and roll for a credit drop. Rare, Epic, Legendary — real randomness.' },
+  { icon: '◈', title: 'Loot Drops',          desc: 'Finish a session and roll for a possible credit drop. Rare, Epic, Legendary — real randomness.' },
   { icon: '▲', title: 'Neural Clock',        desc: 'Time-based multipliers that reward your natural focus rhythm and punish late nights.' },
 ]
 
@@ -26,7 +25,7 @@ const TIERS = [
       'Every cosmetic theme in the shop',
       '5 active tasks at once · 7 days of history',
     ],
-    cta:     'Start free',
+    cta:     'Download free',
     variant: 'free',
   },
   {
@@ -41,7 +40,7 @@ const TIERS = [
       'Streak Shield, absorbs one missed day',
       'CSV export',
     ],
-    cta:     'Get PRO',
+    cta:     'Download the app',
     variant: 'pro',
   },
   {
@@ -55,7 +54,7 @@ const TIERS = [
       'Full history, forever',
       'Streak Shield auto-replenishes — no re-earning it',
     ],
-    cta:     'Get ELITE',
+    cta:     'Download the app',
     variant: 'elite',
   },
 ]
@@ -231,15 +230,17 @@ export default function HomePage() {
                 <ul className="pricing-perks">
                   {tier.perks.map(perk => <li key={perk}>{perk}</li>)}
                 </ul>
-                <Link to="/signup" className={`pricing-btn pricing-btn--${tier.variant}`}>
+                <a
+                  href="https://apps.apple.com/app/id6778361410"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`pricing-btn pricing-btn--${tier.variant}`}
+                >
                   {tier.cta}
-                </Link>
+                </a>
               </div>
             ))}
           </div>
-          <p className="pricing-trust">
-            No tier has a paid advantage. XP, loot odds, cosmetics and Prestige are identical everywhere — paying buys capacity, not an edge.
-          </p>
         </div>
       </section>
 

@@ -576,7 +576,7 @@ body::after {
 
 .hero-platform-note {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(91, 246, 64, 0.708);
   margin-top: 8px;
   letter-spacing: 0.04em;
 }
@@ -981,13 +981,6 @@ body::after {
   font-size: 0.5rem;
   opacity: 0.85;
 }
-.pricing-trust {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  text-align: center;
-  letter-spacing: 0.04em;
-  line-height: 1.6;
-}
 .pricing-error {
   font-size: 0.82rem;
   color: #f87171;
@@ -1031,6 +1024,53 @@ body::after {
     border-color: rgba(255, 255, 255, 0.25);
     color: #fff;
   }
+}
+
+/* ── Cookie banner ── */
+.cookie-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  background: rgba(3, 7, 18, 0.96);
+  border-top: 1px solid var(--border-dim);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .cookie-banner {
+    background: rgba(3, 7, 18, 0.82);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+.cookie-banner-text {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 640px;
+}
+.cookie-banner-text a {
+  color: var(--ui-accent, #22d3ee);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cookie-banner-btn {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #030712;
+  background: var(--ui-accent, #22d3ee);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 /* ── Footer ── */
@@ -1111,7 +1151,7 @@ body::after {
 }
 .legal-eyebrow {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.6rem;
+  font-size: 0.9rem;
   font-weight: 900;
   letter-spacing: 0.22em;
   text-transform: uppercase;

@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import CookieBanner from './components/CookieBanner.jsx'
 import HomePage from './pages/HomePage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import TermsPage from './pages/TermsPage.jsx'
@@ -15,22 +16,25 @@ import NotFoundPage from './pages/NotFoundPage.jsx'
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/"                index element={<HomePage />} />
-      <Route path="/privacy"         element={<PrivacyPage />} />
-      <Route path="/terms"           element={<TermsPage />} />
-      <Route path="/refund"          element={<RefundPage />} />
-      <Route path="/login"           element={<LoginPage />} />
-      <Route path="/login/*"         element={<LoginPage />} />
-      <Route path="/signup"          element={<SignupPage />} />
-      <Route path="/signup/*"        element={<SignupPage />} />
-      <Route path="/payment/success" element={<PaymentSuccessPage />} />
-      <Route path="/payment/cancel"  element={<PaymentCancelPage />} />
-      <Route path="/release-notes"   element={<ReleaseNotesPage />} />
-      <Route path="/account"         element={<AccountPage />} />
-      <Route path="/contact"         element={<ContactPage />} />
-      <Route path={import.meta.env.VITE_ADMIN_PATH || '/admin'} element={<AdminPage />} />
-      <Route path="*"                element={<NotFoundPage />} />
-    </Routes>
+    <>
+      <CookieBanner />
+      <Routes>
+        <Route path="/"                index element={<HomePage />} />
+        <Route path="/privacy"         element={<PrivacyPage />} />
+        <Route path="/terms"           element={<TermsPage />} />
+        <Route path="/refund"          element={<RefundPage />} />
+        <Route path="/login"           element={<LoginPage />} />
+        <Route path="/login/*"         element={<LoginPage />} />
+        <Route path="/signup"          element={<SignupPage />} />
+        <Route path="/signup/*"        element={<SignupPage />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="/payment/cancel"  element={<PaymentCancelPage />} />
+        <Route path="/release-notes"   element={<ReleaseNotesPage />} />
+        <Route path="/account"         element={<AccountPage />} />
+        <Route path="/contact"         element={<ContactPage />} />
+        <Route path={import.meta.env.VITE_ADMIN_PATH || '/admin'} element={<AdminPage />} />
+        <Route path="*"                element={<NotFoundPage />} />
+      </Routes>
+    </>
   )
 }
