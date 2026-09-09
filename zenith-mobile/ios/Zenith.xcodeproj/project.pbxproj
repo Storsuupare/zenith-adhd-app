@@ -20,6 +20,7 @@
 		C4F71933FBAC4B289AB3EDE3 /* ZenithWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CF55ACC5B694438FAA616113 /* ZenithWidgets.appex */; };
 		D1B67C8B7C3C023EC428D06D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21DD69D5A26FC7C38C6810C /* ExpoModulesProvider.swift */; };
 		DBC34E4F23474AA490B3F842 /* ZenithStreakWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C80A7A99214416A6477A5D /* ZenithStreakWidget.swift */; };
+		4FBC7A8E03D4D0CB0E18DA21 /* ZenithIconWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A601D23A906C10341A6C154C /* ZenithIconWidget.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -56,6 +57,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Zenith/Info.plist; sourceTree = "<group>"; };
 		246569819F104238BFEDA4B1 /* ZenithWidgetsBundle.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithWidgetsBundle.swift; path = ZenithWidgetsBundle.swift; sourceTree = "<group>"; };
 		24C80A7A99214416A6477A5D /* ZenithStreakWidget.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithStreakWidget.swift; path = ZenithStreakWidget.swift; sourceTree = "<group>"; };
+		A601D23A906C10341A6C154C /* ZenithIconWidget.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ZenithIconWidget.swift; path = ZenithIconWidget.swift; sourceTree = "<group>"; };
 		27FDEA13B61C720A782349FF /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Zenith/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		31B5F5A067D9E1F9DFA9D661 /* Pods-ZenithWidgets.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ZenithWidgets.debug.xcconfig"; path = "Target Support Files/Pods-ZenithWidgets/Pods-ZenithWidgets.debug.xcconfig"; sourceTree = "<group>"; };
 		458BC22725EB476E951472F7 /* Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = Info.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				DBA0618FBDEA4DD79B9C4336 /* Attributes.swift */,
 				E6F3D798CE594C59812D3C16 /* ZenithSessionLiveActivity.swift */,
 				24C80A7A99214416A6477A5D /* ZenithStreakWidget.swift */,
+				A601D23A906C10341A6C154C /* ZenithIconWidget.swift */,
 				246569819F104238BFEDA4B1 /* ZenithWidgetsBundle.swift */,
 				458BC22725EB476E951472F7 /* Info.plist */,
 				67E67D8DA8624D6A98B8A5A1 /* Assets.xcassets */,
@@ -485,6 +488,7 @@
 				9A0C9691C9164E45A1BCC8A6 /* Attributes.swift in Sources */,
 				2623BDBB84F945648F52009D /* ZenithSessionLiveActivity.swift in Sources */,
 				DBC34E4F23474AA490B3F842 /* ZenithStreakWidget.swift in Sources */,
+				4FBC7A8E03D4D0CB0E18DA21 /* ZenithIconWidget.swift in Sources */,
 				BB79BAF1C46B4A70AC97D958 /* ZenithWidgetsBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
