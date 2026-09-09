@@ -4,11 +4,29 @@ import SwiftUI
 // A separate widget from ZenithStreakWidget — this one carries no data at all,
 // it's just the Zenith mark sitting on the Lock Screen as a quiet reminder the
 // app exists, the same pattern several other apps use for a plain icon widget.
-// Uses the SF Symbol hexagon rather than importing the app's raster icon, since
-// Zenith's own brand mark (⬡, used in AuthScreen and onboarding) already is a
-// hexagon — this needs no image asset import at all, and Lock Screen widgets
-// strip custom colors down to a single system tint anyway, so a vector shape
-// is the correct fit here, not a full-color logo image.
+// Drawn as vector bars rather than the app's raster logo file: that PNG has an
+// opaque navy background baked in (no alpha channel), and Lock Screen widgets
+// render in a single system-applied tint via widgetAccentable() — an opaque
+// full-color image would just show as a solid tinted square, not the bars
+// shape. A few RoundedRectangles reproduce the same ascending-bars mark used
+// for the app icon and website, and tint correctly since they're real shapes.
+struct AscendingBarsMark: View {
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 2) {
+            bar(height: 7)
+            bar(height: 11)
+            bar(height: 15)
+            bar(height: 19)
+        }
+        .frame(height: 19)
+    }
+
+    private func bar(height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .frame(width: 4, height: height)
+    }
+}
+
 struct IconEntry: TimelineEntry {
     let date: Date
 }
@@ -36,8 +54,7 @@ struct ZenithIconWidget: Widget {
         StaticConfiguration(kind: kind, provider: IconTimelineProvider()) { _ in
             ZStack {
                 AccessoryWidgetBackground()
-                Image(systemName: "hexagon.fill")
-                    .font(.system(size: 22))
+                AscendingBarsMark()
                     .widgetAccentable()
             }
             .accessibilityElement(children: .ignore)
