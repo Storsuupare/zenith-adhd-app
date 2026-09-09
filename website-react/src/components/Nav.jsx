@@ -13,7 +13,7 @@ export default function Nav() {
     <nav className="site-nav">
       <div className="nav-inner">
         <Link to="/" className="nav-logo">
-          <img src="/logo2.webp" alt="Zenith" className="nav-logo-img" />
+          <img src="/logo6.png" alt="Zenith" className="nav-logo-img" />
           ZENITH
         </Link>
         <div className="nav-right">

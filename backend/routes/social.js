@@ -255,26 +255,50 @@ router.get("/api/leaderboard/weekly", requireAuth, async (req, res) => {
          SELECT $1
        )
        SELECT users.id, users.username, users.level,
-              COALESCE(SUM(daily_stats.focus_minutes), 0) AS weekly_minutes
+              COUNT(daily_stats.date) FILTER (WHERE daily_stats.focus_minutes > 0) AS active_days
        FROM friend_ids
        JOIN users ON users.id = friend_ids.id
        LEFT JOIN daily_stats
          ON daily_stats.user_id = friend_ids.id
          AND daily_stats.date >= date_trunc('week', NOW())::date
        GROUP BY users.id, users.username, users.level
-       ORDER BY weekly_minutes DESC`,
+       ORDER BY active_days DESC`,
       [selfId],
     );
 
     res.json(leaderboardRes.rows.map(row => ({
-      id:             row.id,
-      username:       row.username,
-      level:          row.level,
-      weekly_minutes: parseInt(row.weekly_minutes, 10),
-      is_self:        row.id === selfId,
+      id:          row.id,
+      username:    row.username,
+      level:       row.level,
+      active_days: parseInt(row.active_days, 10),
+      is_self:     row.id === selfId,
     })));
   } catch (err) {
     console.error("LEADERBOARD_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Marks every unacknowledged win as seen in one call, not just the latest —
+// if someone wins two weeks running without opening the app, they get one
+// celebration for the most recent win, not a backlog of stacked modals.
+router.post("/api/leaderboard/acknowledge-win", requireAuth, mutationLimiter, async (req, res) => {
+  const externalId = req.auth.userId;
+
+  try {
+    const selfRes = await pool.query("SELECT id FROM users WHERE external_id = $1", [externalId]);
+    if (selfRes.rows.length === 0) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    const selfId = selfRes.rows[0].id;
+
+    await pool.query(
+      `UPDATE leaderboard_rewards SET acknowledged_at = NOW()
+       WHERE user_id = $1 AND acknowledged_at IS NULL`,
+      [selfId],
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("LEADERBOARD_ACKNOWLEDGE_ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

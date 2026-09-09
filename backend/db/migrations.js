@@ -164,6 +164,26 @@ pool.query(`
     created_at       TIMESTAMPTZ DEFAULT NOW()
   )
 `).catch(() => {});
+
+// One row per user per week they won their friend circle's leaderboard —
+// the UNIQUE constraint is what makes the payout cron safe to re-run
+// (a restart mid-run, or an overlapping trigger, can never double-credit
+// the same win twice). acknowledged_at is NULL until the mobile app has
+// actually shown the win celebration — the cron fires unattended, so
+// "acknowledged" has to be a separate signal from "awarded", checked the
+// next time the app happens to be opened rather than at payout time.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS leaderboard_rewards (
+    id              SERIAL PRIMARY KEY,
+    user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start      DATE NOT NULL,
+    credits_awarded INTEGER NOT NULL,
+    active_days     INTEGER NOT NULL DEFAULT 0,
+    awarded_at      TIMESTAMPTZ DEFAULT NOW(),
+    acknowledged_at TIMESTAMPTZ,
+    UNIQUE (user_id, week_start)
+  )
+`).catch(() => {});
 }
 
 module.exports = { runMigrations };

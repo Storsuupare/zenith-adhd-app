@@ -170,7 +170,17 @@ router.get("/user/:externalId", requireAuth, async (req, res) => {
                    ) AS completed
                  FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS gs(day)
                ) day_flags
-              ) AS last_7_days
+              ) AS last_7_days,
+              (SELECT json_build_object(
+                 'credits',     credits_awarded,
+                 'active_days', active_days,
+                 'week_start',  week_start
+               )
+               FROM leaderboard_rewards
+               WHERE user_id = users.id AND acknowledged_at IS NULL
+               ORDER BY week_start DESC
+               LIMIT 1
+              ) AS unseen_leaderboard_win
        FROM users WHERE external_id = $1`,
       [externalId],
     );

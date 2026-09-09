@@ -3,6 +3,7 @@ const { registerSessionExpiry } = require("./sessionExpiry.js");
 const { registerStreakAtRisk } = require("./streakAtRisk.js");
 const { registerWeeklySummary } = require("./weeklySummary.js");
 const { registerReengagementPush } = require("./reengagementPush.js");
+const { registerLeaderboardReward } = require("./leaderboardReward.js");
 
 // Called once from server.js, guarded by require.main === module there —
 // each register*() call just schedules its cron job, it doesn't check the
@@ -14,6 +15,7 @@ function registerCronJobs() {
   registerStreakAtRisk();
   registerWeeklySummary();
   registerReengagementPush();
+  registerLeaderboardReward();
 }
 
 module.exports = { registerCronJobs };

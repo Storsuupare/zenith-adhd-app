@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
@@ -17,7 +18,7 @@ export default function EarningSummary({ data, onDismiss }) {
 
   const skillKey   = data?.skillName?.toUpperCase() ?? "";
   const skillColor = SKILL_COLORS[skillKey] || resolvedAccent;
-  const skillIcon  = SKILL_ICONS[skillKey] ?? "◉";
+  const skillIcon  = SKILL_ICONS[skillKey] ?? "ellipse-outline";
 
   useEffect(() => {
     if (!data) return;
@@ -59,7 +60,7 @@ export default function EarningSummary({ data, onDismiss }) {
 
             {/* Skill identifier */}
             <View style={styles.skillRow}>
-              <Text style={[styles.skillIcon, { color: skillColor }]}>{skillIcon}</Text>
+              <Ionicons name={skillIcon} size={12} color={skillColor} />
               <Text style={[styles.skillLabel, { color: skillColor }]}>
                 {data.skillName ? data.skillName.toUpperCase() : "SESSION"}
               </Text>
@@ -140,7 +141,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  skillIcon:  { fontSize: 12 },
   skillLabel: {
     fontSize:      10,
     fontFamily:    FONTS.bold,

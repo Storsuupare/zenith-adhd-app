@@ -20,7 +20,7 @@ export const SKILL_INFO = {
   "Creativity":  "Drawing, writing, designing, brainstorming, building something",
   "Discipline":  "Sticking to a routine, waking up on time, not skipping a habit",
   "Vitality":    "Working out, going for a walk, stretching, playing a sport",
-  "Momentum":    "Sending that email, finishing an assignment, crossing something off",
+  "Momentum":    "Knocking out a few small tasks back to back!",
   "Nutrition":   "Cooking a meal, drinking enough water, meal prepping",
   "Logistics":   "Booking an appointment, packing a bag, sorting your schedule",
   "Presence":    "Meditating, journalling, a walk without your phone",
@@ -29,19 +29,22 @@ export const SKILL_INFO = {
   "Environment": "Cleaning your desk, organising your room, decluttering",
 };
 
+// Ionicons names (not plain glyphs) — a real vector icon font always respects
+// the `color` style, unlike some Unicode symbols which iOS silently renders as
+// fixed-color emoji regardless of styling.
 export const SKILL_ICONS = {
-  "RESOLVE":     "▲",
-  "LOGIC FLOW":  "≡",
-  "CREATIVITY":  "◆",
-  "DISCIPLINE":  "◼",
-  "VITALITY":    "◈",
-  "MOMENTUM":    "◎",
-  "NUTRITION":   "⊕",
-  "LOGISTICS":   "▤",
-  "PRESENCE":    "⊙",
-  "RECOVERY":    "☽",
-  "LEARNING":    "⬢",
-  "ENVIRONMENT": "▣",
+  "RESOLVE":     "flame-outline",
+  "LOGIC FLOW":  "git-branch-outline",
+  "CREATIVITY":  "color-palette-outline",
+  "DISCIPLINE":  "alarm-outline",
+  "VITALITY":    "barbell-outline",
+  "MOMENTUM":    "rocket-outline",
+  "NUTRITION":   "nutrition-outline",
+  "LOGISTICS":   "briefcase-outline",
+  "PRESENCE":    "leaf-outline",
+  "RECOVERY":    "bed-outline",
+  "LEARNING":    "book-outline",
+  "ENVIRONMENT": "trash-outline",
 };
 
 export const DURATIONS = [

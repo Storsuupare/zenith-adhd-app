@@ -6,5 +6,6 @@ struct ZenithWidgetsBundle: WidgetBundle {
     var body: some Widget {
         ZenithSessionLiveActivity()
         ZenithStreakWidget()
+        ZenithIconWidget()
     }
 }

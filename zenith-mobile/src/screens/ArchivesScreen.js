@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { Ionicons } from "@expo/vector-icons";
 import { useUser } from "../context/UserContext";
 import { useTheme } from "../context/ThemeContext";
 import ScreenHeader from "../components/ScreenHeader";
@@ -336,9 +337,12 @@ export default function ArchivesScreen({ navigation }) {
                       key={session.id ?? `${group.key}-${sessionIndex}`}
                       style={[styles.sessionRow, sessionIndex > 0 && styles.sessionRowDivided]}
                     >
-                      <Text style={[styles.sessionIcon, { color: skillColor }]}>
-                        {SKILL_ICONS[skillKey] ?? "◉"}
-                      </Text>
+                      <Ionicons
+                        name={SKILL_ICONS[skillKey] ?? "ellipse-outline"}
+                        size={14}
+                        color={skillColor}
+                        style={styles.sessionIcon}
+                      />
                       <View style={styles.sessionBody}>
                         <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
                         <Text style={[styles.sessionSkill, { color: skillColor }]}>
@@ -477,7 +481,7 @@ const styles = StyleSheet.create({
     paddingVertical:   11,
   },
   sessionRowDivided: { borderTopWidth: 1, borderTopColor: SURFACE.inset },
-  sessionIcon:       { fontSize: 14, width: 18, textAlign: "center" },
+  sessionIcon:       { width: 18, textAlign: "center" },
   sessionBody:       { flex: 1, gap: 2 },
   sessionTitle:      { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
   sessionSkill:      { fontSize: 11, fontFamily: FONTS.regular },

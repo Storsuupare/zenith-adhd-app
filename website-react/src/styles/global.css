@@ -400,8 +400,8 @@ body::after {
   text-decoration: none;
 }
 .nav-logo-img {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   flex-shrink: 0;
 }

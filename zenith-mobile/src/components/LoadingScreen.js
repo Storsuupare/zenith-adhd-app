@@ -28,7 +28,7 @@ export default function LoadingScreen() {
 
   return (
     <View style={styles.root}>
-      <Image source={require("../../assets/logo2.png")} style={styles.logo} resizeMode="contain" />
+      <Image source={require("../../assets/logo6.png")} style={styles.logo} resizeMode="contain" />
       <Text style={styles.wordmark}>ZENITH</Text>
       <Animated.View style={[styles.dot, { opacity: pulse }]} />
     </View>

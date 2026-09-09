@@ -2,9 +2,9 @@
   "expo": {
     "name": "Zenith",
     "slug": "zenith-mobile",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
-    "icon": "./assets/logo2.png",
+    "icon": "./assets/logo6.png",
     "userInterfaceStyle": "dark",
     "scheme": "zenith",
     "ios": {
@@ -41,7 +41,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo2.png",
+          "icon": "./assets/logo6.png",
           "color": "#090c13",
           "sounds": ["./assets/833599__subquire__bright-synth-ping-ui-bell-tone.wav"]
         }

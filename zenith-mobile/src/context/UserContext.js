@@ -70,18 +70,37 @@ export function UserProvider({ children }) {
           console.error("[UserContext] createUser failed:", createErr.message);
         }
       } else if (err.response?.status === 401) {
-        // Clerk's local cache says signed in, but the server rejected the token
-        // (revoked or expired session). Trust the server, not the cache — force
-        // a real sign-out so the user lands back on the Auth screen instead of
-        // sitting on an empty Dashboard with no valid session behind it.
-        console.warn("[UserContext] Server rejected session token, signing out.");
+        // A 401 here is ambiguous: the session could be genuinely revoked, or
+        // the token could have simply expired in transit — Clerk's session JWTs
+        // are short-lived by design, and a network delay or the app being
+        // backgrounded between minting the token and the request reaching the
+        // server is enough to make it stale by the time it's checked. Force a
+        // guaranteed-fresh token (skipCache bypasses the same cache that handed
+        // us the now-expired one) and retry once before concluding the session
+        // is actually invalid — a single transient expiry shouldn't sign
+        // someone out of the app entirely.
+        try {
+          const freshToken = await getToken({ skipCache: true });
+          setAuthToken(freshToken);
+          const retryRes = await fetchUser(userId);
+          setUser(retryRes.data);
+          if (REVENUECAT_KEY) Purchases.logIn(userId).catch(() => {});
+          return;
+        } catch (retryErr) {
+          if (retryErr.response?.status !== 401) {
+            console.error("[UserContext] retry after expired token failed:", retryErr.message);
+            return;
+          }
+          // Still 401 on a guaranteed-fresh token — the session really is invalid.
+        }
+        console.warn("[UserContext] Server rejected session token even after refresh, signing out.");
         setAuthToken(null);
         await signOut().catch(() => {});
       } else {
         console.error("[UserContext] loadUser failed:", err.message);
       }
     }
-  }, [userId, refreshToken, signOut]);
+  }, [userId, refreshToken, signOut, getToken]);
 
   useEffect(() => {
     if (isSignedIn && userId) {

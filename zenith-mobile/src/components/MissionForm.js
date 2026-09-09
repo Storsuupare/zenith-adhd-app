@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ScrollView, Alert,
+  StyleSheet, ActivityIndicator, ScrollView, Alert, Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SKILL_COLORS } from "../constants/colors";
+import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
-import { SKILL_CATEGORIES, DURATIONS, SKILL_INFO } from "../constants/skills";
+import { SKILLS, DURATIONS, SKILL_INFO } from "../constants/skills";
 import { useUser } from "../context/UserContext";
 import { fetchTaskTemplates, createTaskTemplate, deleteTaskTemplate } from "../services/api";
 
@@ -22,7 +22,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
   const [taskName, setTaskName] = useState("");
   const [duration, setDuration] = useState(DEFAULT_DURATION);
   const [skill,    setSkill]    = useState(DEFAULT_SKILL);
-  const [openCategory, setOpenCategory] = useState(null);
+  const [showSkillPicker, setShowSkillPicker] = useState(false);
   const [busy,     setBusy]     = useState(false);
   const [templates,      setTemplates]      = useState([]);
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -52,7 +52,7 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
     try {
       await onStart({ taskName: taskName.trim(), durationMinutes: duration, skillName: skill });
       AsyncStorage.multiSet([[LAST_SKILL_KEY, skill], [LAST_DURATION_KEY, String(duration)]]).catch(() => {});
-      setTaskName(""); setOpenCategory(null);
+      setTaskName("");
     } finally { setBusy(false); }
   };
 
@@ -60,7 +60,6 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
     setTaskName(template.task_name);
     if (template.skill_name) setSkill(template.skill_name);
     setDuration(template.duration_minutes);
-    setOpenCategory(null);
   };
 
   const handleDeleteTemplate = (template) => {
@@ -148,65 +147,65 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
         returnKeyType="done"
       />
 
-      <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>CHOOSE SKILL</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skillRow}>
-        {SKILL_CATEGORIES.map(category => {
-          const isExpanded      = openCategory === category.name;
-          const holdsSelection  = category.skills.includes(skill);
-          const highlightColor  = holdsSelection ? SKILL_COLORS[skill.toUpperCase()] : accentColor;
-          const isHighlighted   = isExpanded || holdsSelection;
-          return (
-            <TouchableOpacity
-              key={category.name}
-              style={[
-                styles.chip,
-                isHighlighted
-                  ? { borderColor: highlightColor, backgroundColor: "rgba(255,255,255,0.14)" }
-                  : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
-              ]}
-              onPress={() => setOpenCategory(isExpanded ? null : category.name)}
-              accessibilityRole="button"
-              accessibilityLabel={`${category.name} skill category`}
-              accessibilityState={{ expanded: isExpanded, selected: holdsSelection }}
-            >
-              <Text style={[
-                styles.chipText,
-                { color: isHighlighted ? highlightColor : "rgba(255,255,255,0.45)" },
-              ]}>
-                {holdsSelection ? skill.toUpperCase() : category.name.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <Text style={[styles.sectionLabel, { color: accentColor, borderBottomColor: accentColor + "38" }]}>SKILL</Text>
+      <TouchableOpacity
+        style={[styles.skillPickerBtn, { borderColor: SKILL_COLORS[skill.toUpperCase()] + "55" }]}
+        onPress={() => setShowSkillPicker(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`Skill: ${skill}. Tap to change.`}
+      >
+        <Text style={[styles.skillPickerText, { color: SKILL_COLORS[skill.toUpperCase()] }]} numberOfLines={1}>
+          {skill.toUpperCase()}
+        </Text>
+        <Text style={styles.skillPickerChevron}>▾</Text>
+      </TouchableOpacity>
 
-      {openCategory && (
-        <View style={styles.skillGrid}>
-          {SKILL_CATEGORIES.find(category => category.name === openCategory).skills.map(skillName => {
-            const skillColor = SKILL_COLORS[skillName.toUpperCase()];
-            const active     = skill === skillName;
-            return (
-              <TouchableOpacity
-                key={skillName}
-                style={[
-                  styles.subChip,
-                  active
-                    ? { borderColor: skillColor, backgroundColor: "rgba(255,255,255,0.14)" }
-                    : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
-                ]}
-                onPress={() => { setSkill(skillName); setOpenCategory(null); }}
-                accessibilityRole="button"
-                accessibilityLabel={skillName}
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[styles.chipText, { color: active ? skillColor : "rgba(255,255,255,0.6)" }]}>
-                  {skillName.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showSkillPicker}
+        onRequestClose={() => setShowSkillPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSkillPicker(false)}
+        >
+          <View style={styles.pickerCard} onStartShouldSetResponder={() => true}>
+            <Text style={styles.pickerTitle}>Choose a skill</Text>
+            <View style={styles.pickerGrid}>
+              {SKILLS.map(skillName => {
+                const skillColor = SKILL_COLORS[skillName.toUpperCase()];
+                const active     = skill === skillName;
+                return (
+                  <TouchableOpacity
+                    key={skillName}
+                    style={[
+                      styles.pickerChip,
+                      active
+                        ? { borderColor: skillColor, backgroundColor: skillColor + "22" }
+                        : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" },
+                    ]}
+                    onPress={() => { setSkill(skillName); setShowSkillPicker(false); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={skillName}
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text
+                      style={[styles.chipText, { color: active ? skillColor : "rgba(255,255,255,0.6)" }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.95}
+                    >
+                      {skillName.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Example tasks for selected skill */}
       {skill && (
@@ -324,31 +323,74 @@ const styles = StyleSheet.create({
     gap:           8,
     paddingVertical: 2,
   },
-  skillGrid: {
-    flexDirection: "row",
-    flexWrap:      "wrap",
-    gap:           8,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical:   6,
-    borderRadius:      20,
-    borderWidth:       1,
-  },
-  subChip: {
-    flex:              1,
-    paddingHorizontal: 12,
-    paddingVertical:   9,
-    borderRadius:      12,
-    borderWidth:       1,
-    alignItems:        "center",
-  },
   chipText: {
     fontFamily:    FONTS.bold,
     fontSize:      11,
     fontWeight:    "700",
     letterSpacing: 1,
     textTransform: "uppercase",
+    textAlign:     "center",
+  },
+
+  skillPickerBtn: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    backgroundColor:   "rgba(255,255,255,0.04)",
+    borderWidth:       1,
+    borderRadius:      10,
+    paddingHorizontal: 16,
+    paddingVertical:   14,
+  },
+  skillPickerText: {
+    fontFamily:    FONTS.bold,
+    fontSize:      13,
+    fontWeight:    "700",
+    letterSpacing: 1,
+    textAlign:     "center",
+  },
+  skillPickerChevron: {
+    color:    "rgba(255,255,255,0.4)",
+    fontSize: 13,
+  },
+
+  pickerOverlay: {
+    flex:            1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems:      "center",
+    justifyContent:  "center",
+    padding:         24,
+  },
+  pickerCard: {
+    width:           "100%",
+    maxWidth:        360,
+    backgroundColor: COLORS.surface,
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+    borderRadius:    16,
+    padding:         20,
+    gap:             14,
+  },
+  pickerTitle: {
+    color:         COLORS.accent,
+    fontSize:      14,
+    fontFamily:    FONTS.bold,
+    textAlign:     "center",
+  },
+  pickerGrid: {
+    flexDirection:  "row",
+    flexWrap:       "wrap",
+    justifyContent: "center",
+    gap:            8,
+  },
+  pickerChip: {
+    width:             "48%",
+    paddingHorizontal: 8,
+    paddingVertical:   12,
+    borderRadius:      12,
+    borderWidth:       1,
+    alignItems:        "center",
+    justifyContent:    "center",
   },
 
   templateChip: {
@@ -384,7 +426,7 @@ const styles = StyleSheet.create({
   },
 
   skillHint: {
-    color:             "rgba(255,255,255,0.4)",
+    color:             COLORS.textMuted,
     fontSize:          11,
     fontFamily:        FONTS.regular,
     fontStyle:         "italic",

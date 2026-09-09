@@ -45,16 +45,38 @@ struct ZenithStreakWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StreakTimelineProvider()) { entry in
             StreakWidgetView(entry: entry)
-                .containerBackground(Color.zenithBackground, for: .widget)
         }
         .configurationDisplayName("Streak")
         .description("Your current Zenith streak, at a glance.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
     }
 }
 
+// Switches layout per family — Home Screen keeps the full brand-colored view,
+// Lock Screen families get their own minimal layout since iOS renders those in
+// a single system-applied tint (from the wallpaper), ignoring custom colors
+// almost everywhere except through widgetAccentable().
 struct StreakWidgetView: View {
+    @Environment(\.widgetFamily) private var family
     let entry: StreakEntry
+
+    var body: some View {
+        switch family {
+        case .accessoryCircular:
+            CircularStreakView(streak: entry.streak)
+                .containerBackground(.clear, for: .widget)
+        case .accessoryRectangular:
+            RectangularStreakView(streak: entry.streak)
+                .containerBackground(.clear, for: .widget)
+        default:
+            HomeScreenStreakView(streak: entry.streak)
+                .containerBackground(Color.zenithBackground, for: .widget)
+        }
+    }
+}
+
+struct HomeScreenStreakView: View {
+    let streak: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -64,7 +86,7 @@ struct StreakWidgetView: View {
 
             Spacer(minLength: 0)
 
-            Text("\(entry.streak)")
+            Text("\(streak)")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
                 .monospacedDigit()
@@ -74,11 +96,64 @@ struct StreakWidgetView: View {
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(entry.streak) day streak")
+        .accessibilityLabel("\(streak) day streak")
+    }
+}
+
+// The small circular Lock Screen slot, next to the clock.
+struct CircularStreakView: View {
+    let streak: Int
+
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 0) {
+                Image(systemName: "flame.fill")
+                    .font(.caption2)
+                Text("\(streak)")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+            }
+            .widgetAccentable()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(streak) day streak")
+    }
+}
+
+// The wider Lock Screen slot, below the clock.
+struct RectangularStreakView: View {
+    let streak: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "flame.fill")
+                .widgetAccentable()
+            Text("\(streak) day streak")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(streak) day streak")
     }
 }
 
 #Preview("Streak", as: .systemSmall) {
+    ZenithStreakWidget()
+} timeline: {
+    StreakEntry(date: Date(), streak: 7)
+    StreakEntry(date: Date(), streak: 42)
+}
+
+#Preview("Streak - Lock Screen Circular", as: .accessoryCircular) {
+    ZenithStreakWidget()
+} timeline: {
+    StreakEntry(date: Date(), streak: 7)
+    StreakEntry(date: Date(), streak: 42)
+}
+
+#Preview("Streak - Lock Screen Rectangular", as: .accessoryRectangular) {
     ZenithStreakWidget()
 } timeline: {
     StreakEntry(date: Date(), streak: 7)

@@ -12,6 +12,23 @@ const TAG_COLORS = {
 
 const CHANGELOG = [
   {
+    version: "1.2.0",
+    title:   "Leaderboard, Pause, and Fixes",
+    entries: [
+      { tag: "NEW",    text: "Weekly Leaderboard — compete with friends, family, or partners for the most active days this week and earn Credits for topping your circle" },
+      { tag: "NEW",    text: "Pause a session mid-way and pick up right where you left off, within a time limit based on your tier" },
+      { tag: "NEW",    text: "Get notified the moment a session finishes, so you never miss collecting your reward" },
+      { tag: "NEW",    text: "The Streak widget can now be added to your Lock Screen, not just your Home Screen" },
+      { tag: "NEW",    text: "Skill icons now match what they actually represent, instead of abstract shapes you had to memorize" },
+      { tag: "FIX",    text: "Fixed themes sometimes carrying over when switching accounts on a shared device" },
+      { tag: "FIX",    text: "Fixed onboarding sometimes rendering incorrectly on first launch" },
+      { tag: "FIX",    text: "Fixed an issue where overlapping sessions could award extra credit" },
+      { tag: "FIX",    text: "Fixed accepting a mutual friend request creating a duplicate entry" },
+      { tag: "FIX",    text: "Fixed starting a session requiring you to remember which category your skill was hidden under to select it" },
+      { tag: "CHANGE", text: "New app icon and logo! The old one had an extremely similar design as Google Gemini! Same design but different colors!" },
+    ],
+  },
+  {
     version: "1.1.0",
     title:   "Prestige, Rebuilt",
     entries: [

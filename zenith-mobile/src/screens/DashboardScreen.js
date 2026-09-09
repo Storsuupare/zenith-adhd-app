@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, Alert, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useUser } from "../context/UserContext";
 import { useTasks } from "../context/TaskContext";
 import { useTheme } from "../context/ThemeContext";
@@ -78,7 +79,7 @@ function SkillCard({ skill, onPrestige, previewXP = 0, accentColor = "#22d3ee" }
     ]}>
 
       {skillIcon && (
-        <Text style={[skillCardStyles.icon, { color: accentColor }]}>{skillIcon}</Text>
+        <Ionicons name={skillIcon} size={13} color={accentColor} style={skillCardStyles.icon} />
       )}
 
       <View style={skillCardStyles.levelRow}>
@@ -139,7 +140,7 @@ const skillCardStyles = StyleSheet.create({
     paddingHorizontal: 10,
     minHeight:         90,
   },
-  icon: { position: "absolute", top: 10, right: 10, fontSize: 13, opacity: 0.55 },
+  icon: { position: "absolute", top: 10, right: 10, opacity: 0.55 },
 
   levelRow:      { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6, overflow: "hidden" },
   levelBadge:    { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 0 },

@@ -12,11 +12,8 @@ import { FONTS } from "../constants/fonts";
 import { RADIUS, SPACING, SURFACE } from "../constants/layout";
 import { setUsername as setUsernameApi, fetchWeeklyLeaderboard } from "../services/api";
 
-function formatMinutes(minutes) {
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
+function formatActiveDays(days) {
+  return `${days} ${days === 1 ? "day" : "days"}`;
 }
 
 function UsernameGate({ onSet }) {
@@ -158,8 +155,8 @@ export default function LeaderboardScreen({ navigation }) {
                     <Text style={styles.rowName}>{row.username}{row.is_self ? " (you)" : ""}</Text>
                     <Text style={styles.rowLevel}>Lv {row.level}</Text>
                   </View>
-                  <Text style={[styles.rowMinutes, { color: accentColor }]}>
-                    {formatMinutes(row.weekly_minutes)}
+                  <Text style={[styles.rowDays, { color: accentColor }]}>
+                    {formatActiveDays(row.active_days)}
                   </Text>
                 </View>
               ))}
@@ -195,7 +192,7 @@ const styles = StyleSheet.create({
   rowBody:  { flex: 1, gap: 2 },
   rowName:  { color: COLORS.text, fontSize: 14, fontFamily: FONTS.semiBold },
   rowLevel: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.regular },
-  rowMinutes: { fontSize: 13, fontFamily: FONTS.monoBold },
+  rowDays: { fontSize: 13, fontFamily: FONTS.monoBold },
 
   emptyState: { alignItems: "center", paddingVertical: 48, gap: 8 },
   emptyTitle: { color: COLORS.text, fontSize: 14, fontFamily: FONTS.semiBold },

@@ -80,11 +80,14 @@ function getInterpolatedSky(palette) {
 // Sun fades in 5:30–6:00 AM, fades out 8:00–8:30 PM
 // Moon fades out 5:00–5:30 AM, fades in 8:30–9:00 PM
 // The two never overlap — no simultaneous circles in the sky.
+// Capped below full opacity (rather than 1) so midday sun doesn't overpower
+// content on top of it, on every theme equally since this isn't theme-specific.
+const SUN_MAX_OPACITY = 0.85;
 function getSunOpacity() {
   const mins = getMinuteOfDay();
-  if (mins >= 330 && mins < 360)   return clamp01((mins - 330) / 30);
-  if (mins >= 1200 && mins < 1230) return clamp01((1230 - mins) / 30);
-  if (mins >= 360 && mins < 1200)  return 1;
+  if (mins >= 330 && mins < 360)   return clamp01((mins - 330) / 30) * SUN_MAX_OPACITY;
+  if (mins >= 1200 && mins < 1230) return clamp01((1230 - mins) / 30) * SUN_MAX_OPACITY;
+  if (mins >= 360 && mins < 1200)  return SUN_MAX_OPACITY;
   return 0;
 }
 

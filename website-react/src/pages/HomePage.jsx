@@ -15,8 +15,8 @@ const TIERS = [
   {
     id:      'free',
     name:    'FREE',
-    price:   '€0',
     period:  '',
+    price:  '$0',
     perks: [
       'Unlimited focus sessions',
       'All 12 skills, full progression to level 99',
@@ -32,7 +32,7 @@ const TIERS = [
     id:      'pro',
     name:    'PRO',
     badge:   'MOST POPULAR',
-    price:   '€4.99',
+    price:   '$3.99',
     period:  '/mo',
     perks: [
       'Everything in Free',
@@ -46,7 +46,7 @@ const TIERS = [
   {
     id:      'elite',
     name:    'ELITE',
-    price:   '€9.99',
+    price:   '$8.99',
     period:  '/mo',
     perks: [
       'Everything in PRO',

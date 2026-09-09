@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
@@ -15,7 +16,7 @@ export default function WhatsNewModal({ visible, onClose }) {
     <Modal transparent animationType="fade" visible={visible}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={[styles.icon, { color: activeAccentColor }]}>{WHATS_NEW.icon}</Text>
+          <Ionicons name={WHATS_NEW.icon} size={36} color={activeAccentColor} />
           <Text style={styles.title}>{WHATS_NEW.title}</Text>
           <Text style={styles.body}>{WHATS_NEW.body}</Text>
           <TouchableOpacity
@@ -50,7 +51,6 @@ const styles = StyleSheet.create({
     alignItems:      "center",
     gap:             12,
   },
-  icon:  { fontSize: 36 },
   title: { color: COLORS.text, fontSize: 20, fontFamily: FONTS.bold, textAlign: "center" },
   body:  { color: COLORS.textMuted, fontSize: 14, lineHeight: 22, textAlign: "center" },
   button: {

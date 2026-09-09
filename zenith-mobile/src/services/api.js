@@ -69,6 +69,7 @@ export const declineFriendRequest  = (id)        => api.post(`/api/friends/${id}
 export const removeFriend          = (id)        => api.delete(`/api/friends/${id}`);
 export const fetchFriends          = ()          => api.get("/api/friends");
 export const fetchWeeklyLeaderboard = ()         => api.get("/api/leaderboard/weekly");
+export const acknowledgeLeaderboardWin = ()      => api.post("/api/leaderboard/acknowledge-win");
 
 // ── Error reporting ───────────────────────────────────────────────────────────
 // Fire-and-forget by design — a failure reporting a crash must never itself

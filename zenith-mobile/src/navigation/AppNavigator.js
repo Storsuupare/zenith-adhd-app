@@ -29,7 +29,9 @@ import NotificationToast    from "../components/NotificationToast";
 import LoadingScreen        from "../components/LoadingScreen";
 import OnboardingModal, { ONBOARDING_KEY } from "../components/OnboardingModal";
 import WhatsNewModal        from "../components/WhatsNewModal";
+import LeaderboardWinCinematic from "../components/LeaderboardWinCinematic";
 import { WHATS_NEW, WHATS_NEW_KEY } from "../constants/whatsNew";
+import { acknowledgeLeaderboardWin } from "../services/api";
 import { useTheme }         from "../context/ThemeContext";
 import { COLORS }           from "../constants/colors";
 import { useTasks }         from "../context/TaskContext";
@@ -167,9 +169,23 @@ function AppTabs() {
 }
 
 function RootStack() {
-  const { user } = useUser() || {};
+  const { user, fetchUser } = useUser() || {};
   const { contracts, notifications, handleComplete, handleAbort, handlePause, handleResume } = useTasks();
   const activeContract = contracts?.[0] ?? null;
+
+  // The win itself happens server-side, on a schedule, independent of the app
+  // being open — so unlike every other celebration (loot, level-up, Prestige),
+  // there's no API response to hook this to. Discovered instead via a field on
+  // the user object (cleared server-side once acknowledged), checked whenever
+  // the app fetches it.
+  const handleDismissLeaderboardWin = async () => {
+    try {
+      await acknowledgeLeaderboardWin();
+    } catch {
+      // Best-effort — worst case it shows again next time the user object refreshes
+    }
+    fetchUser?.();
+  };
 
   // Show onboarding once per new user, or the "what's new" card once per update for returning
   // users — never both. New users already get the current feature set via onboarding, so a
@@ -220,6 +236,17 @@ function RootStack() {
           AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW.version).catch(() => {});
         }}
       />
+
+      {/* Gated behind onboarding/what's-new so at most one celebratory modal
+          ever competes for the screen on a given app open — an unseen win
+          just waits and shows up the next time the user object refreshes. */}
+      {!showOnboarding && !showWhatsNew && user?.unseen_leaderboard_win && (
+        <LeaderboardWinCinematic
+          credits={user.unseen_leaderboard_win.credits}
+          activeDays={user.unseen_leaderboard_win.active_days}
+          onDismiss={handleDismissLeaderboardWin}
+        />
+      )}
 
       {/* Full-screen session takeover — floats above everything when a session is running */}
       <Modal
