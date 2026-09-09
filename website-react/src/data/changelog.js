@@ -1,11 +1,11 @@
 // Keep this file in sync with zenith-mobile/src/screens/ReleaseNotesScreen.js
-// (different schema — tag/type field name and version format both differ
-// slightly, but the entries themselves should match).
+// (different schema — the tag/type field name differs, but the entries and
+// version numbers should match).
 // Newest version first.
 
 export const CHANGELOG = [
   {
-    version: "1.2",
+    version: "1.2.0",
     date: "2026-09-07",
     title: "Leaderboard, Pause, and Fixes",
     entries: [
@@ -23,7 +23,7 @@ export const CHANGELOG = [
     ],
   },
   {
-    version: "1.1",
+    version: "1.1.0",
     date: "2026-09-01",
     title: "Prestige, Rebuilt",
     entries: [
@@ -38,7 +38,7 @@ export const CHANGELOG = [
     ],
   },
   {
-    version: "1.0",
+    version: "1.0.0",
     date: "2026-06-08",
     title: "Initial Release",
     entries: [

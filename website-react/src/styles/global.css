@@ -1219,7 +1219,6 @@ body::after {
   border-left: 2px solid rgba(255, 255, 255, 0.08);
   padding: 0 0 36px 24px;
   position: relative;
-  height: 100dvh;
 }
 .rn-block::before {
   content: "";
