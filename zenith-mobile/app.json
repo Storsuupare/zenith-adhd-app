@@ -12,7 +12,8 @@
       "bundleIdentifier": "org.zenithapp.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "3"
     },
     "android": {
       "package": "org.zenithapp.mobile",
@@ -43,7 +44,9 @@
         {
           "icon": "./assets/logo6.png",
           "color": "#090c13",
-          "sounds": ["./assets/833599__subquire__bright-synth-ping-ui-bell-tone.wav"]
+          "sounds": [
+            "./assets/833599__subquire__bright-synth-ping-ui-bell-tone.wav"
+          ]
         }
       ],
       "expo-font",
