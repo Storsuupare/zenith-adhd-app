@@ -177,7 +177,7 @@ export default function HomePage() {
                 muted
                 loop
                 playsInline
-                preload="auto"
+                preload="metadata"
               />
             </div>
           </div>
