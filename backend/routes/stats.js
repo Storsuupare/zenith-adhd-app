@@ -127,18 +127,20 @@ router.get("/api/stats/export-csv", requireAuth, async (req, res) => {
 });
 
 // ── Insights — best hour, top skill, 90-day activity heatmap — PRO/ELITE only ──
-// best_hour is extracted in server/UTC time, same as PEAK_HOURS/HYPERFOCUS_HOURS
-// in achievementService.js — no per-user timezone conversion, matching how the
-// Neural Clock itself is one shared clock for every user.
+// best_hour is about the user's own pattern, not the shared Neural Clock, so it
+// must be extracted in the user's local time (users.timezone) or the number is
+// meaningless to them — unlike PEAK_HOURS/HYPERFOCUS_HOURS in achievementService.js,
+// which are correct to leave in server/UTC time since that clock is deliberately
+// shared by every user, not personal.
 router.get("/api/stats/insights", requireAuth, async (req, res) => {
   const clerk_id = req.auth.userId;
   try {
     const userRes = await pool.query(
-      "SELECT id, COALESCE(account_tier, 0) AS account_tier FROM users WHERE external_id = $1",
+      "SELECT id, COALESCE(account_tier, 0) AS account_tier, COALESCE(timezone, 'UTC') AS timezone FROM users WHERE external_id = $1",
       [clerk_id],
     );
     if (!userRes.rows.length) return res.status(404).json({ error: "USER_NOT_FOUND" });
-    const { id: userId, account_tier: accountTier } = userRes.rows[0];
+    const { id: userId, account_tier: accountTier, timezone } = userRes.rows[0];
 
     if (accountTier < 1) {
       return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Insights requires PRO or ELITE." });
@@ -147,7 +149,7 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
     const [summaryRes, heatmapRes] = await Promise.all([
       pool.query(
         `SELECT
-           (SELECT EXTRACT(HOUR FROM completed_at)::int AS hour
+           (SELECT EXTRACT(HOUR FROM completed_at AT TIME ZONE $2)::int AS hour
               FROM tasks
               WHERE user_id::text = $1::text AND status = 'SUCCESS' AND credited_minutes > 0
               GROUP BY hour
@@ -161,7 +163,7 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
               GROUP BY skills.name
               ORDER BY SUM(tasks.credited_minutes) DESC
               LIMIT 1)                                   AS top_skill_this_month`,
-        [String(userId)],
+        [String(userId), timezone],
       ),
       // daily_stats only gets a row on days with a completed session, so a
       // plain SELECT would leave gaps. generate_series + LEFT JOIN guarantees
