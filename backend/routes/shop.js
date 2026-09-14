@@ -4,7 +4,6 @@ const { requireAuth } = require("../lib/auth.js");
 const { shopLimiter } = require("../lib/rateLimiters.js");
 const { pushUserPatch } = require("../lib/realtime.js");
 const { getEffectiveAccountTier, COSMETICS_PRICES, CONSUMABLE_PRICES } = require("../lib/economy.js");
-const { CREDIT_BY_RARITY, rollRarity } = require("../LootData.js");
 
 const router = express.Router();
 
@@ -88,7 +87,6 @@ router.post("/api/shop/cosmetic-purchase", requireAuth, shopLimiter, async (req,
 // ── Consumable purchase ───────────────────────────────────────────────────────
 // Deducts credits and applies the effect immediately.
 // streak_rescue: sets streak to 1 if currently 0 (restores a broken streak).
-// extra_loot_pull: rolls loot and credits the user instantly.
 router.post("/api/shop/consumable-purchase", requireAuth, shopLimiter, async (req, res) => {
   const { consumableId } = req.body;
   const externalId       = req.auth.userId;
@@ -133,17 +131,6 @@ router.post("/api/shop/consumable-purchase", requireAuth, shopLimiter, async (re
         [price, userId],
       );
       result = { streak_restored: 1 };
-    } else if (consumableId === "extra_loot_pull") {
-      const { rollRarity } = require("../LootData.js");
-      const rarity      = rollRarity(Math.random() * 100);
-      const dropCredits = CREDIT_BY_RARITY[rarity] ?? 50;
-      await client.query(
-        `UPDATE users
-         SET system_credits = system_credits - $1 + $2
-         WHERE id = $3`,
-        [price, dropCredits, userId],
-      );
-      result = { rarity, credits_earned: dropCredits };
     }
 
     await client.query("COMMIT");

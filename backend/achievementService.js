@@ -22,21 +22,33 @@ async function buildAchievementStats(userId, client) {
        (SELECT COUNT(*)                          FROM user_skills WHERE user_id = $1::int AND level > 10)                                               AS skills_above_ten,
        (SELECT COALESCE(SUM(prestige_level),0)   FROM user_skills WHERE user_id = $1::int)                                                              AS prestige_total,
        (SELECT COALESCE(streak,0)                FROM users WHERE id = $1::int)                                                                         AS best_streak,
-       (SELECT jsonb_array_length(COALESCE(purchased_cosmetics, '[]'::jsonb)) FROM users WHERE id = $1::int)                                            AS themes_owned`,
+       (SELECT jsonb_array_length(COALESCE(purchased_cosmetics, '[]'::jsonb)) FROM users WHERE id = $1::int)                                            AS themes_owned,
+       (SELECT COUNT(*)                          FROM leaderboard_rewards WHERE user_id = $1::int)                                                       AS leaderboard_wins,
+       (SELECT COUNT(*)                          FROM leaderboard_rewards WHERE user_id = $1::int AND active_days = 7)                                  AS leaderboard_perfect_weeks,
+       (SELECT COALESCE(MAX(streak_len), 0) FROM (
+          SELECT COUNT(*) AS streak_len FROM (
+            SELECT week_start,
+                   week_start - (ROW_NUMBER() OVER (ORDER BY week_start) * INTERVAL '7 days') AS grp
+            FROM leaderboard_rewards WHERE user_id = $1::int
+          ) weeks GROUP BY grp
+        ) runs)                                                                                                                                          AS leaderboard_win_streak`,
     [String(userId), PEAK_HOURS, HYPERFOCUS_HOURS],
   );
 
   const row = statsResult.rows[0] ?? {};
   return {
-    sessionsCompleted:  Number(row.sessions_completed   ?? 0),
-    focusMinutes:       Number(row.focus_minutes        ?? 0),
-    peakSessions:       Number(row.peak_sessions        ?? 0),
-    hyperfocusSessions: Number(row.hyperfocus_sessions  ?? 0),
-    highestSkillLevel:  Number(row.highest_skill_level  ?? 0),
-    skillsAboveTen:     Number(row.skills_above_ten     ?? 0),
-    prestigeTotal:      Number(row.prestige_total       ?? 0),
-    bestStreak:         Number(row.best_streak          ?? 0),
-    themesOwned:        Number(row.themes_owned         ?? 0),
+    sessionsCompleted:      Number(row.sessions_completed       ?? 0),
+    focusMinutes:           Number(row.focus_minutes            ?? 0),
+    peakSessions:           Number(row.peak_sessions            ?? 0),
+    hyperfocusSessions:     Number(row.hyperfocus_sessions      ?? 0),
+    highestSkillLevel:      Number(row.highest_skill_level      ?? 0),
+    skillsAboveTen:         Number(row.skills_above_ten         ?? 0),
+    prestigeTotal:          Number(row.prestige_total           ?? 0),
+    bestStreak:             Number(row.best_streak              ?? 0),
+    themesOwned:            Number(row.themes_owned             ?? 0),
+    leaderboardWins:        Number(row.leaderboard_wins         ?? 0),
+    leaderboardPerfectWeeks: Number(row.leaderboard_perfect_weeks ?? 0),
+    leaderboardWinStreak:   Number(row.leaderboard_win_streak   ?? 0),
   };
 }
 

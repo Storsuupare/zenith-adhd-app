@@ -28,7 +28,6 @@ export type User = {
   streak: number;
   account_tier: number;
   role: Role;
-  daily_bonus_claimed_at: string | null;
   daily_challenge_claimed_date: string | null;
   has_seen_onboarding: boolean;
   mastery: UserSkill[];

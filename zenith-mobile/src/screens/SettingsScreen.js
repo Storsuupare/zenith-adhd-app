@@ -356,7 +356,7 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Navigation links */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>About</Text>
+          <Text style={styles.cardTitle}>More</Text>
           <NavRow label="Release Notes" screen="ReleaseNotes" />
         </View>
 

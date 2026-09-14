@@ -28,7 +28,6 @@ async function pushUserPatch(externalId) {
               xp, level, total_xp, streak,
               COALESCE(account_tier, 0)        AS account_tier,
               COALESCE(role, 'FREE')           AS role,
-              daily_bonus_claimed_at,
               daily_challenge_claimed_date,
               COALESCE(has_seen_onboarding, false) AS has_seen_onboarding
        FROM users WHERE external_id = $1`,

@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
   ActivityIndicator, RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { useUser } from "../context/UserContext";
 import ScreenHeader from "../components/ScreenHeader";
@@ -19,12 +20,12 @@ const RARITY_COLORS = {
   Mythic:    "#f472b6",
 };
 
-const STARS_BY_RARITY = {
-  Uncommon:  2,
-  Rare:      3,
-  Epic:      4,
-  Legendary: 5,
-  Mythic:    6,
+const MEDALS_BY_RARITY = {
+  Uncommon:  1,
+  Rare:      2,
+  Epic:      3,
+  Legendary: 4,
+  Mythic:    4,
 };
 
 function formatUnlockDate(timestamp) {
@@ -36,7 +37,7 @@ function formatUnlockDate(timestamp) {
 function AchievementCard({ achievement, accentColor }) {
   const isUnlocked  = Boolean(achievement.unlocked_at);
   const rarityColor = RARITY_COLORS[achievement.lootRarity] ?? accentColor;
-  const starCount   = Math.min(STARS_BY_RARITY[achievement.lootRarity] ?? 1, 5);
+  const medalCount  = MEDALS_BY_RARITY[achievement.lootRarity] ?? 1;
 
   const threshold      = Number(achievement.threshold ?? 0);
   const progress       = Number(achievement.progress ?? 0);
@@ -51,13 +52,17 @@ function AchievementCard({ achievement, accentColor }) {
         ? { borderColor: rarityColor + "55", backgroundColor: "rgba(255,255,255,0.05)" }
         : styles.cardLocked,
     ]}>
-      <View style={styles.starColumn}>
-        <Text
-          style={[styles.stars, { color: isUnlocked ? rarityColor : "rgba(255,255,255,0.22)" }]}
-          numberOfLines={1}
-        >
-          {(isUnlocked ? "★" : "☆").repeat(starCount)}
-        </Text>
+      <View style={styles.iconColumn}>
+        <View style={styles.medalRow}>
+          {Array.from({ length: medalCount }).map((_, index) => (
+            <Ionicons
+              key={index}
+              name={isUnlocked ? "medal" : "medal-outline"}
+              size={15}
+              color={isUnlocked ? rarityColor : "rgba(255,255,255,0.22)"}
+            />
+          ))}
+        </View>
       </View>
 
       <View style={styles.cardBody}>
@@ -264,8 +269,14 @@ const styles = StyleSheet.create({
   },
   cardLocked: { borderColor: "rgba(255,255,255,0.07)" },
 
-  starColumn: { width: 54 },
-  stars:      { fontSize: 11, lineHeight: 14, letterSpacing: 0.5 },
+  iconColumn: { width: 54, alignItems: "center", justifyContent: "center" },
+  medalRow: {
+    width:          36,
+    flexDirection:  "row",
+    flexWrap:       "wrap",
+    justifyContent: "center",
+    gap:            3,
+  },
 
   cardBody:        { flex: 1 },
   cardTitle:       { color: COLORS.text, fontSize: 14, fontFamily: FONTS.semiBold },

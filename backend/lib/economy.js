@@ -63,8 +63,7 @@ const COSMETICS_PRICES = {
 
 // Consumable prices — deducted on purchase, effect applied immediately.
 const CONSUMABLE_PRICES = {
-  streak_rescue:   500,
-  extra_loot_pull: 250,
+  streak_rescue: 550,
 };
 
 // Milestone rewards at specific streak counts.
@@ -114,9 +113,6 @@ async function calculateNeuralCost(baseLoad, userId, client) {
 function getEffectiveAccountTier(accountTier) {
   return accountTier ?? 0;
 }
-
-const DAILY_BONUS_CREDITS = { 0: 30, 1: 120, 2: 250 };
-const BONUS_WINDOW_MS     = 24 * 60 * 60 * 1000;
 
 // Flat credit reward every 10 skill levels, once per skill per account — not
 // reset by Prestige. Reaching 99 already takes real time; re-farming these on
@@ -183,7 +179,6 @@ module.exports = {
   REENGAGEMENT_THRESHOLD_DAYS, isEligibleForReengagementPush,
   TIER_MAX_TASKS, TIER_MAX_TEMPLATES, TIER_MAX_PAUSE_SECONDS, LOOT_DROP_CHANCE, COSMETICS_PRICES, CONSUMABLE_PRICES, STREAK_MILESTONES,
   calculateNeuralCost, getEffectiveAccountTier,
-  DAILY_BONUS_CREDITS, BONUS_WINDOW_MS,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones,
   computeCreditableMinutes,
 };

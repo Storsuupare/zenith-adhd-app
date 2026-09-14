@@ -39,6 +39,7 @@ export default function PrivacyPage() {
               <li>To run Zenith and give you your XP, loot, and skill progress.</li>
               <li>To send session reminders if you have notifications turned on.</li>
               <li>To improve the app. We look at how people use Zenith in aggregate, never at what you personally typed into your tasks.</li>
+              <li>With friends — if you add someone, they can see your weekly leaderboard ranking and active-days count, and you can see theirs.</li>
             </ul>
             <p>We don't sell your data. We don't use it for ads, and we don't track you across other apps or websites.</p>
 

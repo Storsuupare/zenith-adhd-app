@@ -6,7 +6,6 @@ import {
 import * as Haptics from "expo-haptics";
 import { useUser } from "../context/UserContext";
 import { useTheme, THEME_DATA } from "../context/ThemeContext";
-import { useTasks } from "../context/TaskContext";
 import { fetchShopState, purchaseCosmetic, purchaseConsumable } from "../services/api";
 import ScreenHeader from "../components/ScreenHeader";
 import { COLORS } from "../constants/colors";
@@ -19,15 +18,8 @@ const CONSUMABLES = [
     id:          "streak_rescue",
     label:       "Streak Rescue",
     description: "Revives a broken streak to 1. Complete a session within 24h or it resets.",
-    price:       1500,
+    price:       550,
     icon:        "◈",
-  },
-  {
-    id:          "extra_loot_pull",
-    label:       "Extra Loot Pull",
-    description: "Rolls a loot drop right now — same RNG as a session drop. Result shows immediately.",
-    price:       750,
-    icon:        "◇",
   },
 ];
 
@@ -54,7 +46,6 @@ function isUnlocked(item, owned) {
 
 export default function ShopScreen() {
   const { user, fetchUser, refreshToken } = useUser();
-  const { setLoot } = useTasks();
   const { activeTheme, setActiveTheme, previewTheme, accentColor } = useTheme();
 
   const [owned,            setOwned]            = useState([]);
@@ -153,17 +144,10 @@ export default function ShopScreen() {
     setBuyingConsumable(item.id);
     try {
       await refreshToken();
-      const purchaseResponse = await purchaseConsumable(item.id);
+      await purchaseConsumable(item.id);
       fetchUser();
 
-      if (item.id === "extra_loot_pull" && purchaseResponse.data?.rarity) {
-        // Show the same loot overlay the user sees after sessions — makes the
-        // result visible and gives the pull a proper payoff moment.
-        setLoot({
-          rarity:         purchaseResponse.data.rarity,
-          credits_earned: purchaseResponse.data.credits_earned,
-        });
-      } else if (item.id === "streak_rescue") {
+      if (item.id === "streak_rescue") {
         setFeedback({ ok: true, msg: "Streak restored to 1 — complete a session within 24h to keep it" });
       } else {
         setFeedback({ ok: true, msg: `${item.label} activated` });

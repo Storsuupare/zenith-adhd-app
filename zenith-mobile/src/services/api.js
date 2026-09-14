@@ -34,7 +34,6 @@ export const createTaskTemplate  = (data)   => api.post("/api/task-templates", d
 export const deleteTaskTemplate  = (id)     => api.delete(`/api/task-templates/${id}`);
 
 // ── Daily ─────────────────────────────────────────────────────────────────────
-export const claimDailyBonus     = () => api.post("/api/daily-bonus/claim");
 export const claimDailyChallenge = () => api.post("/api/daily-challenge/claim");
 
 // ── Shop ──────────────────────────────────────────────────────────────────────

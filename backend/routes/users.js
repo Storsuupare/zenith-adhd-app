@@ -2,68 +2,11 @@ const express = require("express");
 const pool = require("../lib/db.js");
 const { clerkClient } = require("../lib/clients.js");
 const { requireAuth } = require("../lib/auth.js");
-const { bonusLimiter, mutationLimiter } = require("../lib/rateLimiters.js");
+const { mutationLimiter } = require("../lib/rateLimiters.js");
 const { pushUserPatch } = require("../lib/realtime.js");
-const { DAILY_BONUS_CREDITS, BONUS_WINDOW_MS } = require("../lib/economy.js");
 const { isReservedUsername } = require("../lib/validation.js");
 
 const router = express.Router();
-
-// ── Daily credit bonus ─────────────────────────────────────────────────────────
-// Rolling 24h window (not calendar-day) — prevents midnight spam.
-// FOR UPDATE row lock prevents duplicate claims from concurrent requests.
-
-router.post("/api/daily-bonus/claim", requireAuth, bonusLimiter, async (req, res) => {
-  const clerkId = req.auth.userId;
-  const client  = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    const row = await client.query(
-      `SELECT id,
-              COALESCE(system_credits, 0)  AS credits,
-              COALESCE(account_tier, 0)    AS account_tier,
-              daily_bonus_claimed_at
-       FROM users WHERE external_id = $1 FOR UPDATE`,
-      [clerkId],
-    );
-    if (!row.rows.length) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "USER_NOT_FOUND" });
-    }
-
-    const { id, credits, account_tier, daily_bonus_claimed_at } = row.rows[0];
-
-    if (daily_bonus_claimed_at) {
-      const elapsedMs   = Date.now() - new Date(daily_bonus_claimed_at).getTime();
-      const secondsLeft = Math.ceil((BONUS_WINDOW_MS - elapsedMs) / 1000);
-      if (elapsedMs < BONUS_WINDOW_MS) {
-        await client.query("ROLLBACK");
-        return res.json({
-          already_used:      true,
-          seconds_remaining: Math.max(secondsLeft, 0),
-          system_credits:    parseInt(credits),
-        });
-      }
-    }
-
-    const earned     = DAILY_BONUS_CREDITS[account_tier] ?? 30;
-    const newCredits = parseInt(credits) + earned;
-    await client.query(
-      "UPDATE users SET system_credits = $1, daily_bonus_claimed_at = NOW() WHERE id = $2",
-      [newCredits, id],
-    );
-
-    await client.query("COMMIT");
-    pushUserPatch(clerkId).catch(() => {});
-    res.json({ already_used: false, credits_earned: earned, system_credits: newCredits });
-  } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
-  }
-});
 
 router.post("/user", requireAuth, async (req, res) => {
   const clerkId = req.auth.userId;

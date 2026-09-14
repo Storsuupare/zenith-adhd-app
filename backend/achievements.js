@@ -51,6 +51,15 @@ const ACHIEVEMENTS = [
   { key: "themes_1",      category: "Collection", title: "New Look",       description: "Unlocked your first theme.",           metric: "themesOwned", threshold: 1,  lootRarity: null },
   { key: "themes_5",      category: "Collection", title: "Curator",        description: "Unlocked 5 themes.",                   metric: "themesOwned", threshold: 5,  lootRarity: "Rare" },
   { key: "themes_all",    category: "Collection", title: "Full Spectrum",  description: "Unlocked every theme.",                metric: "themesOwned", threshold: 12, lootRarity: "Legendary" },
+
+  // ── Leaderboard ─────────────────────────────────────────────────────────────
+  // Unlike every other category, these depend on having an active friend circle,
+  // not just personal effort — kept to four entries and no Mythic tier since the
+  // difficulty isn't fully within the user's own control.
+  { key: "leaderboard_win_1",    category: "Leaderboard", title: "Circle Champion", description: "Topped your circle's weekly leaderboard.",          metric: "leaderboardWins",         threshold: 1,  lootRarity: "Rare" },
+  { key: "leaderboard_win_10",   category: "Leaderboard", title: "Reigning",        description: "Topped your circle's weekly leaderboard 10 times.", metric: "leaderboardWins",         threshold: 10, lootRarity: "Legendary" },
+  { key: "leaderboard_streak_3", category: "Leaderboard", title: "Back-to-Back",    description: "Topped your circle's leaderboard 3 weeks running.", metric: "leaderboardWinStreak",    threshold: 3,  lootRarity: "Epic" },
+  { key: "leaderboard_perfect",  category: "Leaderboard", title: "Flawless Week",   description: "Won a leaderboard week with all 7 days active.",    metric: "leaderboardPerfectWeeks", threshold: 1,  lootRarity: "Rare" },
 ];
 
 const ACHIEVEMENTS_BY_KEY = new Map(ACHIEVEMENTS.map(entry => [entry.key, entry]));

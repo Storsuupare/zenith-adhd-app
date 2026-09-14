@@ -41,7 +41,6 @@ pool.query(`
 
 pool.query(`UPDATE users SET system_credits = 0 WHERE system_credits IS NULL`).catch(() => {});
 
-pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_bonus_claimed_at TIMESTAMPTZ`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS has_seen_onboarding BOOLEAN DEFAULT false`).catch(() => {});
 pool.query(`ALTER TABLE user_skills ADD COLUMN IF NOT EXISTS prestige_boost_until TIMESTAMPTZ`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_task_completed BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
@@ -60,16 +59,6 @@ pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_challenge_claimed_d
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'`).catch(() => {});
-// Upgrade DATE → TIMESTAMPTZ for existing deployments (no-op if already correct type)
-pool.query(`
-  DO $$ BEGIN
-    IF (SELECT data_type FROM information_schema.columns
-        WHERE table_name = 'users' AND column_name = 'daily_bonus_claimed_at') = 'date' THEN
-      ALTER TABLE users ALTER COLUMN daily_bonus_claimed_at TYPE TIMESTAMPTZ
-        USING daily_bonus_claimed_at::TIMESTAMPTZ;
-    END IF;
-  END $$
-`).catch(() => {});
 
 
 pool.query(`UPDATE inventory SET rarity = 'Junk' WHERE name = 'Quick Start' AND rarity = 'Common'`).catch(() => {});

@@ -7,7 +7,7 @@ export const SKILLS = [
 // Short examples shown in MissionForm when a skill is selected
 export const SKILL_INFO = {
   "Resolve":     "A task you've been avoiding, pushing through frustration, finishing when drained",
-  "Logic Flow":  "Debugging, breaking tasks into steps, researching before deciding",
+  "Logic Flow":  "Solving a tricky problem, breaking tasks into steps, researching before deciding",
   "Creativity":  "Drawing, writing, designing, brainstorming, building something",
   "Discipline":  "Sticking to a routine, waking up on time, not skipping a habit",
   "Vitality":    "Working out, going for a walk, stretching, playing a sport",

@@ -83,14 +83,6 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
   const handleSaveTemplate = async () => {
     if (!canStart || savingTemplate) return;
 
-    if (accountTier <= 0) {
-      Alert.alert(
-        "Task Templates",
-        "Saving tasks as reusable templates requires PRO or ELITE.",
-      );
-      return;
-    }
-
     setSavingTemplate(true);
     try {
       const res = await createTaskTemplate({
@@ -240,19 +232,19 @@ export default function MissionForm({ onStart, accentColor = "#22d3ee" }) {
         ))}
       </View>
 
-      {/* Save as template */}
-      {canStart && (
+      {/* Save as template (PRO+) */}
+      {canStart && accountTier > 0 && (
         <TouchableOpacity
           style={styles.saveTemplateBtn}
           onPress={handleSaveTemplate}
           disabled={savingTemplate}
           accessibilityRole="button"
-          accessibilityLabel={accountTier > 0 ? "Save this task as a template" : "Save as template, requires PRO or ELITE"}
+          accessibilityLabel="Save this task as a template"
         >
           {savingTemplate
-            ? <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-            : <Text style={styles.saveTemplateText}>
-                {accountTier > 0 ? "+ Save as Template" : "+ Save as Template (PRO)"}
+            ? <ActivityIndicator size="small" color={accentColor} />
+            : <Text style={[styles.saveTemplateText, { color: accentColor }]}>
+                + Save as Template
               </Text>
           }
         </TouchableOpacity>
@@ -419,9 +411,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   saveTemplateText: {
-    fontFamily:    FONTS.semiBold,
-    fontSize:      11,
-    color:         "rgba(255,255,255,0.4)",
+    fontFamily:    FONTS.bold,
+    fontSize:      12,
     letterSpacing: 0.3,
   },
 

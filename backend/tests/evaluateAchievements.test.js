@@ -20,6 +20,9 @@ function createMockClient({ stats = {}, alreadyUnlocked = [], insertsThatConflic
     prestige_total:      stats.prestigeTotal      ?? 0,
     best_streak:         stats.bestStreak         ?? 0,
     themes_owned:        stats.themesOwned        ?? 0,
+    leaderboard_wins:          stats.leaderboardWins         ?? 0,
+    leaderboard_perfect_weeks: stats.leaderboardPerfectWeeks ?? 0,
+    leaderboard_win_streak:    stats.leaderboardWinStreak    ?? 0,
   };
 
   const issued = { inserted: [], creditUpdates: [] };
@@ -148,6 +151,39 @@ describe("evaluateAchievements", () => {
 
     expect(unlocked).toEqual([]);
     expect(client.issued.creditUpdates).toEqual([]);
+  });
+
+  it("unlocks the first leaderboard win achievement, but not the 10-win tier", async () => {
+    const client = createMockClient({ stats: { leaderboardWins: 1 } });
+    const unlocked = await evaluateAchievements(1, client);
+
+    expect(unlocked.map(entry => entry.key)).toContain("leaderboard_win_1");
+    expect(unlocked.map(entry => entry.key)).not.toContain("leaderboard_win_10");
+  });
+
+  it("unlocks the 10-win leaderboard tier exactly on the threshold", async () => {
+    const client = createMockClient({
+      stats: { leaderboardWins: 10 },
+      alreadyUnlocked: ["leaderboard_win_1"],
+    });
+    const unlocked = await evaluateAchievements(1, client);
+
+    expect(unlocked.map(entry => entry.key)).toContain("leaderboard_win_10");
+  });
+
+  it("unlocks Back-to-Back only once 3 consecutive weeks are won", async () => {
+    const short = createMockClient({ stats: { leaderboardWinStreak: 2 } });
+    expect((await evaluateAchievements(1, short)).map(e => e.key)).not.toContain("leaderboard_streak_3");
+
+    const long = createMockClient({ stats: { leaderboardWinStreak: 3 } });
+    expect((await evaluateAchievements(1, long)).map(e => e.key)).toContain("leaderboard_streak_3");
+  });
+
+  it("unlocks Flawless Week after a 7/7 active-day win", async () => {
+    const client = createMockClient({ stats: { leaderboardPerfectWeeks: 1 } });
+    const unlocked = await evaluateAchievements(1, client);
+
+    expect(unlocked.map(entry => entry.key)).toContain("leaderboard_perfect");
   });
 
   it("returns the detail the app needs to show a toast", async () => {

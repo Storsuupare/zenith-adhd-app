@@ -8,7 +8,7 @@ export default function PrivacyScreen({ navigation }) {
     <SafeAreaView style={styles.root}>
       <ScreenHeader title="Privacy Policy" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.effective}>Effective August 2026</Text>
+        <Text style={styles.effective}>Effective September 2026</Text>
 
         <Section title="What we collect">
           <Item label="Account info." text="Your email address and username, provided when you sign up." />
@@ -22,6 +22,7 @@ export default function PrivacyScreen({ navigation }) {
           <BulletItem text="To run Zenith and give you your XP, loot, and skill progress." />
           <BulletItem text="To send session reminders if you have notifications turned on." />
           <BulletItem text="To improve the app. We look at aggregate usage patterns, never individual task content." />
+          <BulletItem text="With friends — if you add someone, they can see your weekly leaderboard ranking and active-days count, and you can see theirs." />
           <Text style={styles.body}>We don't sell your data. We don't use it for ads, and we don't track you across other apps or websites.</Text>
         </Section>
 
