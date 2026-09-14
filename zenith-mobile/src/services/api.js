@@ -46,6 +46,10 @@ export const fetchSummitHistory = (limit) => api.get(`/api/stats/summit-history?
 // "text" rather than "blob" — React Native's own Blob implementation has no
 // .text() method, so reading a blob response back out as a string doesn't work.
 export const exportSessionsCsv  = ()      => api.get("/api/stats/export-csv", { responseType: "text" });
+export const fetchInsights      = ()      => api.get("/api/stats/insights");
+
+// ── Presence ──────────────────────────────────────────────────────────────────
+export const fetchFriendsPresence = () => api.get("/api/presence/friends");
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 export const prestigeSkill = (skillName) => api.post("/skills/prestige", { skillName });

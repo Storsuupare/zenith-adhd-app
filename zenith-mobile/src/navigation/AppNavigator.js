@@ -18,6 +18,8 @@ import AchievementsScreen   from "../screens/AchievementsScreen";
 import MoreScreen           from "../screens/MoreScreen";
 import LeaderboardScreen    from "../screens/LeaderboardScreen";
 import FriendsScreen        from "../screens/FriendsScreen";
+import FocusTogetherScreen  from "../screens/FocusTogetherScreen";
+import InsightsScreen       from "../screens/InsightsScreen";
 import ReleaseNotesScreen   from "../screens/ReleaseNotesScreen";
 import PrivacyScreen        from "../screens/PrivacyScreen";
 import TermsScreen          from "../screens/TermsScreen";
@@ -115,6 +117,8 @@ function MoreStack() {
       <Stack.Screen name="Friends"      component={FriendsScreen} />
       <Stack.Screen name="Awards"       component={AchievementsScreen} />
       <Stack.Screen name="History"      component={ArchivesScreen} />
+      <Stack.Screen name="FocusTogether" component={FocusTogetherScreen} />
+      <Stack.Screen name="Insights"     component={InsightsScreen} />
       <Stack.Screen name="Settings"     component={SettingsScreen} />
       <Stack.Screen name="ReleaseNotes" component={ReleaseNotesScreen} />
       <Stack.Screen name="Privacy"      component={PrivacyScreen} />

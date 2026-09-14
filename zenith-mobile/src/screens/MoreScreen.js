@@ -12,10 +12,12 @@ export default function MoreScreen({ navigation }) {
   const { accentColor } = useTheme() || {};
 
   const rows = [
-    { key: "Leaderboard", label: "Leaderboard",  icon: "podium-outline",   badge: false },
-    { key: "Awards",      label: "Achievements",  icon: "trophy-outline",   badge: achievementsUnseen },
-    { key: "History",     label: "History",       icon: "time-outline",     badge: false },
-    { key: "Settings",    label: "Settings",      icon: "settings-outline", badge: false },
+    { key: "Leaderboard", label: "Leaderboard",  icon: "podium-outline",    badge: false },
+    { key: "FocusTogether", label: "Focus Together", icon: "pulse-outline",  badge: false },
+    { key: "Awards",      label: "Achievements",  icon: "trophy-outline",    badge: achievementsUnseen },
+    { key: "Insights",    label: "Insights",      icon: "analytics-outline", badge: false },
+    { key: "History",     label: "History",       icon: "time-outline",      badge: false },
+    { key: "Settings",    label: "Settings",      icon: "settings-outline",  badge: false },
   ];
 
   return (

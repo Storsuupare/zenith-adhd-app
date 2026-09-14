@@ -2,7 +2,7 @@ const express = require("express");
 const pool = require("../lib/db.js");
 const { requireAuth } = require("../lib/auth.js");
 const { mutationLimiter } = require("../lib/rateLimiters.js");
-const { pushUserPatch, presenceMap, broadcastPresence } = require("../lib/realtime.js");
+const { pushUserPatch, presenceMap, broadcastPresence, setPresencePaused } = require("../lib/realtime.js");
 const {
   calculateStake, getNeuralMult, applyPrestigeImmunity, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones, SESSION_CR_BY_DURATION, computeCreditableMinutes,
@@ -665,6 +665,7 @@ router.post("/api/tasks/:id/pause", requireAuth, mutationLimiter, async (req, re
     );
 
     await client.query("COMMIT");
+    setPresencePaused(externalId, true);
     res.json({ paused_at: updateRes.rows[0].paused_at });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -720,6 +721,7 @@ router.post("/api/tasks/:id/resume", requireAuth, mutationLimiter, async (req, r
     );
 
     await client.query("COMMIT");
+    setPresencePaused(externalId, false);
     res.json({
       deadline: updateRes.rows[0].deadline,
       pause_seconds_used: updateRes.rows[0].pause_seconds_used,

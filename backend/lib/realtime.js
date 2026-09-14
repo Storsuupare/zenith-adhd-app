@@ -18,6 +18,19 @@ function broadcastPresence() {
   }
 }
 
+// Toggles a session's paused state without deleting/recreating its presence
+// entry (recreating would need re-fetching the skill name). Returns false with
+// no effect if the user has no active presence entry — e.g. the stream closed
+// or the session was never picked up (shouldn't normally happen for a task
+// that's active enough to pause, but pause/resume shouldn't ever throw over it).
+function setPresencePaused(externalId, paused) {
+  const entry = presenceMap.get(externalId);
+  if (!entry) return false;
+  entry.paused = paused;
+  broadcastPresence();
+  return true;
+}
+
 async function pushUserPatch(externalId) {
   const stream = sseClients.get(externalId);
   if (!stream) return;
@@ -51,4 +64,4 @@ async function pushUserPatch(externalId) {
   } catch { /* stream already closed or DB hiccup — silent */ }
 }
 
-module.exports = { sseClients, presenceMap, sseTokens, broadcastPresence, pushUserPatch };
+module.exports = { sseClients, presenceMap, sseTokens, broadcastPresence, pushUserPatch, setPresencePaused };

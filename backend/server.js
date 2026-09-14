@@ -97,6 +97,7 @@ app.use(require("./routes/stats.js"));
 app.use(require("./routes/shop.js"));
 app.use(require("./routes/admin.js"));
 app.use(require("./routes/realtime.js"));
+app.use(require("./routes/presence.js"));
 app.use(require("./routes/social.js"));
 app.use(require("./routes/pushSubscriptions.js"));
 app.use(require("./routes/clientError.js"));
