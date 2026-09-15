@@ -384,7 +384,7 @@ export default function SettingsScreen({ navigation }) {
         </Text>
 
         <View style={styles.versionBadge}>
-          <Text style={styles.versionText}>v{Constants.expoConfig?.version ?? "1.1.0"}</Text>
+          <Text style={styles.versionText}>v{Constants.expoConfig?.version ?? "1.3.0"}</Text>
         </View>
       </ScrollView>
 

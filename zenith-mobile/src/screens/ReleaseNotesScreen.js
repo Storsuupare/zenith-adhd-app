@@ -12,6 +12,25 @@ const TAG_COLORS = {
 
 const CHANGELOG = [
   {
+    version: "1.3.0",
+    title:   "Focus Together & Insights",
+    entries: [
+      { tag: "NEW",    text: "Focus Together — see when a friend is currently focusing; PRO+ adds which skill and how long they've been at it" },
+      { tag: "NEW",    text: "Insights (PRO+) — your best focus hour, top skill this month, and a 90-day activity heatmap" },
+      { tag: "NEW",    text: "ELITE gets a full ranked breakdown of every skill you've focused on this month in Insights, not just your top one" },
+      { tag: "NEW",    text: "Focus-time milestones — earn Credits and guaranteed loot at 15, 50, and 100 lifetime hours focused, with your progress visible in Insights" },
+      { tag: "NEW",    text: "Add friends with a shareable invite code instead of having to know their exact username" },
+      { tag: "FIX",    text: "Fixed pausing a session leaving you showing as still focusing to friends" },
+      { tag: "FIX",    text: "Fixed Insights' best hour using server time instead of your own" },
+      { tag: "FIX",    text: "Fixed the Live Activity freezing on a stale icon once a session's timer hit zero — it now shows a real progress bar and a clear \"Session Completed!\" state" },
+      { tag: "FIX",    text: "Fixed the launch screen showing a placeholder icon instead of the actual Zenith logo" },
+      { tag: "CHANGE", text: "Loot drop celebrations — consistent rarity colors matching Achievements, a sound for every rarity, and flying coin particles" },
+      { tag: "CHANGE", text: "History trimmed down to remove stats now covered by Insights" },
+      { tag: "CHANGE", text: "Reorganized the More screen into clearer sections" },
+      { tag: "CHANGE", text: "Adjusted how fast your overall Rank climbs relative to your individual skill levels, so it stays more in line with them" },
+    ],
+  },
+  {
     version: "1.2.0",
     title:   "Leaderboard, Pause, and Fixes",
     entries: [

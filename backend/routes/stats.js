@@ -1,6 +1,7 @@
 const express = require("express");
 const pool = require("../lib/db.js");
 const { requireAuth } = require("../lib/auth.js");
+const { FOCUS_TIME_MILESTONES } = require("../lib/economy.js");
 
 const router = express.Router();
 
@@ -136,11 +137,11 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
   const clerk_id = req.auth.userId;
   try {
     const userRes = await pool.query(
-      "SELECT id, COALESCE(account_tier, 0) AS account_tier, COALESCE(timezone, 'UTC') AS timezone FROM users WHERE external_id = $1",
+      "SELECT id, COALESCE(account_tier, 0) AS account_tier, COALESCE(timezone, 'UTC') AS timezone, COALESCE(total_focus_minutes, 0) AS total_focus_minutes FROM users WHERE external_id = $1",
       [clerk_id],
     );
     if (!userRes.rows.length) return res.status(404).json({ error: "USER_NOT_FOUND" });
-    const { id: userId, account_tier: accountTier, timezone } = userRes.rows[0];
+    const { id: userId, account_tier: accountTier, timezone, total_focus_minutes: totalFocusMinutes } = userRes.rows[0];
 
     if (accountTier < 1) {
       return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Insights requires PRO or ELITE." });
@@ -152,7 +153,7 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
     // not a different, disconnected stat.
     const isElite = accountTier >= 2;
 
-    const [summaryRes, heatmapRes, skillBreakdownRes] = await Promise.all([
+    const [summaryRes, heatmapRes, skillBreakdownRes, focusMilestonesRes] = await Promise.all([
       pool.query(
         `SELECT
            (SELECT EXTRACT(HOUR FROM completed_at AT TIME ZONE $2)::int AS hour
@@ -199,6 +200,14 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
             [String(userId)],
           )
         : Promise.resolve({ rows: [] }),
+      // Which lifetime focus-time milestones this user has already claimed —
+      // the reward itself (credits + loot) is granted for free on every tier
+      // in tasks.js; this is just visibility into that history, same as
+      // everything else on this screen.
+      pool.query(
+        `SELECT minutes, claimed_at FROM focus_time_milestones WHERE user_id = $1 ORDER BY minutes ASC`,
+        [userId],
+      ),
     ]);
 
     res.json({
@@ -206,6 +215,9 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
       top_skill_this_month: summaryRes.rows[0]?.top_skill_this_month ?? null,
       heatmap:              heatmapRes.rows,
       skill_breakdown:      isElite ? skillBreakdownRes.rows : null,
+      total_focus_minutes:  totalFocusMinutes,
+      focus_milestones:     focusMilestonesRes.rows,
+      focus_milestone_thresholds: FOCUS_TIME_MILESTONES,
     });
   } catch (err) {
     console.error("INSIGHTS_ERROR:", err.message);

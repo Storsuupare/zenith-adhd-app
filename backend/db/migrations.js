@@ -128,6 +128,35 @@ pool.query(`
 pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ`).catch(() => {});
 pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS pause_seconds_used INTEGER DEFAULT 0`).catch(() => {});
 
+// Running lifetime total, incremented per session on completion — same
+// pattern as total_xp, so a focus-time milestone check is an O(1) column
+// read instead of re-summing the entire tasks table every completion.
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_focus_minutes INTEGER NOT NULL DEFAULT 0`).catch(() => {});
+
+// One-time backfill for accounts that existed before this column did — only
+// touches rows still at the default 0, so it's a harmless no-op for anyone
+// already backfilled or already accumulating for real, and self-heals if the
+// column was ever added without this running.
+pool.query(`
+  UPDATE users
+  SET total_focus_minutes = COALESCE(
+    (SELECT SUM(credited_minutes) FROM tasks WHERE tasks.user_id::text = users.id::text AND tasks.status = 'SUCCESS'),
+    0
+  )
+  WHERE total_focus_minutes = 0
+`).catch(() => {});
+
+// Tracks which lifetime focus-time milestones (in minutes) a user has already
+// claimed. See FOCUS_TIME_MILESTONES in lib/economy.js.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS focus_time_milestones (
+    user_id    INTEGER NOT NULL,
+    minutes    INTEGER NOT NULL,
+    claimed_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, minutes)
+  )
+`).catch(() => {});
+
 // Tracks which per-skill level milestones (10/20/.../90) a user has already
 // claimed. Once per skill per account, not reset by Prestige — see the note
 // on SKILL_LEVEL_MILESTONES in lib/economy.js.

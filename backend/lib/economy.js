@@ -28,6 +28,19 @@ function applyPrestigeImmunity(neuralMult, prestigeLevel) {
   return neuralMult;
 }
 
+// Rank (the account-wide level) pools XP from every session regardless of
+// which skill it was tagged to, while a skill only ever gets XP from sessions
+// tagged to it — so at full rate, Rank races far ahead of any individual
+// skill's level for anyone who spreads sessions across multiple skills.
+// Dampened to 75% here, specifically for Rank's own progress — the lifetime
+// total and the session's displayed XP reward are untouched, since those
+// should still reflect what was actually earned.
+const RANK_XP_MULTIPLIER = 0.75;
+
+function applyRankXpMultiplier(totalXpGained) {
+  return Math.floor(totalXpGained * RANK_XP_MULTIPLIER);
+}
+
 // A lapsed user is eligible for the once-per-absence re-engagement push once
 // they've been away 7+ days. Kept as its own function, separate from the SQL
 // query that fetches candidates, so the threshold is unit-testable without a
@@ -139,6 +152,24 @@ function crossedSkillLevelMilestones(oldLevel, newLevel) {
     .filter(threshold => threshold > oldLevel && threshold <= newLevel);
 }
 
+// Lifetime focus-time milestones, keyed in minutes (900 = 15h, 3000 = 50h,
+// 6000 = 100h) to match credited_minutes/total_focus_minutes everywhere else
+// in this file. Separate from streak/skill milestones on purpose — this is
+// about total real-world time invested, not day-to-day consistency or
+// mastery of any one skill. credits + guaranteed loot only for now; no
+// cosmetic tied to these yet.
+const FOCUS_TIME_MILESTONES = {
+  900:  { credits: 300,  lootRarity: "Rare"      }, // 15h
+  3000: { credits: 750,  lootRarity: "Epic"      }, // 50h
+  6000: { credits: 1500, lootRarity: "Legendary" }, // 100h
+};
+
+function crossedFocusTimeMilestones(oldMinutes, newMinutes) {
+  return Object.keys(FOCUS_TIME_MILESTONES)
+    .map(Number)
+    .filter(threshold => threshold > oldMinutes && threshold <= newMinutes);
+}
+
 // A user can have several tasks active at once (task slots), but a human can
 // only actually focus on one at a time — without this, completing N tasks
 // whose windows overlap the same real minutes pays out N× the reward for
@@ -174,10 +205,11 @@ function computeCreditableMinutes(taskStart, taskEnd, otherCompletedWindows) {
 }
 
 module.exports = {
-  STAKE_BY_DURATION, SESSION_CR_BY_DURATION, calculateStake, getNeuralMult, applyPrestigeImmunity,
+  STAKE_BY_DURATION, SESSION_CR_BY_DURATION, calculateStake, getNeuralMult, applyPrestigeImmunity, applyRankXpMultiplier,
   REENGAGEMENT_THRESHOLD_DAYS, isEligibleForReengagementPush,
   TIER_MAX_TASKS, TIER_MAX_TEMPLATES, TIER_MAX_PAUSE_SECONDS, LOOT_DROP_CHANCE, COSMETICS_PRICES, CONSUMABLE_PRICES, STREAK_MILESTONES,
   calculateNeuralCost, getEffectiveAccountTier,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones,
+  FOCUS_TIME_MILESTONES, crossedFocusTimeMilestones,
   computeCreditableMinutes,
 };

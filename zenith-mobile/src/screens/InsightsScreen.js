@@ -34,6 +34,45 @@ function cellOpacity(minutes) {
   return Math.min(1, 0.35 + minutes / 120);
 }
 
+function formatMilestoneHours(minutes) {
+  return `${Math.round(minutes / 60)}h`;
+}
+
+// Visibility into the focus-time milestones system (backend/lib/economy.js),
+// not the reward itself — the credits/loot are granted for free on every
+// tier when a session crosses a threshold. This is just a record of when,
+// same "deeper visibility into your own data" category as everything else
+// on this PRO+ screen.
+function FocusMilestones({ thresholds, claimed, totalFocusMinutes, accentColor }) {
+  const claimedByMinutes = new Map(claimed.map(m => [m.minutes, m]));
+  const sortedThresholds = Object.keys(thresholds).map(Number).sort((a, b) => a - b);
+
+  return (
+    <View style={styles.milestoneList}>
+      {sortedThresholds.map(threshold => {
+        const claimedRow = claimedByMinutes.get(threshold);
+        const progress   = Math.min(100, (totalFocusMinutes / threshold) * 100);
+
+        return (
+          <View key={threshold} style={styles.milestoneRow}>
+            <View style={styles.milestoneHeader}>
+              <Text style={[styles.milestoneLabel, claimedRow && { color: accentColor }]}>
+                {formatMilestoneHours(threshold)} focused
+              </Text>
+              <Text style={[styles.milestoneStatus, claimedRow && { color: accentColor }]}>
+                {claimedRow ? "Earned" : `${formatMilestoneHours(Math.max(0, threshold - totalFocusMinutes))} to go`}
+              </Text>
+            </View>
+            <View style={styles.milestoneTrack}>
+              <View style={[styles.milestoneFill, { backgroundColor: accentColor, width: `${progress}%` }]} />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ELITE-only — the full ranked breakdown behind the PRO-visible "TOP SKILL"
 // tile. Bar width is percent-of-total (not percent-of-max), so two bars'
 // lengths are directly comparable as "share of this month's focus time."
@@ -208,6 +247,18 @@ export default function InsightsScreen({ navigation }) {
           <Text style={styles.activeDaysLabel}>Days active!</Text>
           <HeatmapGrid heatmap={insights?.heatmap ?? []} accentColor={activeAccentColor} />
         </View>
+
+        {insights?.focus_milestone_thresholds && (
+          <View style={styles.milestoneSection}>
+            <Text style={styles.tileLabel}>FOCUS MILESTONES</Text>
+            <FocusMilestones
+              thresholds={insights.focus_milestone_thresholds}
+              claimed={insights.focus_milestones ?? []}
+              totalFocusMinutes={insights.total_focus_minutes ?? 0}
+              accentColor={activeAccentColor}
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -275,6 +326,20 @@ const styles = StyleSheet.create({
   heatmapRow:    { flexDirection: "row", gap: 4 },
   heatmapColumn: { gap: 4 },
   heatmapCell:   { width: 16, height: 16, borderRadius: 4 },
+
+  milestoneSection: { gap: 10 },
+  milestoneList:    { gap: 14 },
+  milestoneRow:     { gap: 6 },
+  milestoneHeader:  { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  milestoneLabel:   { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold },
+  milestoneStatus:  { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: FONTS.regular },
+  milestoneTrack: {
+    height:           6,
+    borderRadius:     3,
+    backgroundColor:  "rgba(255,255,255,0.08)",
+    overflow:         "hidden",
+  },
+  milestoneFill: { height: "100%", borderRadius: 3 },
 
   upgradeState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 32 },
   upgradeTitle: { color: COLORS.text, fontSize: 16, fontFamily: FONTS.bold, textAlign: "center" },

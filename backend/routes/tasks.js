@@ -4,7 +4,8 @@ const { requireAuth } = require("../lib/auth.js");
 const { mutationLimiter } = require("../lib/rateLimiters.js");
 const { pushUserPatch, presenceMap, broadcastPresence, setPresencePaused } = require("../lib/realtime.js");
 const {
-  calculateStake, getNeuralMult, applyPrestigeImmunity, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
+  calculateStake, getNeuralMult, applyPrestigeImmunity, applyRankXpMultiplier, TIER_MAX_TASKS, LOOT_DROP_CHANCE, STREAK_MILESTONES,
+  FOCUS_TIME_MILESTONES, crossedFocusTimeMilestones,
   SKILL_LEVEL_MILESTONES, crossedSkillLevelMilestones, SESSION_CR_BY_DURATION, computeCreditableMinutes,
   TIER_MAX_PAUSE_SECONDS,
 } = require("../lib/economy.js");
@@ -262,11 +263,12 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
               COALESCE(role, 'FREE')      AS role,
               COALESCE(streak, 0)         AS streak,
               COALESCE(first_task_completed, false) AS first_task_completed,
-              COALESCE(timezone, 'UTC')   AS timezone
+              COALESCE(timezone, 'UTC')   AS timezone,
+              COALESCE(total_focus_minutes, 0) AS total_focus_minutes
        FROM users WHERE id::text = $1`,
       [String(task.userId)],
     );
-    const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed, timezone } = userRow.rows[0];
+    const { xp, level, total_xp, credits, account_tier, role, streak, first_task_completed, timezone, total_focus_minutes } = userRow.rows[0];
 
     const durationMins = Math.min(parseInt(task.durationMinutes) || 0, 180);
     const xpRequiredForLevel = (lvl) => Math.max(1, Math.floor(100 * Math.pow(lvl, 1.6)));
@@ -371,18 +373,22 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
       }
     }
 
-    let globalXp      = parseInt(xp) + totalXpGained;
+    let globalXp      = parseInt(xp) + applyRankXpMultiplier(totalXpGained);
     let globalLevel     = parseInt(level);
     let globalTotalXp = (parseInt(total_xp) || 0) + totalXpGained;
     let nextGlobalLevelXpRequired    = xpRequiredForLevel(globalLevel);
     let leveledUp = false;
     while (globalXp >= nextGlobalLevelXpRequired) { globalXp -= nextGlobalLevelXpRequired; globalLevel++; nextGlobalLevelXpRequired = xpRequiredForLevel(globalLevel); leveledUp = true; }
 
+    const oldTotalFocusMinutes = parseInt(total_focus_minutes) || 0;
+    const newTotalFocusMinutes = oldTotalFocusMinutes + creditableMinutes;
+
     // last_reboot = NOW() starts the regen clock fresh from the moment the task ends.
     const updatedUser = await completeClient.query(
       `UPDATE users
        SET xp = $1, level = $2, current_level = $2, total_xp = $3,
            system_credits = system_credits + $5,
+           total_focus_minutes = $6,
            streak = CASE
              WHEN streak_last_updated IS NULL
                OR DATE(streak_last_updated AT TIME ZONE COALESCE(timezone, 'UTC'))
@@ -396,7 +402,7 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
            last_reboot = NOW(),
            reengagement_push_sent = false
        WHERE id::text = $4 RETURNING *`,
-      [globalXp, globalLevel, globalTotalXp, String(task.userId), sessionCr],
+      [globalXp, globalLevel, globalTotalXp, String(task.userId), sessionCr, newTotalFocusMinutes],
     );
 
     // Determine whether the streak actually incremented this session.
@@ -486,6 +492,43 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
           await completeClient.query("ROLLBACK TO SAVEPOINT milestone_processing");
           await completeClient.query("RELEASE SAVEPOINT milestone_processing");
         }
+      }
+    }
+
+    // Lifetime focus-time milestones — a single big session (or a stake that
+    // spans an unusually long window) could cross more than one threshold at
+    // once, so this loops like the skill-level milestone block above rather
+    // than doing a single lookup like the streak milestone block does.
+    const focusMilestonesClaimed = [];
+    const crossedFocusMinutes = crossedFocusTimeMilestones(oldTotalFocusMinutes, newTotalFocusMinutes);
+    if (crossedFocusMinutes.length > 0) {
+      await completeClient.query("SAVEPOINT focus_milestone_processing");
+      try {
+        for (const crossedMinutes of crossedFocusMinutes) {
+          const config = FOCUS_TIME_MILESTONES[crossedMinutes];
+          const focusMilestoneInsert = await completeClient.query(
+            `INSERT INTO focus_time_milestones (user_id, minutes)
+             VALUES ($1::integer, $2) ON CONFLICT DO NOTHING`,
+            [parseInt(task.userId, 10), crossedMinutes],
+          );
+          if (focusMilestoneInsert.rowCount === 1) {
+            const lootCredits = CREDIT_BY_RARITY[config.lootRarity] ?? 50;
+            await completeClient.query(
+              `UPDATE users SET system_credits = system_credits + $1 WHERE id::text = $2`,
+              [config.credits + lootCredits, String(task.userId)],
+            );
+            focusMilestonesClaimed.push({
+              minutes:        crossedMinutes,
+              credits_earned: config.credits,
+              loot:           { rarity: config.lootRarity, credits_earned: lootCredits },
+            });
+          }
+        }
+        await completeClient.query("RELEASE SAVEPOINT focus_milestone_processing");
+      } catch (focusMilestoneError) {
+        console.error("[FOCUS_MILESTONE] Processing failed:", focusMilestoneError.message);
+        await completeClient.query("ROLLBACK TO SAVEPOINT focus_milestone_processing");
+        await completeClient.query("RELEASE SAVEPOINT focus_milestone_processing");
       }
     }
 
@@ -606,6 +649,8 @@ router.post("/api/tasks/:id/complete", requireAuth, mutationLimiter, async (req,
       streak_bonus:     streakBonus,
       comeback_bonus:   comebackBonus,
       milestone:        milestoneClaimed,
+      focus_milestones: focusMilestonesClaimed,
+      total_focus_minutes: newTotalFocusMinutes,
       credited_minutes: creditableMinutes,
       overlap_minutes:  overlapMinutes,
       skill_milestone_credits: skillMilestoneCreditsEarned,

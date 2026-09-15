@@ -96,11 +96,11 @@ The background renders a live sky that transitions through dawn, day, golden hou
 
 ## Monetization
 
-| Tier  | Price     | Task slots | History depth | Prestige | Streak shield    | CSV export |
-|-------|-----------|------------|---------------|----------|------------------|------------|
-| FREE  | —         | 5          | 7 days        | Yes      | —                | —          |
-| PRO   | €4.99/mo  | 15         | 6 months      | Yes      | One-time         | Yes        |
-| ELITE | €9.99/mo  | Unlimited  | All time      | Yes      | Auto-replenishes | Yes        |
+| Tier  | Price     | Task slots | History depth | Prestige | Streak shield    | CSV export | Insights              |
+|-------|-----------|------------|---------------|----------|------------------|------------|------------------------|
+| FREE  | —         | 5          | 7 days        | Yes      | —                | —          | —                      |
+| PRO   | $3.99/mo  | 15         | 6 months      | Yes      | One-time         | Yes        | Yes                    |
+| ELITE | $8.99/mo  | Unlimited  | All time      | Yes      | Auto-replenishes | Yes        | Yes, full skill breakdown |
 
 Paying buys capacity and depth, never an outcome. Loot drop odds, rarity weights, cosmetics and Prestige are identical across every tier — a free account and an Elite account roll from the same table and hit the same ceiling. Prestige was PRO-gated at launch; it was reopened to every tier because gating a mastery reward behind a paywall put exactly the most engaged users — the ones who'd earned it — in front of a paywall at the worst possible moment to show them one.
 
