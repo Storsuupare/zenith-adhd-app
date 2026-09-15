@@ -89,13 +89,18 @@ export function TaskProvider({ children }) {
       }, 4000);
 
       const {
-        reward, leveledUp, newLevel, drop, skillLeveledUp, skillHit99, newSkillLevel,
+        reward, leveledUp, newLevel, skillLeveledUp, skillHit99, newSkillLevel,
         milestone, streak_bonus, skill_milestone_credits, overlap_minutes,
       } = res.data;
       const newStreak = res.data.user?.streak ?? 0;
 
-      // Trigger loot overlay if a drop was earned
-      if (drop?.rarity) setLoot(drop);
+      // Loot isn't shown here — completion has two different callers (the
+      // full-screen SessionScreen and the Dashboard's inline ContractCard),
+      // each with its own reveal animation already in progress at this exact
+      // moment, and popping a global Modal on top of either right now would
+      // cut that animation off before it's visible. Each caller reads
+      // result.drop from what this function returns and shows loot once its
+      // own reveal has actually finished.
 
       // Build milestone payload for the modal (used below to sequence it correctly)
       const milestonePayload = milestone ? {

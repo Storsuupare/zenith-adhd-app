@@ -60,7 +60,7 @@ const CELEBRATION = { sparkCount: 10, sparkDistance: 80, glowAlpha: "20", burstD
 
 // ── Done state — mirrors ContractCard DoneCard but full-screen ────────────────
 function DoneOverlay({ contract, skillColor, onComplete }) {
-  const { loadContracts, removeContract } = useTasks();
+  const { loadContracts, removeContract, setLoot } = useTasks();
   const reduceMotion = useReducedMotion();
   const [phase,        setPhase]        = useState("idle");
   const [displayXP,    setDisplayXP]    = useState(0);
@@ -71,6 +71,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
   const [neuralWindow, setNeuralWindow] = useState(() => getNeuralWindow());
   const [unlockedAchievements, setUnlockedAchievements] = useState([]);
   const [isBigMoment,  setIsBigMoment]  = useState(false);
+  const dropRef = useRef(null);
 
   const runReveal = (actualReward) => {
     setPhase("revealing");
@@ -98,6 +99,10 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
       const actualReward   = result?.reward ?? result?.xp_earned ?? contract.stake_amount ?? 0;
       const achievements   = result?.achievements_unlocked ?? [];
       const comebackReward = result?.comeback_bonus ?? 0;
+      // Held until Continue rather than shown now — LootDisplay is a real
+      // native Modal, and popping it up mid-reveal would cut off the XP
+      // count-up animation about to start below.
+      dropRef.current = result?.drop?.rarity ? result.drop : null;
       setSessionCr(result?.credits_earned ?? 0);
       setComebackCr(comebackReward);
       setUnlockedAchievements(achievements);
@@ -126,6 +131,7 @@ function DoneOverlay({ contract, skillColor, onComplete }) {
   const handleContinue = () => {
     if (isLeaving) return;
     setIsLeaving(true);
+    if (dropRef.current) setLoot(dropRef.current);
     removeContract(contract.id);
     loadContracts().catch(refreshError => {
       console.error("[DoneOverlay] background refresh after continue failed:", refreshError?.message);

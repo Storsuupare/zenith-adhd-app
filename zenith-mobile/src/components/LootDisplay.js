@@ -4,6 +4,7 @@ import {
   StyleSheet, Animated,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { useAudioPlayer } from "expo-audio";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
@@ -11,12 +12,31 @@ import { CREDITS_ICON } from "../constants/currency";
 import { shareViewAsImage } from "../utils/shareCard";
 import SparkBurst from "./SparkBurst";
 
+// One file per rarity, so a real distinct sound can replace any single file
+// later with zero code changes — right now they're all the same placeholder
+// (the notification bell tone), just to prove the playback pipeline works
+// end to end. When real sounds get sourced, aim for the same escalation as
+// everything else here: something plain/quiet for Junk, something genuinely
+// rich for Mythic.
+const LOOT_SOUND_SOURCE = {
+  junk:      require("../../assets/loot-sounds/junk.wav"),
+  uncommon:  require("../../assets/loot-sounds/uncommon.wav"),
+  rare:      require("../../assets/loot-sounds/rare.wav"),
+  epic:      require("../../assets/loot-sounds/epic.wav"),
+  legendary: require("../../assets/loot-sounds/legendary.wav"),
+  mythic:    require("../../assets/loot-sounds/mythic.wav"),
+};
+
+// Matches RARITY_COLORS in AchievementsScreen.js — same rarity, same color,
+// everywhere in the app. The ladder escalates in one direction (green → blue
+// → purple → gold → pink) rather than zigzagging, so Mythic reads as its own
+// distinct peak instead of a slightly-different Epic.
 const RARITY_COLORS = {
-  mythic:    "#a335ee",
-  legendary: "#ffae00",
-  epic:      "#8b5cf6",
-  rare:      "#22d3ee",
-  uncommon:  "#1eff00",
+  mythic:    "#f472b6",
+  legendary: "#fbbf24",
+  epic:      "#a855f7",
+  rare:      "#60a5fa",
+  uncommon:  "#4ade80",
   common:    "rgba(255,255,255,0.55)",
   junk:      "rgba(120,120,120,0.6)",
 };
@@ -67,6 +87,20 @@ export default function LootDisplay({ loot, onDismiss }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const shareRef = useRef(null);
 
+  // One player per rarity — useAudioPlayer is a hook, so these all have to be
+  // called unconditionally every render (same rule as any other hook), not
+  // just for whichever rarity actually dropped this time.
+  const junkSound      = useAudioPlayer(LOOT_SOUND_SOURCE.junk);
+  const uncommonSound  = useAudioPlayer(LOOT_SOUND_SOURCE.uncommon);
+  const rareSound      = useAudioPlayer(LOOT_SOUND_SOURCE.rare);
+  const epicSound      = useAudioPlayer(LOOT_SOUND_SOURCE.epic);
+  const legendarySound = useAudioPlayer(LOOT_SOUND_SOURCE.legendary);
+  const mythicSound    = useAudioPlayer(LOOT_SOUND_SOURCE.mythic);
+  const soundByRarity = {
+    junk: junkSound, uncommon: uncommonSound, rare: rareSound,
+    epic: epicSound, legendary: legendarySound, mythic: mythicSound,
+  };
+
   const rarityKey    = loot?.rarity?.toLowerCase() || "common";
   const rarityColor  = RARITY_COLORS[rarityKey] || RARITY_COLORS.common;
   const rarityIcon   = RARITY_ICONS[rarityKey] || RARITY_ICONS.common;
@@ -80,6 +114,13 @@ export default function LootDisplay({ loot, onDismiss }) {
 
   useEffect(() => {
     if (!loot) return;
+
+    const sound = soundByRarity[rarityKey];
+    if (sound) {
+      sound.seekTo(0).catch(() => {});
+      sound.play();
+    }
+
     if (celebration) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       for (let pulse = 0; pulse < celebration.hapticPulses; pulse++) {
@@ -107,7 +148,7 @@ export default function LootDisplay({ loot, onDismiss }) {
           <View ref={shareRef} collapsable={false} style={styles.shareableContent}>
             {celebration && <View style={[styles.glow, { backgroundColor: rarityColor + celebration.glowAlpha }]} />}
             {celebration && celebration.sparkCount > 0 && !reduceMotion && (
-              <SparkBurst color={rarityColor} celebration={celebration} />
+              <SparkBurst color={rarityColor} celebration={celebration} glyph={CREDITS_ICON} />
             )}
 
             <Text style={styles.eyebrow}>DROP RECEIVED</Text>

@@ -59,6 +59,7 @@ pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_challenge_claimed_d
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`).catch(() => {});
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_code TEXT UNIQUE`).catch(() => {});
 
 
 pool.query(`UPDATE inventory SET rarity = 'Junk' WHERE name = 'Quick Start' AND rarity = 'Common'`).catch(() => {});

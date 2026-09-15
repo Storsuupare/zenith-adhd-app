@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, AppState } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
+import { useTasks } from "../context/TaskContext";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { COLORS, SKILL_COLORS } from "../constants/colors";
 import { FONTS } from "../constants/fonts";
@@ -15,6 +16,7 @@ function formatTime(totalSeconds) {
 
 // ── Done state — suspense reveal then collect ────────────────────────────────
 function DoneCard({ contract, onComplete, skillColor }) {
+  const { setLoot } = useTasks();
   const reduceMotion = useReducedMotion();
   // "calculating" → "revealing" (XP counts up) → "ready" (collect appears)
   const [phase,     setPhase]     = useState("calculating");
@@ -68,6 +70,11 @@ function DoneCard({ contract, onComplete, skillColor }) {
     try {
       const result = await onComplete(contract.id);
       setUnlockedAchievements(result?.achievements_unlocked ?? []);
+      // Safe to show immediately here — unlike SessionScreen's DoneOverlay,
+      // this card's own XP reveal already finished before Collect could even
+      // be tapped (its timers start on mount, not on collect), so there's no
+      // in-progress animation for a Modal to interrupt.
+      if (result?.drop?.rarity) setLoot(result.drop);
     } finally { setIsPending(false); }
   };
 

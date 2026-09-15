@@ -8,4 +8,5 @@ struct ZenithSessionAttributes: ActivityAttributes {
 
     var sessionName: String
     var skillName: String
+    var startTime: Date
 }

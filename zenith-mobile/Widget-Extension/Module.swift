@@ -28,8 +28,9 @@ public class ReactNativeWidgetExtensionModule: Module {
 
         Function("startActivity") { (sessionName: String, skillName: String, durationSeconds: Int) -> Void in
             if #available(iOS 16.2, *) {
-                let endTime = Calendar.current.date(byAdding: .second, value: durationSeconds, to: Date())!
-                let attributes = ZenithSessionAttributes(sessionName: sessionName, skillName: skillName)
+                let startTime = Date()
+                let endTime = Calendar.current.date(byAdding: .second, value: durationSeconds, to: startTime)!
+                let attributes = ZenithSessionAttributes(sessionName: sessionName, skillName: skillName, startTime: startTime)
                 let contentState = ZenithSessionAttributes.ContentState(endTime: endTime)
                 let activityContent = ActivityContent(state: contentState, staleDate: endTime)
 

@@ -57,7 +57,6 @@ const COSMETICS_PRICES = {
   neon: 6000, arctic: 6000, solar: 7500,
   nebula: 9000, obsidian: 9000, ember: 10500,
   rain: 600, library: 600, lofi: 900, cyberpunk: 1200,
-  deepspace: null, spacestation: null, deepsea: null,
 };
 
 

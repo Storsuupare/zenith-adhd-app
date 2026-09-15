@@ -1,5 +1,5 @@
 import "react-native-gesture-handler";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import Purchases from "react-native-purchases";
@@ -25,7 +25,6 @@ import AppNavigator from "./src/navigation/AppNavigator";
 import LootDisplay       from "./src/components/LootDisplay";
 import LevelUpModal      from "./src/components/LevelUpModal";
 import PrestigeCinematic from "./src/components/PrestigeCinematic";
-import EarningSummary    from "./src/components/EarningSummary";
 import LoadingScreen     from "./src/components/LoadingScreen";
 import ErrorBoundary     from "./src/components/ErrorBoundary";
 
@@ -45,7 +44,6 @@ const REVENUECAT_KEY   = process.env.EXPO_PUBLIC_REVENUECAT_KEY;
 
 function Overlays() {
   const { loot, setLoot, levelUpData, dismissLevelUp, prestigeData, setPrestigeData } = useTasks();
-  const [earningSummary, setEarningSummary] = useState(null);
 
   return (
     <>
@@ -63,11 +61,6 @@ function Overlays() {
         creditReward={prestigeData?.creditReward}
         redzoneImmunity={prestigeData?.redzoneImmunity}
         onDismiss={() => setPrestigeData(null)}
-      />
-
-      <EarningSummary
-        data={earningSummary}
-        onDismiss={() => setEarningSummary(null)}
       />
     </>
   );

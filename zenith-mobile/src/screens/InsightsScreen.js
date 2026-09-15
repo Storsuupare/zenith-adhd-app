@@ -30,8 +30,29 @@ function chunkIntoWeeks(days) {
 }
 
 function cellOpacity(minutes) {
-  if (minutes <= 0) return 0.08;
-  return Math.min(1, 0.3 + minutes / 120);
+  if (minutes <= 0) return 0.15;
+  return Math.min(1, 0.35 + minutes / 120);
+}
+
+// ELITE-only — the full ranked breakdown behind the PRO-visible "TOP SKILL"
+// tile. Bar width is percent-of-total (not percent-of-max), so two bars'
+// lengths are directly comparable as "share of this month's focus time."
+function SkillBreakdown({ rows, accentColor }) {
+  return (
+    <View style={styles.breakdownList}>
+      {rows.map((row) => (
+        <View key={row.name} style={styles.breakdownRow}>
+          <View style={styles.breakdownHeader}>
+            <Text style={styles.breakdownName} numberOfLines={1}>{row.name}</Text>
+            <Text style={[styles.breakdownPercent, { color: accentColor }]}>{row.percent}%</Text>
+          </View>
+          <View style={styles.breakdownTrack}>
+            <View style={[styles.breakdownFill, { backgroundColor: accentColor, width: `${row.percent}%` }]} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
 }
 
 function HeatmapGrid({ heatmap, accentColor }) {
@@ -59,6 +80,7 @@ export default function InsightsScreen({ navigation }) {
   const { accentColor } = useTheme() || {};
   const activeAccentColor = accentColor || COLORS.accent;
   const isProPlus = (user?.account_tier ?? 0) >= 1;
+  const isElite   = (user?.account_tier ?? 0) >= 2;
 
   const [insights,   setInsights]   = useState(null);
   const [loading,    setLoading]    = useState(true);
@@ -101,9 +123,9 @@ export default function InsightsScreen({ navigation }) {
             style={[styles.upgradeButton, { borderColor: activeAccentColor }]}
             onPress={() => navigation.navigate("Settings")}
             accessibilityRole="button"
-            accessibilityLabel="Go to Settings to upgrade"
+            accessibilityLabel="Upgrade"
           >
-            <Text style={[styles.upgradeButtonText, { color: activeAccentColor }]}>Upgrade in Settings</Text>
+            <Text style={[styles.upgradeButtonText, { color: activeAccentColor }]}>Upgrade</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -154,15 +176,36 @@ export default function InsightsScreen({ navigation }) {
             </Text>
           </View>
           <View style={styles.tile}>
-            <Text style={styles.tileLabel}>TOP SKILL THIS MONTH</Text>
+            <Text style={styles.tileLabel}>TOP SKILL</Text>
             <Text style={[styles.tileValue, { color: activeAccentColor }]} numberOfLines={1}>
               {insights?.top_skill_this_month ?? "—"}
             </Text>
           </View>
         </View>
 
+        {isElite ? (
+          insights?.skill_breakdown?.length > 0 && (
+            <View style={styles.breakdownSection}>
+              <Text style={styles.tileLabel}>SKILL BREAKDOWN</Text>
+              <SkillBreakdown rows={insights.skill_breakdown} accentColor={activeAccentColor} />
+            </View>
+          )
+        ) : (
+          <View style={[styles.eliteTease, { borderColor: activeAccentColor + "33" }]}>
+            <Text style={styles.eliteTeaseText}>
+              See a full ranked breakdown of every skill you've focused on this month
+            </Text>
+            <View style={[styles.eliteTag, { borderColor: activeAccentColor + "55" }]}>
+              <Text style={[styles.eliteTagText, { color: activeAccentColor }]}>ELITE</Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.heatmapSection}>
-          <Text style={styles.heatmapLabel}>ACTIVITY</Text>
+          <Text style={[styles.activeDaysValue, { color: activeAccentColor }]}>
+            {(insights?.heatmap ?? []).filter(day => day.focus_minutes > 0).length}
+          </Text>
+          <Text style={styles.activeDaysLabel}>Days active!</Text>
           <HeatmapGrid heatmap={insights?.heatmap ?? []} accentColor={activeAccentColor} />
         </View>
       </ScrollView>
@@ -193,16 +236,45 @@ const styles = StyleSheet.create({
   },
   tileValue: { fontSize: 18, fontFamily: FONTS.bold },
 
-  heatmapSection: { gap: 10 },
-  heatmapLabel: {
-    color:         "rgba(255,255,255,0.4)",
-    fontSize:      10,
-    fontFamily:    FONTS.monoBold,
-    letterSpacing: 1,
+  breakdownSection: { gap: 10 },
+  breakdownList:    { gap: 12 },
+  breakdownRow:     { gap: 6 },
+  breakdownHeader:  { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  breakdownName:    { color: COLORS.text, fontSize: 13, fontFamily: FONTS.semiBold, flexShrink: 1 },
+  breakdownPercent: { fontSize: 13, fontFamily: FONTS.bold },
+  breakdownTrack: {
+    height:           6,
+    borderRadius:     3,
+    backgroundColor:  "rgba(255,255,255,0.08)",
+    overflow:         "hidden",
   },
-  heatmapRow:    { flexDirection: "row", gap: 3 },
-  heatmapColumn: { gap: 3 },
-  heatmapCell:   { width: 12, height: 12, borderRadius: 3 },
+  breakdownFill: { height: "100%", borderRadius: 3 },
+
+  eliteTease: {
+    flexDirection:    "row",
+    alignItems:       "center",
+    justifyContent:   "space-between",
+    gap:              12,
+    backgroundColor:  SURFACE.card,
+    borderWidth:      1,
+    borderRadius:     RADIUS.medium,
+    padding:          14,
+  },
+  eliteTeaseText: { flex: 1, color: COLORS.textMuted, fontSize: 12, fontFamily: FONTS.regular, lineHeight: 17 },
+  eliteTag: { borderWidth: 1, borderRadius: RADIUS.small, paddingHorizontal: 8, paddingVertical: 3 },
+  eliteTagText: { fontSize: 10, fontFamily: FONTS.monoBold, letterSpacing: 1 },
+
+  heatmapSection:  { alignItems: "center", gap: 4 },
+  activeDaysValue: { fontSize: 40, fontFamily: FONTS.bold },
+  activeDaysLabel: {
+    color:      "rgba(255,255,255,0.4)",
+    fontSize:   12,
+    fontFamily: FONTS.regular,
+    marginBottom: 14,
+  },
+  heatmapRow:    { flexDirection: "row", gap: 4 },
+  heatmapColumn: { gap: 4 },
+  heatmapCell:   { width: 16, height: 16, borderRadius: 4 },
 
   upgradeState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 32 },
   upgradeTitle: { color: COLORS.text, fontSize: 16, fontFamily: FONTS.bold, textAlign: "center" },

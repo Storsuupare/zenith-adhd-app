@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ScrollView, SafeAreaView,
+  StyleSheet, ActivityIndicator, ScrollView, SafeAreaView, Share,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import ScreenHeader from "../components/ScreenHeader";
 import { useTheme } from "../context/ThemeContext";
 import { COLORS } from "../constants/colors";
@@ -11,6 +12,7 @@ import { RADIUS, SPACING, SURFACE } from "../constants/layout";
 import {
   searchUsers, sendFriendRequest, acceptFriendRequest,
   declineFriendRequest, removeFriend, fetchFriends,
+  fetchInviteCode, redeemInviteCode,
 } from "../services/api";
 
 function SectionLabel({ text }) {
@@ -26,7 +28,61 @@ export default function FriendsScreen({ navigation }) {
   const [incoming, setIncoming]   = useState([]);
   const [outgoing, setOutgoing]   = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [inviteCode, setInviteCode]   = useState(null);
+  const [copyLabel, setCopyLabel]     = useState("Copy");
+  const [redeemValue, setRedeemValue] = useState("");
+  const [redeeming, setRedeeming]     = useState(false);
+  const [redeemMessage, setRedeemMessage] = useState(null);
   const debounceRef = useRef(null);
+
+  useEffect(() => {
+    fetchInviteCode()
+      .then(response => setInviteCode(response.data?.code ?? null))
+      .catch(() => {});
+  }, []);
+
+  const handleCopyCode = async () => {
+    if (!inviteCode) return;
+    await Clipboard.setStringAsync(inviteCode);
+    setCopyLabel("Copied!");
+    setTimeout(() => setCopyLabel("Copy"), 2000);
+  };
+
+  const handleShareCode = async () => {
+    if (!inviteCode) return;
+    try {
+      await Share.share({
+        message: `Add me as a friend on Zenith! My invite code is ${inviteCode} — enter it under Friends → Have a code?`,
+      });
+    } catch {}
+  };
+
+  const handleRedeemCode = async () => {
+    const code = redeemValue.trim();
+    if (!code || redeeming) return;
+    setRedeeming(true);
+    setRedeemMessage(null);
+    try {
+      const response = await redeemInviteCode(code);
+      const accepted = response.data?.status === "ACCEPTED";
+      setRedeemMessage({
+        ok: true,
+        text: accepted ? `You and ${response.data.username} are now friends!` : `Friend request sent to ${response.data.username}.`,
+      });
+      setRedeemValue("");
+      loadFriends();
+    } catch (err) {
+      const errorCode = err.response?.data?.error;
+      const text =
+        errorCode === "CODE_NOT_FOUND"        ? "That code doesn't match anyone." :
+        errorCode === "CANNOT_FRIEND_SELF"    ? "That's your own code." :
+        errorCode === "REQUEST_ALREADY_EXISTS" ? "You've already sent them a request." :
+        "Couldn't redeem that code — try again.";
+      setRedeemMessage({ ok: false, text });
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   const loadFriends = useCallback(() => {
     return fetchFriends()
@@ -100,6 +156,62 @@ export default function FriendsScreen({ navigation }) {
       <ScreenHeader title="Friends" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <SectionLabel text="Your invite code" />
+        <View style={styles.inviteCard}>
+          <Text style={styles.inviteCode}>{inviteCode ?? "…"}</Text>
+          <View style={styles.inviteActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: accentColor }]}
+              onPress={handleCopyCode}
+              accessibilityRole="button"
+              accessibilityLabel="Copy invite code"
+            >
+              <Text style={[styles.actionButtonText, { color: accentColor }]}>{copyLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: accentColor }]}
+              onPress={handleShareCode}
+              accessibilityRole="button"
+              accessibilityLabel="Share invite code"
+            >
+              <Text style={[styles.actionButtonText, { color: accentColor }]}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Text style={styles.inviteHint}>Send this to a friend — no need to remember their username.</Text>
+
+        <SectionLabel text="Have a code?" />
+        <View style={styles.redeemRow}>
+          <TextInput
+            style={[styles.input, styles.redeemInput]}
+            placeholder="Enter a friend's code"
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            value={redeemValue}
+            onChangeText={setRedeemValue}
+            autoCorrect={false}
+            autoCapitalize="characters"
+            returnKeyType="done"
+            onSubmitEditing={handleRedeemCode}
+          />
+          <TouchableOpacity
+            style={[styles.actionButton, { borderColor: accentColor }, redeeming && { opacity: 0.5 }]}
+            onPress={handleRedeemCode}
+            disabled={redeeming}
+            accessibilityRole="button"
+            accessibilityLabel="Redeem code"
+          >
+            {redeeming
+              ? <ActivityIndicator color={accentColor} size="small" />
+              : <Text style={[styles.actionButtonText, { color: accentColor }]}>Add</Text>}
+          </TouchableOpacity>
+        </View>
+        {redeemMessage && (
+          <Text style={[styles.redeemMessage, { color: redeemMessage.ok ? COLORS.green : COLORS.red }]}>
+            {redeemMessage.text}
+          </Text>
+        )}
+
+        <SectionLabel text="Or search by username" />
         <TextInput
           style={styles.input}
           placeholder="Search by username"
@@ -244,6 +356,35 @@ const styles = StyleSheet.create({
     fontFamily:        FONTS.semiBold,
   },
   spinner: { marginVertical: 12 },
+
+  inviteCard: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    backgroundColor:   SURFACE.card,
+    borderWidth:       1,
+    borderColor:       SURFACE.cardBorder,
+    borderRadius:      RADIUS.medium,
+    paddingHorizontal: 16,
+    paddingVertical:   14,
+  },
+  inviteCode: {
+    color:         COLORS.text,
+    fontSize:      20,
+    fontFamily:    FONTS.bold,
+    letterSpacing: 3,
+  },
+  inviteActions: { flexDirection: "row", gap: 8 },
+  inviteHint: {
+    color:      "rgba(255,255,255,0.3)",
+    fontSize:   11,
+    fontFamily: FONTS.regular,
+    marginTop:  -2,
+  },
+
+  redeemRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  redeemInput: { flex: 1 },
+  redeemMessage: { fontSize: 12, fontFamily: FONTS.regular, marginTop: -2 },
 
   sectionLabel: {
     color:         COLORS.textMuted,

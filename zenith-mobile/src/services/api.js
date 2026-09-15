@@ -72,6 +72,8 @@ export const declineFriendRequest  = (id)        => api.post(`/api/friends/${id}
 export const removeFriend          = (id)        => api.delete(`/api/friends/${id}`);
 export const fetchFriends          = ()          => api.get("/api/friends");
 export const fetchWeeklyLeaderboard = ()         => api.get("/api/leaderboard/weekly");
+export const fetchInviteCode        = ()         => api.get("/api/friends/invite-code");
+export const redeemInviteCode       = (code)     => api.post("/api/friends/redeem-invite", { code });
 export const acknowledgeLeaderboardWin = ()      => api.post("/api/leaderboard/acknowledge-win");
 
 // ── Error reporting ───────────────────────────────────────────────────────────

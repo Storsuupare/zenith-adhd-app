@@ -206,10 +206,6 @@ export default function ArchivesScreen({ navigation }) {
 
   const skills        = user?.mastery ?? [];
   const lifetimeXP    = user?.total_xp ?? 0;
-  const currentStreak = user?.streak ?? 0;
-  const averageLevel  = skills.length
-    ? Math.round(skills.reduce((total, skill) => total + (skill.current_level ?? 0), 0) / skills.length)
-    : 0;
   const prestigeCount = skills.reduce((total, skill) => total + (skill.prestige_level ?? 0), 0);
 
   const windowMinutes = sessions.reduce((total, session) => total + (Number(session.minutes) || 0), 0);
@@ -221,13 +217,6 @@ export default function ArchivesScreen({ navigation }) {
   );
   const activeDayCount   = activeDayKeys.size;
   const minutesPerActive = activeDayCount > 0 ? Math.round(windowMinutes / activeDayCount) : 0;
-
-  const sessionsBySkill = {};
-  sessions.forEach(session => {
-    const skillName = session.skill_name || "";
-    if (skillName) sessionsBySkill[skillName] = (sessionsBySkill[skillName] || 0) + 1;
-  });
-  const topSkill = Object.entries(sessionsBySkill).sort((first, second) => second[1] - first[1])[0]?.[0];
 
   const weeklyActivity = buildWeeklyActivity(sessions);
   const sessionGroups  = groupSessionsByDay(sessions);
@@ -278,28 +267,13 @@ export default function ArchivesScreen({ navigation }) {
           <StatGrid
             accentColor={accentColor}
             tiles={[
-              { label: "Sessions",        value: String(sessions.length) },
-              { label: "Time focused",    value: `${windowHours}h` },
-              { label: "Active days",     value: String(activeDayCount) },
+              { label: "Sessions",         value: String(sessions.length) },
+              { label: "Time focused",     value: `${windowHours}h` },
               { label: "Avg / active day", value: `${minutesPerActive}m` },
+              { label: "Lifetime XP",      value: lifetimeXP.toLocaleString() },
             ]}
           />
         )}
-
-        <SectionLabel text="All time" />
-        <StatGrid
-          accentColor={accentColor}
-          tiles={[
-            { label: "Lifetime XP",     value: lifetimeXP.toLocaleString() },
-            { label: "Avg skill level", value: `Lv ${averageLevel}` },
-            { label: "Current streak",  value: `${currentStreak}d` },
-            {
-              label: "Top skill",
-              value: topSkill ?? "—",
-              color: topSkill ? SKILL_COLORS[topSkill.toUpperCase()] : undefined,
-            },
-          ]}
-        />
         {prestigeCount > 0 && (
           <Text style={styles.prestigeNote}>
             {prestigeCount} prestige{prestigeCount === 1 ? "" : "s"} earned across your skills.

@@ -3,6 +3,7 @@ const pool = require("../lib/db.js");
 const { requireAuth } = require("../lib/auth.js");
 const { mutationLimiter, searchLimiter } = require("../lib/rateLimiters.js");
 const { isReservedUsername, isValidUsernameFormat } = require("../lib/validation.js");
+const { generateInviteCode } = require("../lib/inviteCode.js");
 
 const router = express.Router();
 
@@ -125,6 +126,98 @@ router.post("/api/friends/request", requireAuth, mutationLimiter, async (req, re
     res.status(201).json(insertRes.rows[0]);
   } catch (err) {
     console.error("FRIEND_REQUEST_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Invite codes — an alternative to username search for adding a friend ──
+// A short per-user code, generated once and reused after that (not
+// regenerated on every request), meant to be shared outside the app — a
+// text message, any share sheet — and redeemed by whoever receives it, so
+// neither side has to know or correctly recall the other's exact username.
+router.get("/api/friends/invite-code", requireAuth, async (req, res) => {
+  const externalId = req.auth.userId;
+  try {
+    const userRes = await pool.query(
+      "SELECT id, invite_code FROM users WHERE external_id = $1",
+      [externalId],
+    );
+    if (!userRes.rows.length) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    const { id: userId, invite_code: existingCode } = userRes.rows[0];
+
+    if (existingCode) return res.json({ code: existingCode });
+
+    // Codes are unique (invite_code has a UNIQUE constraint), so a collision
+    // is possible but rare — retry with a fresh code rather than trusting
+    // randomness alone, same defensive pattern as any generated-id scheme.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateInviteCode();
+      try {
+        await pool.query("UPDATE users SET invite_code = $1 WHERE id = $2", [candidate, userId]);
+        return res.json({ code: candidate });
+      } catch (err) {
+        if (err.code !== "23505") throw err; // not a unique-violation — a real error, don't swallow it
+        // collision on this candidate — loop and try another
+      }
+    }
+    throw new Error("Could not generate a unique invite code after 5 attempts");
+  } catch (err) {
+    console.error("INVITE_CODE_ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/api/friends/redeem-invite", requireAuth, mutationLimiter, async (req, res) => {
+  const { code } = req.body;
+  const externalId = req.auth.userId;
+
+  if (!code || typeof code !== "string") {
+    return res.status(400).json({ error: "INVALID_CODE" });
+  }
+
+  try {
+    const selfRes = await pool.query("SELECT id FROM users WHERE external_id = $1", [externalId]);
+    if (!selfRes.rows.length) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    const selfId = selfRes.rows[0].id;
+
+    const ownerRes = await pool.query(
+      "SELECT id, username FROM users WHERE invite_code = $1",
+      [code.trim().toUpperCase()],
+    );
+    if (!ownerRes.rows.length) return res.status(404).json({ error: "CODE_NOT_FOUND" });
+    const ownerId = ownerRes.rows[0].id;
+
+    if (String(ownerId) === String(selfId)) {
+      return res.status(400).json({ error: "CANNOT_FRIEND_SELF" });
+    }
+
+    // Same reverse-pending auto-accept as /api/friends/request — if the
+    // code's owner already sent *you* a pending request, redeeming their
+    // code completes it instead of creating a second parallel row.
+    const reverseRes = await pool.query(
+      `UPDATE friendships SET status = 'ACCEPTED'
+       WHERE requester_id = $1 AND addressee_id = $2 AND status = 'PENDING'
+       RETURNING id, status`,
+      [ownerId, selfId],
+    );
+    if (reverseRes.rows.length > 0) {
+      return res.json({ ...reverseRes.rows[0], username: ownerRes.rows[0].username });
+    }
+
+    const insertRes = await pool.query(
+      `INSERT INTO friendships (requester_id, addressee_id, status)
+       VALUES ($1, $2, 'PENDING')
+       ON CONFLICT (requester_id, addressee_id) DO NOTHING
+       RETURNING id, status`,
+      [selfId, ownerId],
+    );
+    if (insertRes.rows.length === 0) {
+      return res.status(409).json({ error: "REQUEST_ALREADY_EXISTS" });
+    }
+
+    res.status(201).json({ ...insertRes.rows[0], username: ownerRes.rows[0].username });
+  } catch (err) {
+    console.error("REDEEM_INVITE_ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

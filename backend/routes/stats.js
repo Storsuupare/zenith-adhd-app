@@ -146,7 +146,13 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "UPGRADE_REQUIRED", message: "Insights requires PRO or ELITE." });
     }
 
-    const [summaryRes, heatmapRes] = await Promise.all([
+    // ELITE sees the full ranked breakdown behind top_skill_this_month; PRO
+    // only sees the #1 entry. Same month window as that stat, so the
+    // breakdown reads as "here's the whole ranking behind that one number,"
+    // not a different, disconnected stat.
+    const isElite = accountTier >= 2;
+
+    const [summaryRes, heatmapRes, skillBreakdownRes] = await Promise.all([
       pool.query(
         `SELECT
            (SELECT EXTRACT(HOUR FROM completed_at AT TIME ZONE $2)::int AS hour
@@ -178,12 +184,28 @@ router.get("/api/stats/insights", requireAuth, async (req, res) => {
          ORDER BY date_series.day ASC`,
         [userId],
       ),
+      isElite
+        ? pool.query(
+            `SELECT
+               skills.name                                                                          AS name,
+               SUM(tasks.credited_minutes)::int                                                      AS minutes,
+               ROUND(100.0 * SUM(tasks.credited_minutes) / SUM(SUM(tasks.credited_minutes)) OVER (), 1)::float AS percent
+             FROM tasks
+             JOIN skills ON skills.id = tasks.skill_id
+             WHERE tasks.user_id::text = $1::text AND tasks.status = 'SUCCESS'
+               AND tasks.completed_at >= date_trunc('month', NOW())
+             GROUP BY skills.name
+             ORDER BY minutes DESC`,
+            [String(userId)],
+          )
+        : Promise.resolve({ rows: [] }),
     ]);
 
     res.json({
       best_hour:            summaryRes.rows[0]?.best_hour ?? null,
       top_skill_this_month: summaryRes.rows[0]?.top_skill_this_month ?? null,
       heatmap:              heatmapRes.rows,
+      skill_breakdown:      isElite ? skillBreakdownRes.rows : null,
     });
   } catch (err) {
     console.error("INSIGHTS_ERROR:", err.message);
